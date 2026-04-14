@@ -32,9 +32,9 @@ include_directories( BEFORE ${INC_BEFORE} )
 include_directories(
     ${CMAKE_SOURCE_DIR}/common
     ${CMAKE_SOURCE_DIR}/common/dialogs
-    ${CMAKE_SOURCE_DIR}/libs/sexpr/include
     ${INC_AFTER}
     ./dialogs
+    ${CMAKE_SOURCE_DIR}/kicad/pcm
     ./libview
     ./symbol_editor
     ./tools
@@ -64,6 +64,9 @@ set( EESCHEMA_SCH_IO
     # Database IO plugin
     sch_io/database/sch_io_database.cpp
 
+    # gEDA IO plugin
+    sch_io/geda/sch_io_geda.cpp
+
     # Eagle IO plugin
     sch_io/eagle/sch_io_eagle.cpp
 
@@ -88,6 +91,12 @@ set( EESCHEMA_SCH_IO
     # EasyEDA Pro IO plugin
     sch_io/easyedapro/sch_easyedapro_parser.cpp
     sch_io/easyedapro/sch_io_easyedapro.cpp
+
+    # PADS Logic IO plugin
+    sch_io/pads/sch_io_pads.cpp
+    sch_io/pads/pads_sch_parser.cpp
+    sch_io/pads/pads_sch_symbol_builder.cpp
+    sch_io/pads/pads_sch_schematic_builder.cpp
     )
 
 set( EESCHEMA_DLGS
@@ -99,8 +108,6 @@ set( EESCHEMA_DLGS
     dialogs/dialog_change_symbols_base.cpp
     dialogs/dialog_database_lib_settings_base.cpp
     dialogs/dialog_database_lib_settings.cpp
-    dialogs/dialog_design_block_properties_base.cpp
-    dialogs/dialog_design_block_properties.cpp
     dialogs/dialog_edit_symbols_libid.cpp
     dialogs/dialog_edit_symbols_libid_base.cpp
     dialogs/dialog_eeschema_page_settings.cpp
@@ -112,18 +119,21 @@ set( EESCHEMA_DLGS
     dialogs/dialog_field_properties_base.cpp
     dialogs/dialog_global_edit_text_and_graphics.cpp
     dialogs/dialog_global_edit_text_and_graphics_base.cpp
-    dialogs/dialog_global_sym_lib_table_config.cpp
     dialogs/dialog_ibis_parser_reporter.cpp
     dialogs/dialog_ibis_parser_reporter_base.cpp
     dialogs/dialog_image_properties.cpp
     dialogs/dialog_image_properties_base.cpp
     dialogs/dialog_increment_annotations_base.cpp
+    dialogs/dialog_import_symbol_select.cpp
+    dialogs/dialog_import_symbol_select_base.cpp
     dialogs/dialog_junction_props.cpp
     dialogs/dialog_junction_props_base.cpp
     dialogs/dialog_label_properties.cpp
     dialogs/dialog_label_properties_base.cpp
     dialogs/dialog_lib_edit_pin_table.cpp
     dialogs/dialog_lib_edit_pin_table_base.cpp
+    dialogs/dialog_lib_fields_table_base.cpp
+    dialogs/dialog_lib_fields_table.cpp
     dialogs/dialog_lib_new_symbol.cpp
     dialogs/dialog_lib_new_symbol_base.cpp
     dialogs/dialog_lib_symbol_properties.cpp
@@ -136,13 +146,14 @@ set( EESCHEMA_DLGS
     dialogs/dialog_pin_properties_base.cpp
     dialogs/dialog_plot_schematic.cpp
     dialogs/dialog_plot_schematic_base.cpp
+    dialogs/dialog_remote_symbol_config.cpp
     dialogs/dialog_erc_job_config.cpp
     dialogs/dialog_rescue_each.cpp
     dialogs/dialog_rescue_each_base.cpp
     dialogs/dialog_sch_import_settings.cpp
     dialogs/dialog_sch_import_settings_base.cpp
-    dialogs/dialog_schematic_find.cpp
-    dialogs/dialog_schematic_find_base.cpp
+    dialogs/dialog_sch_find.cpp
+    dialogs/dialog_sch_find_base.cpp
     dialogs/dialog_schematic_setup.cpp
     dialogs/dialog_shape_properties.cpp
     dialogs/dialog_shape_properties_base.cpp
@@ -169,6 +180,9 @@ set( EESCHEMA_DLGS
     dialogs/dialog_update_symbol_fields_base.cpp
     dialogs/dialog_wire_bus_properties.cpp
     dialogs/dialog_wire_bus_properties_base.cpp
+    remote_symbol_download_manager.cpp
+    remote_symbol_import_job.cpp
+    remote_symbol_import_utils.cpp
     dialogs/panel_bom_presets.cpp
     dialogs/panel_bom_presets_base.cpp
     dialogs/panel_eeschema_color_settings.cpp
@@ -186,6 +200,7 @@ set( EESCHEMA_DLGS
     dialogs/panel_setup_pinmap_base.cpp
     dialogs/panel_simulator_preferences.cpp
     dialogs/panel_simulator_preferences_base.cpp
+    dialogs/panel_sch_data_sources.cpp
     dialogs/panel_sym_color_settings.cpp
     dialogs/panel_sym_color_settings_base.cpp
     dialogs/panel_sym_display_options.cpp
@@ -278,16 +293,16 @@ set( EESCHEMA_SIM_SRCS
     )
 
 set( EESCHEMA_WIDGETS
-    widgets/design_block_pane.cpp
-    widgets/design_block_preview_widget.cpp
     widgets/hierarchy_pane.cpp
-    widgets/panel_design_block_chooser.cpp
     widgets/panel_sch_selection_filter_base.cpp
     widgets/panel_sch_selection_filter.cpp
     widgets/panel_symbol_chooser.cpp
-    widgets/pin_shape_combobox.cpp
-    widgets/pin_type_combobox.cpp
+    widgets/panel_remote_symbol.cpp
+    widgets/pinshape_combobox.cpp
+    widgets/pintype_combobox.cpp
     widgets/symbol_diff_widget.cpp
+    widgets/sch_design_block_pane.cpp
+    widgets/sch_design_block_preview_widget.cpp
     widgets/sch_properties_panel.cpp
     widgets/sch_search_pane.cpp
     widgets/search_handlers.cpp
@@ -357,8 +372,7 @@ set( EESCHEMA_SRCS
     bus-wire-junction.cpp
     connection_graph.cpp
     cross-probing.cpp
-    design_block_tree_model_adapter.cpp
-    design_block_utils.cpp
+    sch_design_block_utils.cpp
     eeschema_config.cpp
     eeschema_helpers.cpp
     eeschema_jobs_handler.cpp
@@ -369,16 +383,16 @@ set( EESCHEMA_SRCS
     generate_alias_info.cpp
     gfx_import_utils.cpp
     junction_helpers.cpp
+    lib_fields_data_model.cpp
     lib_symbol.cpp
-    libarch.cpp
     menubar.cpp
     net_navigator.cpp
     picksymbol.cpp
     pin_layout_cache.cpp
-    pin_numbers.cpp
     pin_type.cpp
     project_sch.cpp
     project_rescue.cpp
+    refdes_tracker.cpp
     sch_base_frame.cpp
     sch_bitmap.cpp
     sch_bus_entry.cpp
@@ -388,7 +402,9 @@ set( EESCHEMA_SRCS
     sch_draw_panel.cpp
     sch_edit_frame.cpp
     sch_field.cpp
+    sch_group.cpp
     sch_item.cpp
+    sch_item_alignment.cpp
     sch_junction.cpp
     sch_label.cpp
     sch_line.cpp
@@ -418,11 +434,10 @@ set( EESCHEMA_SRCS
     schematic_undo_redo.cpp
     sheet.cpp
     symbol.cpp
-    symbol_async_loader.cpp
     symbol_checker.cpp
     symbol_chooser_frame.cpp
-    symbol_lib_table.cpp
-    symbol_library.cpp
+    symbol_import_manager.cpp
+
     symbol_library_manager.cpp
     symbol_tree_model_adapter.cpp
     symbol_tree_synchronizing_adapter.cpp
@@ -432,6 +447,9 @@ set( EESCHEMA_SRCS
     toolbars_symbol_viewer.cpp
 
     api/api_sch_utils.cpp
+
+    libraries/legacy_symbol_library.cpp
+    libraries/symbol_library_adapter.cpp
 
     netlist_exporters/netlist_exporter_allegro.cpp
     netlist_exporters/netlist_exporter_base.cpp
@@ -446,6 +464,7 @@ set( EESCHEMA_SRCS
 
     tools/assign_footprints.cpp
     tools/backannotate.cpp
+    tools/sch_align_tool.cpp
     tools/ee_grid_helper.cpp
     tools/rule_area_create_helper.cpp
     tools/sch_actions.cpp
@@ -456,8 +475,10 @@ set( EESCHEMA_SRCS
     tools/sch_editor_control.cpp
     tools/sch_editor_conditions.cpp
     tools/sch_find_replace_tool.cpp
+    tools/sch_group_tool.cpp
     tools/sch_inspection_tool.cpp
     tools/sch_line_wire_bus_tool.cpp
+    tools/sch_drag_net_collision.cpp
     tools/sch_move_tool.cpp
     tools/sch_navigate_tool.cpp
     tools/sch_point_editor.cpp
@@ -565,6 +586,7 @@ set_source_files_properties( ${CMAKE_SOURCE_DIR}/common/single_top.cpp PROPERTIE
 
 target_link_libraries( eeschema
     kicommon
+    pcm
     ${wxWidgets_LIBRARIES}
     )
 
@@ -575,6 +597,22 @@ add_library( eeschema_kiface_objects OBJECT
     ${EESCHEMA_COMMON_SRCS}
     )
 
+if( KICAD_USE_PCH )
+    target_precompile_headers( eeschema_kiface_objects
+        PRIVATE
+            <vector>
+            <map>
+            <memory>
+            <unordered_map>
+            <core/json_serializers.h>
+            <sch_edit_frame.h>
+            <schematic.h>
+            <sim/sim_model.h>
+            <string_utils.h>
+            <pgm_base.h>
+            <wx/wx.h> )
+endif()
+
 target_include_directories( eeschema_kiface_objects
     PUBLIC
         .
@@ -583,7 +621,9 @@ target_include_directories( eeschema_kiface_objects
 
 target_link_libraries( eeschema_kiface_objects
     PUBLIC
-        common )
+        common
+        pads_common
+        pcm )
 
 # Since we're not using target_link_libraries, we need to explicitly
 # declare the dependency
@@ -604,9 +644,10 @@ target_link_libraries( eeschema_kiface
     PRIVATE
         common
         eeschema_kiface_objects
+        pads_common
+        pcm
         markdown_lib
         scripting
-        sexpr
         core
         Boost::headers
         ${wxWidgets_LIBRARIES}

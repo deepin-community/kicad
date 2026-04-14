@@ -22,7 +22,7 @@
 #include <eda_item.h>
 #include <bitmaps.h>
 #include <class_draw_panel_gal.h>
-#include <dialogs/dialog_layers_select_to_pcb.h>
+#include <dialogs/dialog_map_gerber_layers_to_pcb.h>
 #include <gestfich.h>
 #include <gerber_file_image.h>
 #include <gerbview_id.h>
@@ -68,7 +68,6 @@ void GERBVIEW_INSPECTION_TOOL::Reset( RESET_REASON aReason )
 
 int GERBVIEW_INSPECTION_TOOL::ShowDCodes( const TOOL_EVENT& aEvent )
 {
-    int             ii, jj;
     wxString        Line;
     wxArrayString   list;
     int             curr_layer = m_frame->GetActiveLayer();
@@ -114,18 +113,17 @@ int GERBVIEW_INSPECTION_TOOL::ShowDCodes( const TOOL_EVENT& aEvent )
 
         list.Add( Line );
 
-        for( ii = 0, jj = 1; ii < TOOLS_MAX_COUNT; ii++ )
+        int ii = 1;
+        for( const auto &[_, pt_D_code] : gerber->m_ApertureList )
         {
-            D_CODE* pt_D_code = gerber->GetDCODE( ii + FIRST_DCODE );
-
             if( pt_D_code == nullptr )
                 continue;
 
             if( !pt_D_code->m_InUse && !pt_D_code->m_Defined )
                 continue;
 
-            Line.Printf( wxT( "tool %2.2d:   D%2.2d   V %.4f %s  H %.4f %s   %s  attribute '%s'" ),
-                         jj,
+            Line.Printf( wxT( "tool %d:   Dcode D%d   V %.4f %s  H %.4f %s   %s  attribute '%s'" ),
+                         ii,
                          pt_D_code->m_Num_Dcode,
                          pt_D_code->m_Size.y / scale, units,
                          pt_D_code->m_Size.x / scale, units,
@@ -140,7 +138,7 @@ int GERBVIEW_INSPECTION_TOOL::ShowDCodes( const TOOL_EVENT& aEvent )
                 Line += wxT( " (in use)" );
 
             list.Add( Line );
-            jj++;
+            ii++;
         }
     }
 
@@ -288,7 +286,8 @@ int GERBVIEW_INSPECTION_TOOL::MeasureTool( const TOOL_EVENT& aEvent )
         else if( originSet && ( evt->IsMotion() || evt->IsDrag( BUT_LEFT ) ) )
         {
             // move or drag when origin set updates rules
-            twoPtMgr.SetAngleSnap( evt->Modifier( MD_SHIFT ) );
+            twoPtMgr.SetAngleSnap( evt->Modifier( MD_SHIFT ) ? LEADER_MODE::DEG45
+                                                             : LEADER_MODE::DIRECT );
             twoPtMgr.SetEnd( cursorPos );
 
             getView()->SetVisible( &ruler, true );

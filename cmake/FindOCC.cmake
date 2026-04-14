@@ -48,9 +48,7 @@ set( OCC_LIBS_COMMON
     TKLCAF
     TKMath
     TKMesh
-    TKMeshVS
     TKOffset
-    TKOpenGl
     TKPrim
     TKRWMesh
     TKService
@@ -138,6 +136,7 @@ else(WIN32)
     HINTS
     ${OCC_LIBRARY_DIR}
     /usr
+    /usr/opencascade
     /usr/local
     /usr/local/opencascade
     /opt/opencascade

@@ -64,18 +64,20 @@ void COMMON_TOOLS::Reset( RESET_REASON aReason )
     if( aReason == RESET_REASON::SHUTDOWN )
         return;
 
-    GRID_SETTINGS& settings = m_toolMgr->GetSettings()->m_Window.grid;
+    GRID_SETTINGS& settings = m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid;
+
+    // Protect against misconfigured settings with no grids
+    if( settings.grids.empty() )
+        settings.grids = m_frame->config()->DefaultGridSizeList();
+
     EDA_IU_SCALE   scale = m_frame->GetIuScale();
 
     for( GRID& gridDef : settings.grids )
     {
-        double gridSizeX = EDA_UNIT_UTILS::UI::DoubleValueFromString( scale, EDA_UNITS::MM,
-                                                                      gridDef.x );
-        double gridSizeY = EDA_UNIT_UTILS::UI::DoubleValueFromString( scale, EDA_UNITS::MM,
-                                                                      gridDef.y );
+        double gridSizeX = EDA_UNIT_UTILS::UI::DoubleValueFromString( scale, EDA_UNITS::MM, gridDef.x );
+        double gridSizeY = EDA_UNIT_UTILS::UI::DoubleValueFromString( scale, EDA_UNITS::MM, gridDef.y );
 
-        m_grids.emplace_back( KiROUND<double, int>( gridSizeX ),
-                              KiROUND<double, int>( gridSizeY ) );
+        m_grids.emplace_back( KiROUND<double, int>( gridSizeX ), KiROUND<double, int>( gridSizeY ) );
     }
 
     OnGridChanged( false );
@@ -251,7 +253,7 @@ int COMMON_TOOLS::doZoomInOut( bool aDirection, bool aCenterOnCursor )
         zoom /= 1.3;
 
     // Now look for the next closest menu step
-    std::vector<double>& zoomList = m_toolMgr->GetSettings()->m_Window.zoom_factors;
+    std::vector<double>& zoomList = m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->zoom_factors;
     int idx;
 
     if( aDirection )
@@ -458,7 +460,7 @@ int COMMON_TOOLS::ZoomPreset( const TOOL_EVENT& aEvent )
 // Note: idx == 0 is Auto; idx == 1 is first entry in zoomList
 int COMMON_TOOLS::doZoomToPreset( int idx, bool aCenterOnCursor )
 {
-    std::vector<double>& zoomList = m_toolMgr->GetSettings()->m_Window.zoom_factors;
+    std::vector<double>& zoomList = m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->zoom_factors;
 
     if( idx == 0 )      // Zoom Auto
     {
@@ -492,7 +494,7 @@ int COMMON_TOOLS::doZoomToPreset( int idx, bool aCenterOnCursor )
 
 int COMMON_TOOLS::GridNext( const TOOL_EVENT& aEvent )
 {
-    int& currentGrid = m_toolMgr->GetSettings()->m_Window.grid.last_size_idx;
+    int& currentGrid = m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.last_size_idx;
 
     currentGrid++;
 
@@ -505,7 +507,7 @@ int COMMON_TOOLS::GridNext( const TOOL_EVENT& aEvent )
 
 int COMMON_TOOLS::GridPrev( const TOOL_EVENT& aEvent )
 {
-    int& currentGrid = m_toolMgr->GetSettings()->m_Window.grid.last_size_idx;
+    int& currentGrid = m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.last_size_idx;
 
     currentGrid--;
 
@@ -524,7 +526,7 @@ int COMMON_TOOLS::GridPreset( const TOOL_EVENT& aEvent )
 
 int COMMON_TOOLS::GridPreset( int idx, bool aFromHotkey )
 {
-    int& currentGrid = m_toolMgr->GetSettings()->m_Window.grid.last_size_idx;
+    int& currentGrid = m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.last_size_idx;
 
     currentGrid = std::clamp( idx, 0, (int) m_grids.size() - 1 );
 
@@ -534,7 +536,7 @@ int COMMON_TOOLS::GridPreset( int idx, bool aFromHotkey )
 
 int COMMON_TOOLS::OnGridChanged( bool aFromHotkey )
 {
-    int& currentGrid = m_toolMgr->GetSettings()->m_Window.grid.last_size_idx;
+    int& currentGrid = m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.last_size_idx;
 
     currentGrid = std::max( 0, std::min( currentGrid, static_cast<int>( m_grids.size() ) - 1 ) );
 
@@ -544,7 +546,7 @@ int COMMON_TOOLS::OnGridChanged( bool aFromHotkey )
 
     // Update GAL canvas from screen
     getView()->GetGAL()->SetGridSize( m_grids[ currentGrid ] );
-    getView()->GetGAL()->SetGridVisibility( m_toolMgr->GetSettings()->m_Window.grid.show );
+    getView()->GetGAL()->SetGridVisibility( m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.show );
     getView()->MarkTargetDirty( KIGFX::TARGET_NONCACHED );
 
     // Put cursor on new grid
@@ -561,25 +563,25 @@ int COMMON_TOOLS::OnGridChanged( bool aFromHotkey )
 
 int COMMON_TOOLS::GridFast1( const TOOL_EVENT& aEvent )
 {
-    return GridPreset( m_frame->config()->m_Window.grid.fast_grid_1, true );
+    return GridPreset( m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.fast_grid_1, true );
 }
 
 
 int COMMON_TOOLS::GridFast2( const TOOL_EVENT& aEvent )
 {
-    return GridPreset( m_frame->config()->m_Window.grid.fast_grid_2, true );
+    return GridPreset( m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.fast_grid_2, true );
 }
 
 
 int COMMON_TOOLS::GridFastCycle( const TOOL_EVENT& aEvent )
 {
-    if( m_toolMgr->GetSettings()->m_Window.grid.last_size_idx
-        == m_frame->config()->m_Window.grid.fast_grid_1 )
+    if( m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.last_size_idx
+        == m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.fast_grid_1 )
     {
-        return GridPreset( m_frame->config()->m_Window.grid.fast_grid_2, true );
+        return GridPreset( m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.fast_grid_2, true );
     }
 
-    return GridPreset( m_frame->config()->m_Window.grid.fast_grid_1, true );
+    return GridPreset( m_frame->GetWindowSettings( m_toolMgr->GetSettings() )->grid.fast_grid_1, true );
 }
 
 
@@ -615,6 +617,7 @@ int COMMON_TOOLS::GridProperties( const TOOL_EVENT& aEvent )
     case FRAME_SCH_SYMBOL_EDITOR: showGridPrefs( _( "Symbol Editor" ) );        break;
     case FRAME_PCB_EDITOR:        showGridPrefs( _( "PCB Editor" ) );           break;
     case FRAME_FOOTPRINT_EDITOR:  showGridPrefs( _( "Footprint Editor" ) );     break;
+    case FRAME_FOOTPRINT_VIEWER:  showGridPrefs( _( "Footprint Browser" ) );    break;
     case FRAME_PL_EDITOR:         showGridPrefs( _( "Drawing Sheet Editor" ) ); break;
     case FRAME_GERBER:            showGridPrefs( _( "Gerber Viewer" ) );        break;
     default:                      wxFAIL_MSG( "Unknown frame: " + GetName() );  break;
@@ -701,19 +704,43 @@ int COMMON_TOOLS::ToggleCursor( const TOOL_EVENT& aEvent )
     auto& galOpts = m_frame->GetGalDisplayOptions();
 
     galOpts.m_forceDisplayCursor = !galOpts.m_forceDisplayCursor;
-    galOpts.WriteConfig( m_toolMgr->GetSettings()->m_Window );
+    galOpts.WriteConfig( *m_frame->GetWindowSettings( m_toolMgr->GetSettings() ) );
     galOpts.NotifyChanged();
 
     return 0;
 }
 
 
-int COMMON_TOOLS::ToggleCursorStyle( const TOOL_EVENT& aEvent )
+int COMMON_TOOLS::CursorSmallCrosshairs( const TOOL_EVENT& aEvent )
 {
     GAL_DISPLAY_OPTIONS_IMPL& galOpts = m_frame->GetGalDisplayOptions();
 
-    galOpts.m_fullscreenCursor = !galOpts.m_fullscreenCursor;
-    galOpts.WriteConfig( m_toolMgr->GetSettings()->m_Window );
+    galOpts.SetCursorMode( KIGFX::CROSS_HAIR_MODE::SMALL_CROSS );
+    galOpts.WriteConfig( *m_frame->GetWindowSettings( m_toolMgr->GetSettings() ) );
+    galOpts.NotifyChanged();
+
+    return 0;
+}
+
+
+int COMMON_TOOLS::CursorFullCrosshairs( const TOOL_EVENT& aEvent )
+{
+    GAL_DISPLAY_OPTIONS_IMPL& galOpts = m_frame->GetGalDisplayOptions();
+
+    galOpts.SetCursorMode( KIGFX::CROSS_HAIR_MODE::FULLSCREEN_CROSS );
+    galOpts.WriteConfig( *m_frame->GetWindowSettings( m_toolMgr->GetSettings() ) );
+    galOpts.NotifyChanged();
+
+    return 0;
+}
+
+
+int COMMON_TOOLS::Cursor45Crosshairs( const TOOL_EVENT& aEvent )
+{
+    GAL_DISPLAY_OPTIONS_IMPL& galOpts = m_frame->GetGalDisplayOptions();
+
+    galOpts.SetCursorMode( KIGFX::CROSS_HAIR_MODE::FULLSCREEN_DIAGONAL );
+    galOpts.WriteConfig( *m_frame->GetWindowSettings( m_toolMgr->GetSettings() ) );
     galOpts.NotifyChanged();
 
     return 0;
@@ -798,8 +825,8 @@ void COMMON_TOOLS::setTransitions()
 
     // Misc
     Go( &COMMON_TOOLS::ToggleCursor,        ACTIONS::toggleCursor.MakeEvent() );
-    Go( &COMMON_TOOLS::ToggleCursorStyle,   ACTIONS::toggleCursorStyle.MakeEvent() );
+    Go( &COMMON_TOOLS::CursorSmallCrosshairs,   ACTIONS::cursorSmallCrosshairs.MakeEvent() );
+    Go( &COMMON_TOOLS::CursorFullCrosshairs,   ACTIONS::cursorFullCrosshairs.MakeEvent() );
+    Go( &COMMON_TOOLS::Cursor45Crosshairs,   ACTIONS::cursor45Crosshairs.MakeEvent() );
     Go( &COMMON_TOOLS::ToggleBoundingBoxes, ACTIONS::toggleBoundingBoxes.MakeEvent() );
 }
-
-

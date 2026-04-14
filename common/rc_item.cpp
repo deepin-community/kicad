@@ -36,10 +36,10 @@
 #define WX_DATAVIEW_WINDOW_PADDING 6
 
 
-wxString RC_ITEM::GetErrorMessage() const
+wxString RC_ITEM::GetErrorMessage( bool aTranslate ) const
 {
     if( m_errorMessage.IsEmpty() )
-        return GetErrorText();
+        return GetErrorText( aTranslate );
     else
         return m_errorMessage;
 }
@@ -129,8 +129,8 @@ wxString RC_ITEM::ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity
     {
         msg.Printf( wxT( "[%s]: %s\n    %s; %s\n    %s: %s\n    %s: %s\n" ),
                     GetSettingsKey(),
-                    GetErrorMessage(),
-                    GetViolatingRuleDesc(),
+                    GetErrorMessage( false ),
+                    GetViolatingRuleDesc( false ),
                     severity,
                     showCoord( aUnitsProvider, mainItem->GetPosition()),
                     mainItem->GetItemDescription( aUnitsProvider, true ),
@@ -141,8 +141,8 @@ wxString RC_ITEM::ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity
     {
         msg.Printf( wxT( "[%s]: %s\n    %s; %s\n    %s: %s\n" ),
                     GetSettingsKey(),
-                    GetErrorMessage(),
-                    GetViolatingRuleDesc(),
+                    GetErrorMessage( false ),
+                    GetViolatingRuleDesc( false ),
                     severity,
                     showCoord( aUnitsProvider, mainItem->GetPosition()),
                     mainItem->GetItemDescription( aUnitsProvider, true ) );
@@ -151,8 +151,8 @@ wxString RC_ITEM::ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity
     {
         msg.Printf( wxT( "[%s]: %s\n    %s; %s\n" ),
                     GetSettingsKey(),
-                    GetErrorMessage(),
-                    GetViolatingRuleDesc(),
+                    GetErrorMessage( false ),
+                    GetViolatingRuleDesc( false ),
                     severity );
     }
 
@@ -164,15 +164,21 @@ wxString RC_ITEM::ShowReport( UNITS_PROVIDER* aUnitsProvider, SEVERITY aSeverity
 
 
 void RC_ITEM::GetJsonViolation( RC_JSON::VIOLATION& aViolation, UNITS_PROVIDER* aUnitsProvider,
-                                SEVERITY aSeverity,
-                                const std::map<KIID, EDA_ITEM*>& aItemMap ) const
+                                SEVERITY aSeverity, const std::map<KIID, EDA_ITEM*>& aItemMap ) const
 {
-    wxString severity = getSeverityString( aSeverity );
-
-    aViolation.severity = severity;
-    aViolation.description = GetErrorMessage();
+    aViolation.severity = getSeverityString( aSeverity );
+    aViolation.description = GetErrorMessage( false );
     aViolation.type = GetSettingsKey();
-    aViolation.excluded = ( m_parent && m_parent->IsExcluded() );
+
+    if( m_parent && m_parent->IsExcluded() )
+    {
+        aViolation.excluded = true;
+        aViolation.comment = m_parent->GetComment();
+    }
+    else
+    {
+        aViolation.excluded = false;
+    }
 
     EDA_ITEM* mainItem = nullptr;
     EDA_ITEM* auxItem = nullptr;
@@ -402,10 +408,12 @@ unsigned int RC_TREE_MODEL::GetChildren( wxDataViewItem const& aItem,
 }
 
 
-void RC_TREE_MODEL::GetValue( wxVariant&              aVariant,
-                              wxDataViewItem const&   aItem,
-                              unsigned int            aCol ) const
+void RC_TREE_MODEL::GetValue( wxVariant& aVariant, wxDataViewItem const& aItem,
+                              unsigned int aCol ) const
 {
+    if( !aItem.IsOk() || m_view->IsFrozen() )
+        return;
+
     const RC_TREE_NODE*            node = ToNode( aItem );
     const std::shared_ptr<RC_ITEM> rcItem = node->m_RcItem;
     MARKER_BASE*                   marker = rcItem->GetParent();
@@ -436,27 +444,27 @@ void RC_TREE_MODEL::GetValue( wxVariant&              aVariant,
             }
         }
 
-        msg += rcItem->GetErrorMessage();
+        msg += rcItem->GetErrorMessage( true );
         break;
 
     case RC_TREE_NODE::MAIN_ITEM:
         if( marker && marker->GetMarkerType() == MARKER_BASE::MARKER_DRAWING_SHEET )
             msg = _( "Drawing Sheet" );
         else
-            item = m_editFrame->GetItem( rcItem->GetMainItemID() );
+            item = m_editFrame->ResolveItem( rcItem->GetMainItemID() );
 
         break;
 
     case RC_TREE_NODE::AUX_ITEM:
-        item = m_editFrame->GetItem( rcItem->GetAuxItemID() );
+        item = m_editFrame->ResolveItem( rcItem->GetAuxItemID() );
         break;
 
     case RC_TREE_NODE::AUX_ITEM2:
-        item = m_editFrame->GetItem( rcItem->GetAuxItem2ID() );
+        item = m_editFrame->ResolveItem( rcItem->GetAuxItem2ID() );
         break;
 
     case RC_TREE_NODE::AUX_ITEM3:
-        item = m_editFrame->GetItem( rcItem->GetAuxItem3ID() );
+        item = m_editFrame->ResolveItem( rcItem->GetAuxItem3ID() );
         break;
 
     case RC_TREE_NODE::COMMENT:
@@ -478,8 +486,10 @@ bool RC_TREE_MODEL::GetAttr( wxDataViewItem const&   aItem,
                              unsigned int            aCol,
                              wxDataViewItemAttr&     aAttr ) const
 {
+    if( !aItem.IsOk() || m_view->IsFrozen() )
+        return false;
+
     const RC_TREE_NODE* node = ToNode( aItem );
-    wxASSERT( node );
 
     bool ret = false;
     bool heading = node->m_Type == RC_TREE_NODE::MARKER;
@@ -737,6 +747,8 @@ void RC_TREE_MODEL::NextMarker()
 
 void RC_TREE_MODEL::SelectMarker( const MARKER_BASE* aMarker )
 {
+    wxCHECK( !m_view->IsFrozen(), /* void */ );
+
     for( RC_TREE_NODE* candidate : m_tree )
     {
         if( candidate->m_RcItem->GetParent() == aMarker )
@@ -750,6 +762,8 @@ void RC_TREE_MODEL::SelectMarker( const MARKER_BASE* aMarker )
 
 void RC_TREE_MODEL::CenterMarker( const MARKER_BASE* aMarker )
 {
+    wxCHECK( !m_view->IsFrozen(), /* void */ );
+
     for( RC_TREE_NODE* candidate : m_tree )
     {
         if( candidate->m_RcItem->GetParent() == aMarker )

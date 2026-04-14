@@ -5,17 +5,20 @@
 # (c)2015 Brian Sidebotham <brian.sidebotham@gmail.com>
 #
 
-# Require CMake V3.0 as a minimum. You can experiment with setting this lower if that's all you
+# Require CMake V3.5 as a minimum. You can experiment with setting this lower if that's all you
 # have available, but it's not guaranteed to work or be supported.
-cmake_minimum_required( VERSION 3.0 )
+cmake_minimum_required( VERSION 3.5 )
+
+# Allow duplicating custom commands
+cmake_policy( SET CMP0113 OLD )
 
 project( KiCadDocumentation NONE )
 
 set( ADOC_TOOLCHAIN "ASCIIDOCTOR" CACHE STRING "Specify which AsciiDoc toolchain to use: ASCIIDOC|ASCIIDOCTOR" )
 
 # Provide an option for deciding which PDF generation scheme to use
-# Desired targets are DBLATEX,FOP and ASCIIDOCTOR-PDF
-set( PDF_GENERATOR "ASCIIDOCTORPDF" CACHE STRING "Specify which PDF generator to use: DBLATEX|FOP|ASCIIDOCTORPDF" )
+# Only ASCIIDOCTOR-PDF is supported.
+set( PDF_GENERATOR "ASCIIDOCTORPDF" CACHE STRING "Specify which PDF generator to use: ASCIIDOCTORPDF" )
 
 # Provide an option to limit the set of languages built. This helps developers to speed up a
 # build they're working on, or limit the number of dependencies for packagers
@@ -39,25 +42,7 @@ if( NOT "${ADOC_TOOLCHAIN}" MATCHES "ASCIIDOCTOR" )
     add_adoc_option( --theme flask )
 endif()
 
-# Add the common a2x options
-add_a2x_option( --xsltproc-opts=--nonet )
-add_a2x_option( --no-xmllint )
-add_a2x_option( -f pdf )
-#add_a2x_option( --verbose )
-
 if( "${BUILD_FORMATS}" MATCHES "(p|P)(d|D)(f|F)" )
-
-    # Add a2x options depending on which PDF generator we're using
-    if( ${PDF_GENERATOR} MATCHES DBLATEX )
-        set_dblatex_common_options()
-        find_package( DBLATEX REQUIRED )
-    endif()
-
-    if( ${PDF_GENERATOR} MATCHES FOP )
-        add_a2x_option( --fop )
-        add_a2x_option( --xsl-file ${PROJECT_SOURCE_DIR}/xsl/kicad.xsl )
-        find_package( FOP REQUIRED )
-    endif()
 
     if( ${PDF_GENERATOR} MATCHES ASCIIDOCTORPDF )
         find_package( ASCIIDOCTORPDF REQUIRED )
@@ -73,7 +58,6 @@ if( ${ADOC_TOOLCHAIN} MATCHES ASCIIDOCTOR )
     find_package( ASCIIDOCTOR REQUIRED )
 else()
     find_package( ASCIIDOC REQUIRED )
-    find_package( A2X REQUIRED )
 endif()
 
 # Start with the package version being unknown, then prove otherwise
@@ -117,7 +101,7 @@ if( GIT_FOUND )
 
     # Due to how tags work in Git it's necessary for us to ensure a few things. For a start, if we
     # create a new branch, switch to it and create a tag, that tag becomes visible in the master
-    # branch. Make sure if we're on the master branch that we use that in the
+    # branch. Make sure if we're on the master branch that we use that in the master branch
     if( "${git_branch_output}" STREQUAL "master" )
         # TODO: Should we include a 6-digit hash here too?
         set( CPACK_PACKAGE_VERSION "HEAD" )
@@ -175,4 +159,5 @@ set( CPACK_PACKAGE_FILE_NAME "kicad-doc${PACKAGE_BUILD_FORMAT}-${CPACK_PACKAGE_V
 include( CPack )
 
 include( KiCadDocumentation )
+
 add_subdirectory( src )

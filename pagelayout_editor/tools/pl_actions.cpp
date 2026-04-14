@@ -43,6 +43,7 @@ TOOL_ACTION PL_ACTIONS::drawLine( TOOL_ACTION_ARGS()
         .Name( "plEditor.InteractiveDrawing.drawLine" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Draw Lines" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::add_graphical_segments )
         .Flags( AF_ACTIVATE )
         .Parameter( DS_DATA_ITEM::DS_SEGMENT ) );
@@ -51,6 +52,7 @@ TOOL_ACTION PL_ACTIONS::drawRectangle( TOOL_ACTION_ARGS()
         .Name( "plEditor.InteractiveDrawing.drawRectangle" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Draw Rectangles" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::add_rectangle )
         .Flags( AF_ACTIVATE )
         .Parameter( DS_DATA_ITEM::DS_RECT ) );
@@ -59,6 +61,7 @@ TOOL_ACTION PL_ACTIONS::placeText( TOOL_ACTION_ARGS()
         .Name( "plEditor.InteractiveDrawing.placeText" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Draw Text" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::text )
         .Flags( AF_ACTIVATE )
         .Parameter( DS_DATA_ITEM::DS_TEXT ) );
@@ -67,6 +70,7 @@ TOOL_ACTION PL_ACTIONS::placeImage( TOOL_ACTION_ARGS()
         .Name( "plEditor.InteractiveDrawing.placeImage" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Place Bitmaps" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::image )
         .Flags( AF_ACTIVATE )
         .Parameter( DS_DATA_ITEM::DS_BITMAP ) );
@@ -88,6 +92,7 @@ TOOL_ACTION PL_ACTIONS::appendImportedDrawingSheet( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Append Existing Drawing Sheet..." ) )
         .Tooltip( _( "Append an existing drawing sheet file to the current file" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::import )
         .Flags( AF_ACTIVATE ) );
 
@@ -112,6 +117,7 @@ TOOL_ACTION PL_ACTIONS::layoutNormalMode( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Show Title Block in Preview Mode" ) )
         .Tooltip( _( "Text placeholders will be replaced with preview data" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::pagelayout_normal_view_mode ) );
 
 TOOL_ACTION PL_ACTIONS::layoutEditMode( TOOL_ACTION_ARGS()
@@ -119,38 +125,5 @@ TOOL_ACTION PL_ACTIONS::layoutEditMode( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Show Title Block in Edit Mode" ) )
         .Tooltip( _( "Text placeholders are shown as ${keyword} tokens" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::pagelayout_special_view_mode  ) );
-
-
-// PL_SELECTION_TOOL
-//
-TOOL_ACTION PL_ACTIONS::selectionActivate( TOOL_ACTION_ARGS()
-        .Name( "plEditor.InteractiveSelection" )
-        .Scope( AS_GLOBAL )
-        .Flags( AF_ACTIVATE ) );
-
-TOOL_ACTION PL_ACTIONS::selectionMenu( TOOL_ACTION_ARGS()
-        .Name( "plEditor.InteractiveSelection.SelectionMenu" )
-        .Scope( AS_GLOBAL ) );
-
-TOOL_ACTION PL_ACTIONS::addItemToSel( TOOL_ACTION_ARGS()
-        .Name( "plEditor.InteractiveSelection.AddItemToSel" )
-        .Scope( AS_GLOBAL ) );
-
-TOOL_ACTION PL_ACTIONS::addItemsToSel( TOOL_ACTION_ARGS()
-        .Name( "plEditor.InteractiveSelection.AddItemsToSel" )
-        .Scope( AS_GLOBAL ) );
-
-TOOL_ACTION PL_ACTIONS::removeItemFromSel( TOOL_ACTION_ARGS()
-        .Name( "plEditor.InteractiveSelection.RemoveItemFromSel" )
-        .Scope( AS_GLOBAL ) );
-
-TOOL_ACTION PL_ACTIONS::removeItemsFromSel( TOOL_ACTION_ARGS()
-        .Name( "plEditor.InteractiveSelection.RemoveItemsFromSel" )
-        .Scope( AS_GLOBAL ) );
-
-TOOL_ACTION PL_ACTIONS::clearSelection( TOOL_ACTION_ARGS()
-        .Name( "plEditor.InteractiveSelection.ClearSelection" )
-        .Scope( AS_GLOBAL ) );
-
-

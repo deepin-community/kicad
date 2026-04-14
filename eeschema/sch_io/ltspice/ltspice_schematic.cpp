@@ -29,11 +29,13 @@
 #include <sch_screen.h>
 #include <wx/log.h>
 #include <wx/dir.h>
+#include <wx/tokenzr.h>
 #include <wildcards_and_files_ext.h>
 #include <sch_sheet.h>
 #include <schematic.h>
 #include <project.h>
 #include <richio.h>
+#include <algorithm>
 
 
 void LTSPICE_SCHEMATIC::Load( SCHEMATIC* aSchematic, SCH_SHEET* aRootSheet,
@@ -81,7 +83,7 @@ void LTSPICE_SCHEMATIC::Load( SCHEMATIC* aSchematic, SCH_SHEET* aRootSheet,
 
         std::vector<LTSPICE_FILE> newSubSchematicElements = GetSchematicElements( buffer );
 
-        alg::delete_if( newSubSchematicElements,
+        std::erase_if( newSubSchematicElements,
                         [&mapOfAscFiles]( const LTSPICE_FILE& ii )
                         {
                             return mapOfAscFiles[ii.ElementName].IsEmpty();
@@ -152,14 +154,14 @@ void LTSPICE_SCHEMATIC::Load( SCHEMATIC* aSchematic, SCH_SHEET* aRootSheet,
             curSheet->SetPosition( parser.ToKicadCoords( ascFiles[i].Offset ) + bbox.GetOrigin() );
             curSheet->SetParent( ascFiles[ascFiles[i].ParentIndex].Sheet );
 
-            SCH_FIELD& sheetNameField = curSheet->GetFields()[SHEETNAME];
-            SCH_FIELD& fileNameSheet = curSheet->GetFields()[SHEETFILENAME];
+            SCH_FIELD* sheetNameField = curSheet->GetField( FIELD_T::SHEET_NAME );
+            SCH_FIELD* fileNameSheet = curSheet->GetField( FIELD_T::SHEET_FILENAME );
             wxString   sheetName = wxString::Format( wxS( "%s-subsheet-%d" ),
                                                      ascFiles[i].ElementName,
                                                      i );
 
-            sheetNameField.SetText( sheetName );
-            fileNameSheet.SetText( sheetName + ".kicad_sch" );
+            sheetNameField->SetText( sheetName );
+            fileNameSheet->SetText( sheetName + ".kicad_sch" );
 
             curSheet->SetScreen( ascFiles[i].Screen );
 
@@ -170,8 +172,7 @@ void LTSPICE_SCHEMATIC::Load( SCHEMATIC* aSchematic, SCH_SHEET* aRootSheet,
 
             ascFiles[ascFiles[i].ParentIndex].Sheet->GetScreen()->Append( curSheet );
 
-            curSheet->GetScreen()->SetFileName( m_schematic->Prj().GetProjectPath() + sheetName
-                                                 + ".kicad_sch" );
+            curSheet->GetScreen()->SetFileName( m_schematic->Project().GetProjectPath() + sheetName + ".kicad_sch" );
         }
         else
         {
@@ -219,10 +220,10 @@ void LTSPICE_SCHEMATIC::GetAscAndAsyFilePaths( const wxDir& aDir, bool aRecursiv
                 {
                     if( m_reporter )
                     {
-                        m_reporter->Report( wxString::Format(
-                                _( "File at '%s' was ignored. Using previously found "
-                                   "file at '%s' instead." ),
-                                path.GetFullPath(), aMapToLogTo.at( aKey ) ) );
+                        m_reporter->Report( wxString::Format( _( "File at '%s' was ignored. Using previously "
+                                                                 "found file at '%s' instead." ),
+                                                              path.GetFullPath(),
+                                                              aMapToLogTo.at( aKey ) ) );
                     }
                 }
                 else
@@ -315,7 +316,7 @@ std::vector<LTSPICE_FILE> LTSPICE_SCHEMATIC::GetSchematicElements( const wxStrin
     {
         wxArrayString tokens = wxSplit( line, ' ' );
 
-        if( !tokens.IsEmpty() && tokens[0].Upper() == wxS( "SYMBOL" ) )
+        if( tokens.size() >= 4 && tokens[0].Upper() == wxS( "SYMBOL" ) )
         {
             wxString elementName( tokens[1] );
             long     posX, posY;
@@ -440,10 +441,10 @@ LTSPICE_SCHEMATIC::POLARITY LTSPICE_SCHEMATIC::getPolarity( const wxString& aVal
 {
     std::map<wxString, POLARITY> polarityMap;
 
-    polarityMap["I"] = POLARITY::INPUT;
+    polarityMap["I"] = POLARITY::PIN_INPUT;
     polarityMap["O"] = POLARITY::OUTPUT;
     polarityMap["B"] = POLARITY::BIDIR;
-    polarityMap["IN"] = POLARITY::INPUT;
+    polarityMap["IN"] = POLARITY::PIN_INPUT;
     polarityMap["OUT"] = POLARITY::OUTPUT;
     polarityMap["BIDIR"] = POLARITY::BIDIR;
 
@@ -1004,7 +1005,7 @@ std::vector<LTSPICE_SCHEMATIC::LT_ASC> LTSPICE_SCHEMATIC::StructureBuilder()
             {
                 tokensSizeRangeCheck( tokens.size(), 6, 7, lineNumber, fileName );
 
-                wxString lineWidth = tokens[1];
+                // wxString lineWidth = tokens[1];
                 wxString botRightX = tokens[2];
                 wxString botRightY = tokens[3];
                 wxString topLeftX = tokens[4];
@@ -1178,7 +1179,7 @@ std::vector<LTSPICE_SCHEMATIC::LT_ASC> LTSPICE_SCHEMATIC::StructureBuilder()
             lineNumber++;
         }
 
-        ascFiles.push_back( ascFile );
+        ascFiles.push_back( std::move( ascFile ) );
     }
 
     return ascFiles;

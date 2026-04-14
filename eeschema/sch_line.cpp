@@ -29,6 +29,7 @@
 #include <sch_painter.h>
 #include <sch_plotter.h>
 #include <geometry/shape_segment.h>
+#include <geometry/geometry_utils.h>
 #include <sch_line.h>
 #include <sch_edit_frame.h>
 #include <settings/color_settings.h>
@@ -41,6 +42,9 @@
 #include <api/api_utils.h>
 #include <api/schematic/schematic_types.pb.h>
 #include <properties/property.h>
+#include <properties/property_mgr.h>
+#include <origin_transforms.h>
+#include <math/util.h>
 
 
 SCH_LINE::SCH_LINE( const VECTOR2I& pos, int layer ) :
@@ -90,6 +94,12 @@ SCH_LINE::SCH_LINE( const SCH_LINE& aLine ) :
     m_lastResolvedColor = aLine.m_lastResolvedColor;
 
     m_operatingPoint = aLine.m_operatingPoint;
+
+    // Don't apply groups to cloned lines. We have too many areas where we clone them
+    // temporarily, then modify/split/join them in the line movement routines after the
+    // segments are committed. Rely on the commit framework to add the lines to the
+    // entered group as appropriate.
+    m_group = nullptr;
 }
 
 
@@ -191,8 +201,11 @@ void SCH_LINE::Show( int nestLevel, std::ostream& os ) const
 
 std::vector<int> SCH_LINE::ViewGetLayers() const
 {
-    return { LAYER_DANGLING, m_layer, LAYER_SELECTION_SHADOWS, LAYER_NET_COLOR_HIGHLIGHT,
-             LAYER_OP_VOLTAGES };
+    if( IsWire() || IsBus() )
+        return { LAYER_DANGLING, m_layer, LAYER_SELECTION_SHADOWS, LAYER_NET_COLOR_HIGHLIGHT,
+                 LAYER_OP_VOLTAGES };
+
+    return { LAYER_DANGLING, m_layer, LAYER_SELECTION_SHADOWS, LAYER_OP_VOLTAGES };
 }
 
 
@@ -237,6 +250,31 @@ const BOX2I SCH_LINE::GetBoundingBox() const
 double SCH_LINE::GetLength() const
 {
     return m_start.Distance( m_end );
+}
+
+
+void SCH_LINE::SetLength( double aLength )
+{
+    if( aLength < 0.0 )
+        aLength = 0.0;
+
+    double    currentLength = GetLength();
+    VECTOR2I  start = GetStartPoint();
+    VECTOR2I  end;
+
+    if( currentLength <= 0.0 )
+    {
+        end = start + KiROUND( aLength, 0.0 );
+    }
+    else
+    {
+        VECTOR2I delta = GetEndPoint() - start;
+        double   scale = aLength / currentLength;
+
+        end = start + KiROUND( delta * scale );
+    }
+
+    SetEndPoint( end );
 }
 
 
@@ -343,37 +381,6 @@ int SCH_LINE::GetPenWidth() const
             m_lastResolvedWidth = GetEffectiveNetClass()->GetBusWidth();
 
         return m_lastResolvedWidth;
-    }
-}
-
-
-void SCH_LINE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                      const VECTOR2I& offset, bool aForceNoFill, bool aDimmed )
-{
-    wxDC*   DC = aSettings->GetPrintDC();
-    COLOR4D color = GetLineColor();
-
-    if( color == COLOR4D::UNSPECIFIED )
-        color = aSettings->GetLayerColor( GetLayer() );
-
-    VECTOR2I   start = m_start;
-    VECTOR2I   end = m_end;
-    LINE_STYLE lineStyle = GetEffectiveLineStyle();
-    int        penWidth = GetEffectivePenWidth( aSettings );
-
-    if( lineStyle <= LINE_STYLE::FIRST_TYPE )
-    {
-        GRLine( DC, start.x, start.y, end.x, end.y, penWidth, color );
-    }
-    else
-    {
-        SHAPE_SEGMENT segment( start, end );
-
-        STROKE_PARAMS::Stroke( &segment, lineStyle, penWidth, aSettings,
-                               [&]( const VECTOR2I& a, const VECTOR2I& b )
-                               {
-                                   GRLine( DC, a.x, a.y, b.x, b.y, penWidth, color );
-                               } );
     }
 }
 
@@ -568,9 +575,21 @@ SCH_LINE* SCH_LINE::MergeOverlap( SCH_SCREEN* aScreen, SCH_LINE* aLine, bool aCh
 }
 
 
-SCH_LINE* SCH_LINE::BreakAt( const VECTOR2I& aPoint )
+SCH_LINE* SCH_LINE::BreakAt( SCH_COMMIT* aCommit, const VECTOR2I& aPoint )
 {
-    SCH_LINE* newSegment = static_cast<SCH_LINE*>( Duplicate() );
+    SCH_LINE* newSegment = static_cast<SCH_LINE*>( Duplicate( true /* addToParentGroup */, aCommit ) );
+
+    newSegment->SetStartPoint( aPoint );
+    newSegment->SetConnectivityDirty( true );
+    SetEndPoint( aPoint );
+
+    return newSegment;
+}
+
+
+SCH_LINE* SCH_LINE::NonGroupAware_BreakAt( const VECTOR2I& aPoint )
+{
+    SCH_LINE* newSegment = static_cast<SCH_LINE*>( Duplicate( false /* addToParentGroup */, nullptr ) );
 
     newSegment->SetStartPoint( aPoint );
     newSegment->SetConnectivityDirty( true );
@@ -827,13 +846,19 @@ bool SCH_LINE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) con
 }
 
 
-void SCH_LINE::SwapData( SCH_ITEM* aItem )
+bool SCH_LINE::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
 {
-    SCH_ITEM::SwapFlags( aItem );
+    if( m_flags & (STRUCT_DELETED | SKIP_STRUCT ) )
+        return false;
 
+    SHAPE_SEGMENT line( m_start, m_end, GetPenWidth() );
+    return KIGEOM::ShapeHitTest( aPoly, line, aContained );
+}
+
+
+void SCH_LINE::swapData( SCH_ITEM* aItem )
+{
     SCH_LINE* item = (SCH_LINE*) aItem;
-
-    std::swap( m_layer, item->m_layer );
 
     std::swap( m_start, item->m_start );
     std::swap( m_end, item->m_end );
@@ -864,6 +889,9 @@ void SCH_LINE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& a
 
     if( color == COLOR4D::UNSPECIFIED )
         color = renderSettings->GetLayerColor( GetLayer() );
+
+    if( color.m_text && Schematic() )
+        color = COLOR4D( ResolveText( *color.m_text, &Schematic()->CurrentSheet() ) );
 
     aPlotter->SetColor( color );
 
@@ -1036,6 +1064,165 @@ double SCH_LINE::Similarity( const SCH_ITEM& aOther ) const
 }
 
 
+bool SCH_LINE::ShouldHopOver( const SCH_LINE* aLine ) const
+{
+    // try to find if this should hop over aLine. Horizontal wires have preference for hop.
+    bool isMeVertical = ( m_end.x == m_start.x );
+    bool isCandidateVertical = ( aLine->GetEndPoint().x == aLine->GetStartPoint().x );
+
+    // Vertical vs. Horizontal: Horizontal should hop
+    if( isMeVertical && !isCandidateVertical )
+        return false;
+
+    if( isCandidateVertical && !isMeVertical )
+        return true;
+
+    // Both this and aLine have a slope. Try to find the best candidate
+    double slopeMe = ( m_end.y - m_start.y ) / (double) ( m_end.x - m_start.x );
+    double slopeCandidate = ( aLine->GetEndPoint().y - aLine->GetStartPoint().y )
+                        / (double) ( aLine->GetEndPoint().x - aLine->GetStartPoint().x );
+
+    if( fabs( slopeMe ) == fabs( slopeCandidate ) )     // Can easily happen with 45 deg wires
+        return slopeMe < slopeCandidate;                // signs are certainly different
+
+    return fabs( slopeMe ) < fabs( slopeCandidate ); // The shallower line should hop
+}
+
+
+std::vector<VECTOR3I> SCH_LINE::BuildWireWithHopShape( const SCH_SCREEN* aScreen,
+                                                       double aArcRadius ) const
+{
+    // Note: Points are VECTOR3D, with Z coord used as flag
+    // for segments: start point and end point have the Z coord = 0
+    // for arcs: start point middle point and end point have the Z coord = 1
+
+    std::vector<VECTOR3I> wire_shape;       // List of coordinates:
+                                            // 2 points for a segment, 3 points for an arc
+
+    if( !IsWire() )
+    {
+        wire_shape.emplace_back( GetStartPoint().x,GetStartPoint().y, 0 );
+        wire_shape.emplace_back( GetEndPoint().x, GetEndPoint().y, 0 );
+        return wire_shape;
+    }
+
+    std::vector<SCH_LINE*> existingWires;   // wires to test (candidates)
+    std::vector<VECTOR2I> intersections;
+
+    for( SCH_ITEM* item : aScreen->Items().Overlapping( SCH_LINE_T, GetBoundingBox() ) )
+    {
+        SCH_LINE* line = static_cast<SCH_LINE*>( item );
+
+        if( line->IsWire() )
+            existingWires.push_back( line );
+    }
+
+    VECTOR2I currentLineStartPoint = GetStartPoint();
+    VECTOR2I currentLineEndPoint = GetEndPoint();
+
+    for( SCH_LINE* existingLine : existingWires )
+    {
+        VECTOR2I extLineStartPoint = existingLine->GetStartPoint();
+        VECTOR2I extLineEndPoint = existingLine->GetEndPoint();
+
+        if( extLineStartPoint == currentLineStartPoint && extLineEndPoint == currentLineEndPoint )
+            continue;
+
+        if( !ShouldHopOver( existingLine ) )
+            continue;
+
+        SEG currentSegment = SEG( currentLineStartPoint, currentLineEndPoint );
+        SEG existingSegment = SEG( extLineStartPoint, extLineEndPoint );
+
+        if( OPT_VECTOR2I intersect = currentSegment.Intersect( existingSegment, true, false ) )
+        {
+            if( IsEndPoint( *intersect ) || existingLine->IsEndPoint( *intersect ) )
+                continue;
+
+            // Ensure intersecting point is not yet entered. it can be already just entered
+            // if more than two wires are intersecting at the same point,
+            // creating bad hop over shapes for the current wire
+            if( intersections.size() == 0 || intersections.back() != *intersect )
+                intersections.push_back( *intersect );
+        }
+    }
+
+    if( intersections.empty() )
+    {
+        wire_shape.emplace_back( currentLineStartPoint.x, currentLineStartPoint.y, 0 );
+        wire_shape.emplace_back( currentLineEndPoint.x, currentLineEndPoint.y, 0 );
+    }
+    else
+    {
+        auto getDistance =
+                []( const VECTOR2I& a, const VECTOR2I& b ) -> double
+                {
+                    return std::sqrt( std::pow( a.x - b.x, 2 ) + std::pow( a.y - b.y, 2 ) );
+                };
+
+        std::sort( intersections.begin(), intersections.end(),
+                   [&]( const VECTOR2I& a, const VECTOR2I& b )
+                   {
+                       return getDistance( GetStartPoint(), a ) < getDistance( GetStartPoint(), b );
+                   } );
+
+        VECTOR2I currentStart = GetStartPoint();
+        double   R = aArcRadius;
+
+        for( const VECTOR2I& hopMid : intersections )
+        {
+            // Calculate the angle of the line from start point to end point in radians
+            double lineAngle = std::atan2( GetEndPoint().y - GetStartPoint().y,
+                                           GetEndPoint().x - GetStartPoint().x );
+
+            // Convert the angle from radians to degrees
+            double lineAngleDeg = lineAngle * ( 180.0f / M_PI );
+
+            // Normalize the angle to be between 0 and 360 degrees
+            if( lineAngleDeg < 0 )
+                lineAngleDeg += 360;
+
+            double startAngle = lineAngleDeg;
+            double endAngle = startAngle + 180.0f;
+
+            // Adjust the end angle if it exceeds 360 degrees
+            if( endAngle >= 360.0 )
+                endAngle -= 360.0;
+
+            // Convert start and end angles from degrees to radians
+            double startAngleRad = startAngle * ( M_PI / 180.0f );
+            double endAngleRad = endAngle * ( M_PI / 180.0f );
+
+            VECTOR2I arcMidPoint = {
+                hopMid.x + static_cast<int>( R * cos( ( startAngleRad + endAngleRad ) / 2.0f ) ),
+                hopMid.y - static_cast<int>( R * sin( ( startAngleRad + endAngleRad ) / 2.0f ) )
+            };
+
+            VECTOR2I beforeHop = hopMid - KiROUND( R * std::cos( lineAngle ), R * std::sin( lineAngle ) );
+            VECTOR2I afterHop = hopMid + KiROUND( R * std::cos( lineAngle ), R * std::sin( lineAngle ) );
+
+            // Draw the line from the current start point to the before-hop point
+            wire_shape.emplace_back( currentStart.x, currentStart.y, 0 );
+            wire_shape.emplace_back( beforeHop.x, beforeHop.y, 0 );
+
+            // Create an arc object
+            SHAPE_ARC arc( beforeHop, arcMidPoint, afterHop, 0 );
+            wire_shape.emplace_back( beforeHop.x, beforeHop.y, 1 );
+            wire_shape.emplace_back( arcMidPoint.x, arcMidPoint.y, 1 );
+            wire_shape.emplace_back( afterHop.x, afterHop.y, 1 );
+
+            currentStart = afterHop;
+        }
+
+        // Draw the final line from the current start point to the end point of the original line
+        wire_shape.emplace_back( currentStart. x,currentStart.y, 0 );
+        wire_shape.emplace_back( GetEndPoint().x, GetEndPoint().y, 0 );
+    }
+
+    return wire_shape;
+}
+
+
 static struct SCH_LINE_DESC
 {
     SCH_LINE_DESC()
@@ -1044,10 +1231,10 @@ static struct SCH_LINE_DESC
 
         if( lineStyleEnum.Choices().GetCount() == 0 )
         {
-            lineStyleEnum.Map( LINE_STYLE::SOLID, _HKI( "Solid" ) )
-                         .Map( LINE_STYLE::DASH, _HKI( "Dashed" ) )
-                         .Map( LINE_STYLE::DOT, _HKI( "Dotted" ) )
-                         .Map( LINE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
+            lineStyleEnum.Map( LINE_STYLE::SOLID,      _HKI( "Solid" ) )
+                         .Map( LINE_STYLE::DASH,       _HKI( "Dashed" ) )
+                         .Map( LINE_STYLE::DOT,        _HKI( "Dotted" ) )
+                         .Map( LINE_STYLE::DASHDOT,    _HKI( "Dash-Dot" ) )
                          .Map( LINE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
         }
 
@@ -1055,11 +1242,11 @@ static struct SCH_LINE_DESC
 
         if( wireLineStyleEnum.Choices().GetCount() == 0 )
         {
-            wireLineStyleEnum.Map( WIRE_STYLE::DEFAULT, _HKI( "Default" ) )
-                             .Map( WIRE_STYLE::SOLID, _HKI( "Solid" ) )
-                             .Map( WIRE_STYLE::DASH, _HKI( "Dashed" ) )
-                             .Map( WIRE_STYLE::DOT, _HKI( "Dotted" ) )
-                             .Map( WIRE_STYLE::DASHDOT, _HKI( "Dash-Dot" ) )
+            wireLineStyleEnum.Map( WIRE_STYLE::DEFAULT,    _HKI( "Default" ) )
+                             .Map( WIRE_STYLE::SOLID,      _HKI( "Solid" ) )
+                             .Map( WIRE_STYLE::DASH,       _HKI( "Dashed" ) )
+                             .Map( WIRE_STYLE::DOT,        _HKI( "Dotted" ) )
+                             .Map( WIRE_STYLE::DASHDOT,    _HKI( "Dash-Dot" ) )
                              .Map( WIRE_STYLE::DASHDOTDOT, _HKI( "Dash-Dot-Dot" ) );
         }
 
@@ -1084,6 +1271,25 @@ static struct SCH_LINE_DESC
 
                     return false;
                 };
+
+        propMgr.AddProperty( new PROPERTY<SCH_LINE, int>( _HKI( "Start X" ),
+                    &SCH_LINE::SetStartX, &SCH_LINE::GetStartX, PROPERTY_DISPLAY::PT_COORD,
+                    ORIGIN_TRANSFORMS::ABS_X_COORD ) );
+
+        propMgr.AddProperty( new PROPERTY<SCH_LINE, int>( _HKI( "Start Y" ),
+                    &SCH_LINE::SetStartY, &SCH_LINE::GetStartY, PROPERTY_DISPLAY::PT_COORD,
+                    ORIGIN_TRANSFORMS::ABS_Y_COORD ) );
+
+        propMgr.AddProperty( new PROPERTY<SCH_LINE, int>( _HKI( "End X" ),
+                    &SCH_LINE::SetEndX, &SCH_LINE::GetEndX, PROPERTY_DISPLAY::PT_COORD,
+                    ORIGIN_TRANSFORMS::ABS_X_COORD ) );
+
+        propMgr.AddProperty( new PROPERTY<SCH_LINE, int>( _HKI( "End Y" ),
+                    &SCH_LINE::SetEndY, &SCH_LINE::GetEndY, PROPERTY_DISPLAY::PT_COORD,
+                    ORIGIN_TRANSFORMS::ABS_Y_COORD ) );
+
+        propMgr.AddProperty( new PROPERTY<SCH_LINE, double>( _HKI( "Length" ),
+                    &SCH_LINE::SetLength, &SCH_LINE::GetLength, PROPERTY_DISPLAY::PT_SIZE ) );
 
         propMgr.AddProperty( new PROPERTY_ENUM<SCH_LINE, LINE_STYLE>( _HKI( "Line Style" ),
                     &SCH_LINE::SetLineStyle, &SCH_LINE::GetLineStyle ) )

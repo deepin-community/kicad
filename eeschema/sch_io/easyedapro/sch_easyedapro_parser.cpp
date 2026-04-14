@@ -135,13 +135,14 @@ void SCH_EASYEDAPRO_PARSER::ApplyFontStyle( const std::map<wxString, nlohmann::j
     {
         wxString fontname = ( style.at( 4 ) );
 
-        if( !fontname.IsSameAs( wxS( "default" ), false ) )
+        // JLCEDA Pro V3 export to format version V1 specifies Arial explicitly instead of null for default font
+        if( fontname != wxS( "Arial" ) && !fontname.IsSameAs( wxS( "default" ), false ) )
             text->SetFont( KIFONT::FONT::GetFont( fontname ) );
     }
 
     if( style.at( 5 ).is_number() )
     {
-        double size = style.at( 5 ).get<double>() * 0.5;
+        double size = style.at( 5 ).get<double>() * 0.62;
         text->SetTextSize( VECTOR2I( ScaleSize( size ), ScaleSize( size ) ) );
     }
 
@@ -495,7 +496,8 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
             std::vector<double> points = line.at( 2 );
             wxString            styleStr = line.at( 3 );
 
-            auto shape = std::make_unique<SCH_SHAPE>( SHAPE_T::BEZIER, LAYER_DEVICE );
+            std::unique_ptr<SCH_SHAPE> shape =
+                    std::make_unique<SCH_SHAPE>( SHAPE_T::BEZIER, LAYER_DEVICE );
 
             for( size_t i = 1; i < points.size(); i += 2 )
             {
@@ -503,10 +505,10 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
 
                 switch( i )
                 {
-                case 1: shape->SetStart( pt ); break;
+                case 1: shape->SetStart( pt );    break;
                 case 3: shape->SetBezierC1( pt ); break;
                 case 5: shape->SetBezierC2( pt ); break;
-                case 7: shape->SetEnd( pt ); break;
+                case 7: shape->SetEnd( pt );      break;
                 }
             }
 
@@ -678,7 +680,7 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
     if( symInfo.head.symbolType == EASYEDAPRO::SYMBOL_TYPE::POWER_PORT
         || symInfo.head.symbolType == EASYEDAPRO::SYMBOL_TYPE::NETPORT )
     {
-        ksymbol->SetPower();
+        ksymbol->SetGlobalPower();
         ksymbol->GetReferenceField().SetText( wxS( "#PWR" ) );
         ksymbol->GetReferenceField().SetVisible( false );
         ksymbol->SetKeyWords( wxS( "power-flag" ) );
@@ -720,11 +722,11 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
                 if( valOpt->empty() )
                     continue;
 
-                SCH_FIELD* fd = ksymbol->FindField( attrName, true );
+                SCH_FIELD* fd = ksymbol->FindFieldCaseInsensitive( attrName );
 
                 if( !fd )
                 {
-                    fd = new SCH_FIELD( ksymbol, ksymbol->GetNextAvailableFieldId(), attrName );
+                    fd = new SCH_FIELD( ksymbol, FIELD_T::USER, attrName );
                     ksymbol->AddField( fd );
                 }
 
@@ -791,16 +793,29 @@ SCH_EASYEDAPRO_PARSER::ParseSymbol( const std::vector<nlohmann::json>&  aLines,
                 pin->SetName( ksymbol->GetName() );
                 //pin->SetVisible( false );
             }
-            else if( auto pinNameAttr = get_opt( pinAttributes, "NAME" ) )
+            else
             {
-                pin->SetName( pinNameAttr->value );
-                pinInfo.name = pinNameAttr->value;
+                auto pinNameAttr = get_opt( pinAttributes, "Pin Name" ); // JLCEDA V3
 
-                if( !pinNameAttr->valVisible )
-                    pin->SetNameTextSize( schIUScale.MilsToIU( 1 ) );
+                if( !pinNameAttr )
+                    pinNameAttr = get_opt( pinAttributes, "NAME" ); // EasyEDA V2
+
+                if( pinNameAttr )
+                {
+                    pin->SetName( pinNameAttr->value );
+                    pinInfo.name = pinNameAttr->value;
+
+                    if( !pinNameAttr->valVisible )
+                        pin->SetNameTextSize( schIUScale.MilsToIU( 1 ) );
+                }
             }
 
-            if( auto pinNumAttr = get_opt( pinAttributes, "NUMBER" ) )
+            auto pinNumAttr = get_opt( pinAttributes, "Pin Number" ); // JLCEDA V3
+
+            if( !pinNumAttr )
+                pinNumAttr = get_opt( pinAttributes, "NUMBER" ); // EasyEDA V2
+
+            if( pinNumAttr )
             {
                 pin->SetNumber( pinNumAttr->value );
                 pinInfo.number = pinNumAttr->value;
@@ -1182,7 +1197,7 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
                                                         &aSchematic->CurrentSheet(),
                                                         esymInfo.partUnits[unitName] );
 
-            schSym->SetFootprintFieldText( newLibSymbol.GetFootprintField().GetText() );
+            schSym->SetFootprintFieldText( newLibSymbol.GetFootprint() );
 
             for( double i = component->rotation; i > 0; i -= 90 )
                 schSym->Rotate( VECTOR2I(), true );
@@ -1194,22 +1209,38 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
 
             if( esymInfo.head.symbolType == EASYEDAPRO::SYMBOL_TYPE::POWER_PORT )
             {
-                if( auto globalNetAttr = get_opt( attributes, "Global Net Name" ) )
-                {
-                    ApplyAttrToField( fontStyles, schSym->GetField( VALUE_FIELD ), *globalNetAttr,
-                                      false, true, compAttrs, schSym.get() );
+                SCH_FIELD* valueField = schSym->GetField( FIELD_T::VALUE );
 
-                    for( SCH_PIN* pin : schSym->GetAllLibPins() )
-                        pin->SetName( globalNetAttr->value );
+                auto     globalNetNameAttr = get_opt( attributes, "Global Net Name" );
+                wxString globalNetNameFromProject = get_def( compAttrs, "Global Net Name", wxEmptyString );
+                wxString globalNetName;
+
+                // 1. Pick from schematic attr
+                // 2. Pick from project.json
+                // 3. Pick from symbol
+                if( globalNetNameAttr && !globalNetNameAttr->value.IsEmpty() )
+                {
+                    globalNetName = globalNetNameAttr->value;
+
+                    ApplyAttrToField( fontStyles, schSym->GetField( FIELD_T::VALUE ), *globalNetNameAttr, false, true,
+                                      compAttrs, schSym.get() );
+                }
+                else if( !globalNetNameFromProject.IsEmpty() )
+                {
+                    globalNetName = globalNetNameFromProject;
+
+                    valueField->SetText( ResolveFieldVariables( globalNetName, compAttrs ) );
                 }
                 else
                 {
-                    schSym->GetField( VALUE_FIELD )
-                            ->SetText( newLibSymbol.GetValueField().GetText() );
+                    valueField->SetText( newLibSymbol.GetValueField().GetText() );
                 }
 
+                for( SCH_PIN* pin : schSym->GetAllLibPins() )
+                    pin->SetName( globalNetName );
+
                 schSym->SetRef( &aSchematic->CurrentSheet(), wxS( "#PWR?" ) );
-                schSym->GetField( REFERENCE_FIELD )->SetVisible( false );
+                schSym->GetField( FIELD_T::REFERENCE )->SetVisible( false );
             }
             else if( esymInfo.head.symbolType == EASYEDAPRO::SYMBOL_TYPE::NETPORT )
             {
@@ -1240,7 +1271,8 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
                     case ELECTRICAL_PINTYPE::PT_BIDI:
                         label->SetShape( LABEL_FLAG_SHAPE::L_BIDI );
                         break;
-                    default: break;
+                    default:
+                        break;
                     }
                 }
 
@@ -1273,7 +1305,7 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
 
                     if( !style.is_null() && style.at( 5 ).is_number() )
                     {
-                        double size = style.at( 5 ).get<double>() * 0.5;
+                        double size = style.at( 5 ).get<double>() * 0.62;
                         label->SetTextSize( VECTOR2I( ScaleSize( size ), ScaleSize( size ) ) );
                     }
                 }
@@ -1291,13 +1323,12 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
                         if( valOpt->empty() )
                             continue;
 
-                        SCH_FIELD* text = schSym->FindField( attrKey, true );
+                        SCH_FIELD* text = schSym->FindFieldCaseInsensitive( attrKey );
 
                         if( !text )
                         {
-                            text = schSym->AddField( SCH_FIELD( schSym.get(),
-                                                                schSym->GetNextFieldId(),
-                                                                attrKey ) );
+                            text = new SCH_FIELD( schSym.get(), FIELD_T::USER, attrKey );
+                            schSym->AddField( text );
                         }
 
                         wxString value = *valOpt;
@@ -1331,19 +1362,19 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
 
                 if( targetValueAttr )
                 {
-                    ApplyAttrToField( fontStyles, schSym->GetField( VALUE_FIELD ), *targetValueAttr,
-                                      false, true, compAttrs, schSym.get() );
+                    ApplyAttrToField( fontStyles, schSym->GetField( FIELD_T::VALUE ),
+                                      *targetValueAttr, false, true, compAttrs, schSym.get() );
                 }
 
                 if( auto descrAttr = get_opt( attributes, "Description" ) )
                 {
-                    ApplyAttrToField( fontStyles, schSym->GetField( DESCRIPTION_FIELD ), *descrAttr,
-                                      false, true, compAttrs, schSym.get() );
+                    ApplyAttrToField( fontStyles, schSym->GetField( FIELD_T::DESCRIPTION ),
+                                      *descrAttr, false, true, compAttrs, schSym.get() );
                 }
 
                 if( auto designatorAttr = get_opt( attributes, "Designator" ) )
                 {
-                    ApplyAttrToField( fontStyles, schSym->GetField( REFERENCE_FIELD ),
+                    ApplyAttrToField( fontStyles, schSym->GetField( FIELD_T::REFERENCE ),
                                       *designatorAttr, false, true, compAttrs, schSym.get() );
 
                     schSym->SetRef( &aSchematic->CurrentSheet(), designatorAttr->value );
@@ -1363,12 +1394,12 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
                     if( attr.value.IsEmpty() )
                         continue;
 
-                    SCH_FIELD* text = schSym->FindField( attrKey, true );
+                    SCH_FIELD* text = schSym->FindFieldCaseInsensitive( attrKey );
 
                     if( !text )
                     {
-                        text = schSym->AddField( SCH_FIELD( schSym.get(), schSym->GetNextFieldId(),
-                                                            attrKey ) );
+                        text = new SCH_FIELD( schSym.get(), FIELD_T::USER, attrKey );
+                        schSym->AddField( text );
                     }
 
                     text->SetPosition( schSym->GetPosition() );
@@ -1396,7 +1427,7 @@ void SCH_EASYEDAPRO_PARSER::ParseSchematic( SCHEMATIC* aSchematic, SCH_SHEET* aR
                     if( attr.key != wxS( "NO_CONNECT" ) )
                         continue;
 
-                    if( SCH_PIN* schPin = schSym->GetPin( pinInfo.number ) )
+                    for( SCH_PIN* schPin : schSym->GetPinsByNumber( pinInfo.number ) )
                     {
                         VECTOR2I pos = schSym->GetPinPhysicalPosition( schPin->GetLibPin() );
 

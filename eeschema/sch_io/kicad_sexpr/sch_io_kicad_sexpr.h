@@ -48,13 +48,14 @@ class SCH_BUS_ENTRY_BASE;
 class SCH_TEXT;
 class SCH_TEXTBOX;
 class SCH_TABLE;
+class SCH_GROUP;
 class SCH_SYMBOL;
 class SCH_FIELD;
 struct SCH_SYMBOL_INSTANCE;
 class SCH_SELECTION;
 class SCH_IO_KICAD_SEXPR_LIB_CACHE;
 class LIB_SYMBOL;
-class SYMBOL_LIB;
+class LEGACY_SYMBOL_LIB;
 class BUS_ALIAS;
 
 /**
@@ -100,6 +101,13 @@ public:
 
     void SaveSchematicFile( const wxString& aFileName, SCH_SHEET* aSheet, SCHEMATIC* aSchematic,
                             const std::map<std::string, UTF8>* aProperties = nullptr ) override;
+
+    /** Serialize a schematic sheet to an OUTPUTFORMATTER without file I/O or Prettify.
+     *  Handles init() and Format().
+     *  Skips GroupsSanityCheck and SetFileExists side effects. */
+    void FormatSchematicToFormatter( OUTPUTFORMATTER* aOut, SCH_SHEET* aSheet,
+                                     SCHEMATIC* aSchematic,
+                                     const std::map<std::string, UTF8>* aProperties = nullptr );
 
     void Format( SCH_SHEET* aSheet );
 
@@ -158,7 +166,7 @@ private:
     void saveText( SCH_TEXT* aText );
     void saveTextBox( SCH_TEXTBOX* aText );
     void saveTable( SCH_TABLE* aTable );
-    void saveBusAlias( std::shared_ptr<BUS_ALIAS> aAlias );
+    void saveGroup( SCH_GROUP* aGroup );
     void saveInstances( const std::vector<SCH_SHEET_INSTANCE>& aSheets );
 
     void cacheLib( const wxString& aLibraryFileName, const std::map<std::string, UTF8>* aProperties );
@@ -166,7 +174,6 @@ private:
 
 protected:
     int                     m_version;          ///< Version of file being loaded.
-    int                     m_nextFreeFieldId;
     bool                    m_appending;        ///< Schematic load append status.
     wxString                m_error;            ///< For throwing exceptions or errors on partial
                                                 ///<  loads.
@@ -174,6 +181,9 @@ protected:
     wxString                m_path;             ///< Root project path for loading child sheets.
     std::stack<wxString>    m_currentPath;      ///< Stack to maintain nested sheet paths
     SCH_SHEET*              m_rootSheet;        ///< The root sheet of the schematic being loaded.
+    std::vector<SCH_SHEET*> m_loadedRootSheets; ///< Root sheets from previous LoadSchematicFile()
+                                                ///< calls, enabling screen reuse across top-level
+                                                ///< sheets that share sub-sheet files.
     SCH_SHEET_PATH          m_currentSheetPath;
     SCHEMATIC*              m_schematic;
     OUTPUTFORMATTER*        m_out;              ///< The formatter for saving SCH_SCREEN objects.
@@ -181,6 +191,8 @@ protected:
 
     /// initialize PLUGIN like a constructor would.
     void init( SCHEMATIC* aSchematic, const std::map<std::string, UTF8>* aProperties = nullptr );
+
+    std::function<bool( wxString aTitle, int aIcon, wxString aMsg, wxString aAction )> m_queryUserCallback;
 };
 
 #endif  // SCH_IO_KICAD_SEXPR_H_

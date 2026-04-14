@@ -45,7 +45,7 @@
 
 
 PL_SELECTION_TOOL::PL_SELECTION_TOOL() :
-        SELECTION_TOOL( "plEditor.InteractiveSelection" ),
+        SELECTION_TOOL( "common.InteractiveSelection" ),
         m_frame( nullptr )
 {
 }
@@ -67,7 +67,8 @@ bool PL_SELECTION_TOOL::Init()
     m_frame->AddStandardSubMenus( *m_menu.get() );
 
     m_disambiguateTimer.SetOwner( this );
-    Connect( wxEVT_TIMER, wxTimerEventHandler( PL_SELECTION_TOOL::onDisambiguationExpire ), nullptr, this );
+    Connect( m_disambiguateTimer.GetId(), wxEVT_TIMER,
+             wxTimerEventHandler( PL_SELECTION_TOOL::onDisambiguationExpire ), nullptr, this );
 
     return true;
 }
@@ -351,13 +352,11 @@ bool PL_SELECTION_TOOL::selectMultiple()
 
     while( TOOL_EVENT* evt = Wait() )
     {
-        int width = area.GetEnd().x - area.GetOrigin().x;
-
         /* Selection mode depends on direction of drag-selection:
          * Left > Right : Select objects that are fully enclosed by selection
          * Right > Left : Select objects that are crossed by selection
          */
-        bool windowSelection = width >= 0 ? true : false;
+        bool windowSelection = area.GetEnd().x > area.GetOrigin().x;
 
         m_frame->GetCanvas()->SetCurrentCursor( windowSelection ? KICURSOR::SELECT_WINDOW
                                                                 : KICURSOR::SELECT_LASSO );
@@ -379,6 +378,8 @@ bool PL_SELECTION_TOOL::selectMultiple()
             area.SetAdditive( m_drag_additive );
             area.SetSubtractive( m_drag_subtractive );
             area.SetExclusiveOr( false );
+            area.SetMode( windowSelection ? SELECTION_MODE::INSIDE_RECTANGLE
+                                          : SELECTION_MODE::TOUCHING_RECTANGLE );
 
             view->SetVisible( &area, true );
             view->Update( &area );
@@ -392,13 +393,11 @@ bool PL_SELECTION_TOOL::selectMultiple()
             // End drawing the selection box
             view->SetVisible( &area, false );
 
-            int height = area.GetEnd().y - area.GetOrigin().y;
-
             bool anyAdded = false;
             bool anySubtracted = false;
 
             // Construct a BOX2I to determine EDA_ITEM selection
-            BOX2I selectionRect( area.GetOrigin(), VECTOR2I( width, height ) );
+            BOX2I selectionRect( area.ViewBBox() );
 
             selectionRect.Normalize();
 
@@ -549,14 +548,14 @@ void PL_SELECTION_TOOL::setTransitions()
 {
     Go( &PL_SELECTION_TOOL::UpdateMenu,            ACTIONS::updateMenu.MakeEvent() );
 
-    Go( &PL_SELECTION_TOOL::Main,                  PL_ACTIONS::selectionActivate.MakeEvent() );
-    Go( &PL_SELECTION_TOOL::ClearSelection,        PL_ACTIONS::clearSelection.MakeEvent() );
+    Go( &PL_SELECTION_TOOL::Main,                  ACTIONS::selectionActivate.MakeEvent() );
+    Go( &PL_SELECTION_TOOL::ClearSelection,        ACTIONS::selectionClear.MakeEvent() );
 
-    Go( &PL_SELECTION_TOOL::AddItemToSel,          PL_ACTIONS::addItemToSel.MakeEvent() );
-    Go( &PL_SELECTION_TOOL::AddItemsToSel,         PL_ACTIONS::addItemsToSel.MakeEvent() );
-    Go( &PL_SELECTION_TOOL::RemoveItemFromSel,     PL_ACTIONS::removeItemFromSel.MakeEvent() );
-    Go( &PL_SELECTION_TOOL::RemoveItemsFromSel,    PL_ACTIONS::removeItemsFromSel.MakeEvent() );
-    Go( &PL_SELECTION_TOOL::SelectionMenu,         PL_ACTIONS::selectionMenu.MakeEvent() );
+    Go( &PL_SELECTION_TOOL::AddItemToSel,          ACTIONS::selectItem.MakeEvent() );
+    Go( &PL_SELECTION_TOOL::AddItemsToSel,         ACTIONS::selectItems.MakeEvent() );
+    Go( &PL_SELECTION_TOOL::RemoveItemFromSel,     ACTIONS::unselectItem.MakeEvent() );
+    Go( &PL_SELECTION_TOOL::RemoveItemsFromSel,    ACTIONS::unselectItems.MakeEvent() );
+    Go( &PL_SELECTION_TOOL::SelectionMenu,         ACTIONS::selectionMenu.MakeEvent() );
 
     Go( &PL_SELECTION_TOOL::disambiguateCursor,    EVENTS::DisambiguatePoint );
 }

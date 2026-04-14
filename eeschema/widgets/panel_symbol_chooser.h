@@ -24,6 +24,7 @@
 #ifndef PANEL_SYMBOL_CHOOSER_H
 #define PANEL_SYMBOL_CHOOSER_H
 
+#include <template_fieldnames.h>
 #include <widgets/lib_tree.h>
 #include <symbol_tree_model_adapter.h>
 #include <footprint_info.h>
@@ -49,10 +50,12 @@ public:
      *
      * @param aFrame  the parent frame (usually a SCH_EDIT_FRAME or SYMBOL_CHOOSER_FRAME)
      * @param aParent the parent window (usually a DIALOG_SHIM or SYMBOL_CHOOSER_FRAME)
-     * @param aAllowFieldEdits  if false, all functions that allow the user to edit fields
-     *                          (currently just footprint selection) will not be available.
-     * @param aShowFootprints   if false, all footprint preview and selection features are
-     *                          disabled. This forces aAllowFieldEdits false too.
+     * @param aAllowFieldEdits  if false, all functions that allow the user to edit fields (currently just
+     *                          footprint selection) will not be available.
+     * @param aShowFootprints   if false, all footprint preview and selection features are disabled. This
+     *                          forces aAllowFieldEdits false too.
+     * @param aCancelled [out] value indicating the user has cancelled the loading symbols progress dialog
+     *                   before we even get to showing the symbol chooser dialog.
      * @param aAcceptHandler a handler to be called on double-click of a footprint
      * @param aEscapeHandler a handler to be called on <ESC>
      */
@@ -60,7 +63,7 @@ public:
                           const SYMBOL_LIBRARY_FILTER* aFilter,
                           std::vector<PICKED_SYMBOL>& aHistoryList,
                           std::vector<PICKED_SYMBOL>& aAlreadyPlaced,
-                          bool aAllowFieldEdits, bool aShowFootprints,
+                          bool aAllowFieldEdits, bool aShowFootprints, bool& aCancelled,
                           std::function<void()> aAcceptHandler,
                           std::function<void()> aEscapeHandler );
 
@@ -92,12 +95,18 @@ public:
     /**
      * Get a list of fields edited by the user.
      *
-     * @return vector of pairs; each.first = field ID, each.second = new value.
+     * @return vector of pairs; each.first = field type, each.second = new value.
      */
-    std::vector<std::pair<int, wxString>> GetFields() const
+    std::vector<std::pair<FIELD_T, wxString>> GetFields() const
     {
         return m_field_edits;
     }
+
+    void ShutdownCanvases();
+
+    wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER> Adapter() const { return m_adapter; }
+
+    void Regenerate();
 
 protected:
     static constexpr int DBLCLICK_DELAY = 100; // milliseconds
@@ -162,7 +171,7 @@ protected:
     LIB_TREE*                 m_tree;
     HTML_WINDOW*              m_details;
 
-    SCH_BASE_FRAME*           m_frame;
+    static SCH_BASE_FRAME*    m_frame;      // Must be static becuase used in a static function
     std::function<void()>     m_acceptHandler;
     std::function<void()>     m_escapeHandler;
 
@@ -171,7 +180,7 @@ protected:
     bool                      m_show_footprints;
     wxString                  m_fp_override;
 
-    std::vector<std::pair<int, wxString>>  m_field_edits;
+    std::vector<std::pair<FIELD_T, wxString>>  m_field_edits;
 };
 
 #endif /* PANEL_SYMBOL_CHOOSER_H */

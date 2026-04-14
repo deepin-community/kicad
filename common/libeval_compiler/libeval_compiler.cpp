@@ -60,7 +60,7 @@ namespace LIBEVAL
 
 TREE_NODE* newNode( LIBEVAL::COMPILER* compiler, int op, const T_TOKEN_VALUE& value )
 {
-    auto t2          = new TREE_NODE();
+    TREE_NODE* t2    = new TREE_NODE();
 
     t2->valid        = true;
     t2->value.str    = value.str ? new wxString( *value.str ) : nullptr;
@@ -88,16 +88,25 @@ static const wxString formatOpName( int op )
 {
     static const struct
     {
-        int         op;
+        int      op;
         wxString mnemonic;
     }
     simpleOps[] =
     {
-        { TR_OP_MUL, "MUL" }, { TR_OP_DIV, "DIV" }, { TR_OP_ADD, "ADD" },
-        { TR_OP_SUB, "SUB" }, { TR_OP_LESS, "LESS" }, { TR_OP_GREATER, "GREATER" },
-        { TR_OP_LESS_EQUAL, "LESS_EQUAL" }, { TR_OP_GREATER_EQUAL, "GREATER_EQUAL" },
-        { TR_OP_EQUAL, "EQUAL" }, { TR_OP_NOT_EQUAL, "NEQUAL" }, { TR_OP_BOOL_AND, "AND" },
-        { TR_OP_BOOL_OR, "OR" }, { TR_OP_BOOL_NOT, "NOT" }, { -1, "" }
+        { TR_OP_MUL, "MUL" },
+        { TR_OP_DIV, "DIV" },
+        { TR_OP_ADD, "ADD" },
+        { TR_OP_SUB, "SUB" },
+        { TR_OP_LESS, "LESS" },
+        { TR_OP_GREATER, "GREATER" },
+        { TR_OP_LESS_EQUAL, "LESS_EQUAL" },
+        { TR_OP_GREATER_EQUAL, "GREATER_EQUAL" },
+        { TR_OP_EQUAL, "EQUAL" },
+        { TR_OP_NOT_EQUAL, "NEQUAL" },
+        { TR_OP_BOOL_AND, "AND" },
+        { TR_OP_BOOL_OR, "OR" },
+        { TR_OP_BOOL_NOT, "NOT" },
+        { -1, "" }
     };
 
     for( int i = 0; simpleOps[i].op >= 0; i++ )
@@ -154,14 +163,12 @@ wxString UOP::Format() const
         break;
 
     case TR_UOP_PUSH_VALUE:
-    {
         if( !m_value )
             str = wxString::Format( "PUSH nullptr" );
         else if( m_value->GetType() == VT_NUMERIC )
             str = wxString::Format( "PUSH NUM [%.10f]", m_value->AsDouble() );
         else
             str = wxString::Format( "PUSH STR [%ls]", m_value->AsString() );
-    }
         break;
 
     case TR_OP_METHOD_CALL:
@@ -183,10 +190,8 @@ wxString UOP::Format() const
 
 UCODE::~UCODE()
 {
-    for ( auto op : m_ucode )
-    {
+    for( UOP* op : m_ucode )
         delete op;
-    }
 }
 
 
@@ -194,7 +199,7 @@ wxString UCODE::Dump() const
 {
     wxString rv;
 
-    for( auto op : m_ucode )
+    for( UOP* op : m_ucode )
     {
         rv += op->Format();
         rv += "\n";
@@ -253,7 +258,7 @@ bool TOKENIZER::MatchAhead( const wxString& match,
 
 
 COMPILER::COMPILER() :
-    m_lexerState( COMPILER::LS_DEFAULT )
+        m_lexerState( COMPILER::LS_DEFAULT )
 {
     m_localeDecimalSeparator = '.';
     m_sourcePos = 0;
@@ -295,10 +300,10 @@ void COMPILER::Clear()
 
     m_tree = nullptr;
 
-    for( auto tok : m_gcItems )
+    for( TREE_NODE* tok : m_gcItems )
         delete tok;
 
-    for( auto tok: m_gcStrings )
+    for( wxString* tok: m_gcStrings )
         delete tok;
 
     m_gcItems.clear();
@@ -393,6 +398,7 @@ T_TOKEN COMPILER::getToken()
         case LS_DEFAULT:
             done = lexDefault( rv );
             break;
+
         case LS_STRING:
             done = lexString( rv );
             break;
@@ -419,7 +425,11 @@ int COMPILER::resolveUnits()
 
     for( const wxString& unitName : m_unitResolver->GetSupportedUnits() )
     {
-        if( m_tokenizer.MatchAhead( unitName, []( int c ) -> bool { return !isalnum( c ); } ) )
+        if( m_tokenizer.MatchAhead( unitName,
+                                    []( int c ) -> bool
+                                    {
+                                        return !isalnum( c );
+                                    } ) )
         {
             libeval_dbg(10, "Match unit '%s'\n", unitName.c_str() );
             m_tokenizer.NextChar( unitName.length() );
@@ -485,7 +495,6 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
                         current[i - 1] = m_localeDecimalSeparator;
                 }
             };
-
 
     int ch;
 
@@ -586,8 +595,10 @@ bool COMPILER::lexDefault( T_TOKEN& aToken )
         case ',': retval.token = G_COMMA;        break;
 
         default:
-            reportError( CST_PARSE, wxString::Format( _( "Unrecognized character '%c'" ),
-                                                      (char) ch ) );
+            if( m_tokenizer.MatchAhead( "${", []( int c ) -> bool { return c != '{'; } ) )
+                reportError( CST_PARSE, _( "Unresolved text variable reference" ), m_sourcePos + 2 );
+            else
+                reportError( CST_PARSE, wxString::Format( _( "Unrecognized character '%c'" ), (char) ch ) );
             break;
         }
 
@@ -719,11 +730,12 @@ void COMPILER::freeTree( LIBEVAL::TREE_NODE *tree )
 }
 
 
-void TREE_NODE::SetUop( int aOp, double aValue )
+void TREE_NODE::SetUop( int aOp, double aValue, EDA_UNITS aUnits )
 {
     delete uop;
 
     std::unique_ptr<VALUE> val = std::make_unique<VALUE>( aValue );
+    val->SetUnits( aUnits );
     uop = new UOP( aOp, std::move( val ) );
 }
 
@@ -778,9 +790,7 @@ static std::vector<TREE_NODE*> squashParamList( TREE_NODE* root )
     std::vector<TREE_NODE*> args;
 
     if( !root )
-    {
         return args;
-    }
 
     if( root->op != TR_ARG_LIST && root->op != TR_NULL )
     {
@@ -798,9 +808,7 @@ static std::vector<TREE_NODE*> squashParamList( TREE_NODE* root )
         } while ( n && n->op == TR_ARG_LIST );
 
         if( n )
-        {
             args.push_back( n );
-        }
     }
 
     std::reverse( args.begin(), args.end() );
@@ -816,6 +824,9 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
 {
     std::vector<TREE_NODE*> stack;
     wxString                msg;
+    int                     numericValueCount = 0;
+    wxString                missingUnitsMsg;
+    int                     missingUnitsSrcPos = 0;
 
     if( !m_tree )
     {
@@ -838,8 +849,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
     {
         TREE_NODE* node = stack.back();
 
-        libeval_dbg( 4, "process node %p [op %d] [stack %lu]\n",
-                     node, node->op, (unsigned long)stack.size() );
+        libeval_dbg( 4, "process node %p [op %d] [stack %lu]\n", node, node->op, (unsigned long)stack.size() );
 
         // process terminal nodes first
         switch( node->op )
@@ -848,8 +858,10 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
             // Function call's uop was generated inside TR_STRUCT_REF
             if( !node->uop )
             {
-                reportError( CST_CODEGEN,  _( "Unknown parent of function parameters" ),
-                             node->srcPos );
+                // This function call is bare so we don't know who to apply it to
+                // Set a safe default value to exit gracefully with an error
+                reportError( CST_CODEGEN, _( "Unknown parent of function parameters" ), node->srcPos );
+                node->SetUop( TR_UOP_PUSH_VALUE, 0.0, EDA_UNITS::UNSCALED );
             }
 
             node->isTerminal = true;
@@ -872,7 +884,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                 node->leaf[0]->isVisited = true;
                 node->leaf[1]->isVisited = true;
 
-                node->SetUop( TR_UOP_PUSH_VALUE, 0.0 );
+                node->SetUop( TR_UOP_PUSH_VALUE, 0.0, EDA_UNITS::UNSCALED );
                 node->isTerminal = true;
                 break;
             }
@@ -891,14 +903,12 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                     if( !vref )
                     {
                         msg.Printf( _( "Unrecognized item '%s'" ), itemName );
-                        reportError( CST_CODEGEN, msg,
-                                     node->leaf[0]->srcPos - (int) itemName.length() );
+                        reportError( CST_CODEGEN, msg, node->leaf[0]->srcPos - (int) itemName.length() );
                     }
                     else if( vref->GetType() == VT_PARSE_ERROR )
                     {
                         msg.Printf( _( "Unrecognized property '%s'" ), propName );
-                        reportError( CST_CODEGEN, msg,
-                                     node->leaf[1]->srcPos - (int) propName.length() );
+                        reportError( CST_CODEGEN, msg, node->leaf[1]->srcPos - (int) propName.length() );
                     }
 
                     node->leaf[0]->isVisited = true;
@@ -921,8 +931,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                     if( !vref )
                     {
                         msg.Printf( _( "Unrecognized item '%s'" ), itemName );
-                        reportError( CST_CODEGEN, msg,
-                                     node->leaf[0]->srcPos - (int) itemName.length() );
+                        reportError( CST_CODEGEN, msg, node->leaf[0]->srcPos - (int) itemName.length() );
                     }
 
                     wxString functionName = formatNode( node->leaf[1]->leaf[0] );
@@ -979,7 +988,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                     for( TREE_NODE* pnode : params )
                         stack.push_back( pnode );
 
-                    node->leaf[1]->SetUop( TR_OP_METHOD_CALL, func, std::move( vref ) );
+                    node->leaf[1]->SetUop( TR_OP_METHOD_CALL, std::move( func ), std::move( vref ) );
                     node->isTerminal = false;
                     break;
                 }
@@ -995,8 +1004,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                     if( !vref )
                     {
                         msg.Printf( _( "Unrecognized item '%s'" ), itemName );
-                        reportError( CST_CODEGEN, msg,
-                                     node->leaf[0]->srcPos - (int) itemName.length() );
+                        reportError( CST_CODEGEN, msg, node->leaf[0]->srcPos - (int) itemName.length() );
                     }
 
                     msg.Printf( _( "Unrecognized property '%s'" ), propName );
@@ -1005,7 +1013,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                     node->leaf[0]->isVisited = true;
                     node->leaf[1]->isVisited = true;
 
-                    node->SetUop( TR_UOP_PUSH_VALUE, 0.0 );
+                    node->SetUop( TR_UOP_PUSH_VALUE, 0.0, EDA_UNITS::UNSCALED );
                     node->isTerminal = true;
                     break;
             }
@@ -1017,6 +1025,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
         {
             TREE_NODE* son = node->leaf[0];
             double     value;
+            EDA_UNITS  unitsType = EDA_UNITS::UNSCALED;
 
             if( !node->value.str )
             {
@@ -1031,6 +1040,7 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
                 }
 
                 int units = son->value.idx;
+                unitsType = m_unitResolver->GetSupportedUnitsTypes().at( units );
                 value =  m_unitResolver->Convert( formatNode( node ), units );
                 son->isVisited = true;
             }
@@ -1038,17 +1048,18 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
             {
                 if( !m_unitResolver->GetSupportedUnitsMessage().empty() )
                 {
-                    msg.Printf( _( "Missing units for '%s'| (%s)" ),
-                                formatNode( node ),
-                                m_unitResolver->GetSupportedUnitsMessage() );
-                    reportError( CST_CODEGEN, msg, node->srcPos );
+                    missingUnitsMsg.Printf( _( "Missing units for '%s'| (%s)" ),
+                                            formatNode( node ),
+                                            m_unitResolver->GetSupportedUnitsMessage() );
+                    missingUnitsSrcPos = node->srcPos;
                 }
 
                 value = EDA_UNIT_UTILS::UI::DoubleValueFromString( formatNode( node ) );
             }
 
-            node->SetUop( TR_UOP_PUSH_VALUE, value );
+            node->SetUop( TR_UOP_PUSH_VALUE, value, unitsType );
             node->isTerminal = true;
+            numericValueCount++;
             break;
         }
 
@@ -1089,7 +1100,6 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
             {
                 stack.push_back( node->leaf[0] );
                 node->leaf[0]->isVisited = true;
-                continue;
             }
             else if( node->leaf[1] && !node->leaf[1]->isVisited )
             {
@@ -1111,6 +1121,17 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
         stack.pop_back();
     }
 
+    // Report the common error condition of a single numeric value with no units (which will result in
+    // nanometers, and rarely leads to anything useful).
+    // Reporting missing units with multiple numeric values is far more complicated as we have to
+    // separate comparison operators from multiplicative operators from additive operators.  Consider:
+    //   2 * 1.5mm
+    //   2mm + 105um
+    //   2mm > 20um
+    //   (2mm + 1.5mm) * 3
+    if( !missingUnitsMsg.IsEmpty() && numericValueCount == 1 )
+        reportError( CST_CODEGEN, missingUnitsMsg, missingUnitsSrcPos );
+
     libeval_dbg(2,"dump: \n%s\n", aCode->Dump().c_str() );
 
     return true;
@@ -1131,15 +1152,17 @@ void UOP::Exec( CONTEXT* ctx )
             value = ctx->AllocValue();
 
         ctx->Push( value );
-    }
         break;
+    }
 
     case TR_UOP_PUSH_VALUE:
         ctx->Push( m_value.get() );
         return;
 
     case TR_OP_METHOD_CALL:
-        m_func( ctx, m_ref.get() );
+        if( m_func )
+            m_func( ctx, m_ref.get() );
+
         return;
 
     default:
@@ -1170,32 +1193,64 @@ void UOP::Exec( CONTEXT* ctx )
             }
         }
 
+        // TODO: This doesn't fully calculate units correctly yet. We really need to work out the dimensional analysis
+        // TODO: (and do this independently of unit specifics - e.g. MM + INCH needs to return one of the dimension
+        // TODO: types, but our units framework doesn't currently allow this. Therefore, use some heuristics to
+        // TODO: determine the resulting operation unit type for now
+        auto getOpResultUnits =
+                []( const VALUE* aVal1, const VALUE* aVal2 )
+                {
+                    wxCHECK( aVal1 && aVal2, EDA_UNITS::UNSCALED );
+
+                    // This condition can occur in, e.g., a unary negation operation
+                    if( aVal1->GetUnits() == EDA_UNITS::UNSCALED && aVal2->GetUnits() != EDA_UNITS::UNSCALED )
+                        return aVal2->GetUnits();
+
+                    if( aVal1->GetUnits() != EDA_UNITS::UNSCALED && aVal2->GetUnits() == EDA_UNITS::UNSCALED )
+                        return aVal1->GetUnits();
+
+                    return aVal2->GetUnits();
+                };
+
+        EDA_UNITS resultUnits = EDA_UNITS::UNSCALED;
+
         switch( m_op )
         {
         case TR_OP_ADD:
             result = AS_DOUBLE( arg1 ) + AS_DOUBLE( arg2 );
+            resultUnits = getOpResultUnits( arg1, arg2 );
             break;
+
         case TR_OP_SUB:
             result = AS_DOUBLE( arg1 ) - AS_DOUBLE( arg2 );
+            resultUnits = getOpResultUnits( arg1, arg2 );
             break;
+
         case TR_OP_MUL:
             result = AS_DOUBLE( arg1 ) * AS_DOUBLE( arg2 );
+            resultUnits = getOpResultUnits( arg1, arg2 );
             break;
+
         case TR_OP_DIV:
             result = AS_DOUBLE( arg1 ) / AS_DOUBLE( arg2 );
+            resultUnits = getOpResultUnits( arg1, arg2 );
             break;
+
         case TR_OP_LESS_EQUAL:
             result = AS_DOUBLE( arg1 ) <= AS_DOUBLE( arg2 ) ? 1 : 0;
             break;
+
         case TR_OP_GREATER_EQUAL:
             result = AS_DOUBLE( arg1 ) >= AS_DOUBLE( arg2 ) ? 1 : 0;
             break;
+
         case TR_OP_LESS:
             result = AS_DOUBLE( arg1 ) < AS_DOUBLE( arg2 ) ? 1 : 0;
             break;
         case TR_OP_GREATER:
             result = AS_DOUBLE( arg1 ) > AS_DOUBLE( arg2 ) ? 1 : 0;
             break;
+
         case TR_OP_EQUAL:
             if( !arg1 || !arg2 )
                 result = arg1 == arg2 ? 1 : 0;
@@ -1204,6 +1259,7 @@ void UOP::Exec( CONTEXT* ctx )
             else
                 result = arg1->EqualTo( ctx, arg2 ) ? 1 : 0;
             break;
+
         case TR_OP_NOT_EQUAL:
             if( !arg1 || !arg2 )
                 result = arg1 != arg2 ? 1 : 0;
@@ -1212,19 +1268,23 @@ void UOP::Exec( CONTEXT* ctx )
             else
                 result = arg1->NotEqualTo( ctx, arg2 ) ? 1 : 0;
             break;
+
         case TR_OP_BOOL_AND:
             result = AS_DOUBLE( arg1 ) != 0.0 && AS_DOUBLE( arg2 ) != 0.0 ? 1 : 0;
             break;
+
         case TR_OP_BOOL_OR:
             result = AS_DOUBLE( arg1 ) != 0.0 || AS_DOUBLE( arg2 ) != 0.0 ? 1 : 0;
             break;
+
         default:
             result = 0.0;
             break;
         }
 
-        auto rp = ctx->AllocValue();
+        VALUE* rp = ctx->AllocValue();
         rp->Set( result );
+        rp->SetUnits( resultUnits );
         ctx->Push( rp );
         return;
     }
@@ -1233,6 +1293,7 @@ void UOP::Exec( CONTEXT* ctx )
         LIBEVAL::VALUE* arg1 = ctx->Pop();
         double          ARG1VALUE = arg1 ? arg1->AsDouble() : 0.0;
         double          result;
+        EDA_UNITS       resultUnits = arg1 ? arg1->GetUnits() : EDA_UNITS::UNSCALED;
 
         switch( m_op )
         {
@@ -1244,8 +1305,9 @@ void UOP::Exec( CONTEXT* ctx )
             break;
         }
 
-        auto rp = ctx->AllocValue();
+        VALUE* rp = ctx->AllocValue();
         rp->Set( result );
+        rp->SetUnits( resultUnits );
         ctx->Push( rp );
         return;
     }
@@ -1254,8 +1316,6 @@ void UOP::Exec( CONTEXT* ctx )
 
 VALUE* UCODE::Run( CONTEXT* ctx )
 {
-    static VALUE g_false( 0 );
-
     try
     {
         for( UOP* op : m_ucode )
@@ -1263,8 +1323,8 @@ VALUE* UCODE::Run( CONTEXT* ctx )
     }
     catch(...)
     {
-        // rules which fail outright should not be fired
-        return &g_false;
+        // rules which fail outright should not be fired; return 0/false
+        return ctx->StoreValue( new VALUE( 0 ) );
     }
 
     if( ctx->SP() == 1 )
@@ -1280,7 +1340,7 @@ VALUE* UCODE::Run( CONTEXT* ctx )
         wxASSERT( ctx->SP() == 1 );
 
         // non-well-formed rules should not be fired on a release build
-        return &g_false;
+        return ctx->StoreValue( new VALUE( 0 ) );
     }
 }
 

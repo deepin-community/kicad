@@ -57,6 +57,9 @@ macro( KiCadDocumentation DOCNAME )
     endforeach()
     separate_arguments( DOCCHAPTERMASTERS )
 
+    # po4a.cfg path
+    set( PO4A_CFG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/po/po4a.cfg" )
+
     # Get a list of all po translation files so we know what languages can be built
     file( GLOB AVAILABLE_PO RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/po ${CMAKE_CURRENT_SOURCE_DIR}/po/*.po )
     foreach( L ${AVAILABLE_PO} )
@@ -65,9 +68,28 @@ macro( KiCadDocumentation DOCNAME )
     endforeach()
     list( APPEND AVAILABLE en )
 
-    # Backwards compatibility
-    if( NOT "${SINGLE_LANGUAGE}" STREQUAL "" AND "${LANGUAGES}" STREQUAL "")
-       set( LANGUAGES "${SINGLE_LANGUAGE}" )
+    # Generate po4a.cfg at configure time for updatepo with relative paths
+    if( AVAILABLE_PO )
+        file( WRITE ${PO4A_CFG_FILE} "[po4a_paths] ${DOCNAME}.pot" )
+        foreach( PO_FILE ${AVAILABLE_PO} )
+            string( REGEX REPLACE "^(.*)\\.po$" "\\1" LANG "${PO_FILE}" )
+            file( APPEND ${PO4A_CFG_FILE} " ${LANG}:po/${PO_FILE}" )
+        endforeach()
+        file( APPEND ${PO4A_CFG_FILE} "\n\n" )
+        file( APPEND ${PO4A_CFG_FILE} "[type:asciidoc] ${DOCNAME}.adoc" )
+        foreach( PO_FILE ${AVAILABLE_PO} )
+            string( REGEX REPLACE "^(.*)\\.po$" "\\1" LANG "${PO_FILE}" )
+            file( APPEND ${PO4A_CFG_FILE} " ${LANG}:${LANG}/${DOCNAME}.adoc" )
+        endforeach()
+        file( APPEND ${PO4A_CFG_FILE} " opt:\"-k 80\"\n" )
+        foreach( ADOC_FILE ${DOCCHAPTERFILES} )
+            file( APPEND ${PO4A_CFG_FILE} "[type:asciidoc] ${ADOC_FILE}" )
+            foreach( PO_FILE ${AVAILABLE_PO} )
+                string( REGEX REPLACE "^(.*)\\.po$" "\\1" LANG "${PO_FILE}" )
+                file( APPEND ${PO4A_CFG_FILE} " ${LANG}:${LANG}/${ADOC_FILE}" )
+            endforeach()
+            file( APPEND ${PO4A_CFG_FILE} " opt:\"-k 80\"\n" )
+        endforeach()
     endif()
 
     # If we're not building a specific language, default to all languages
@@ -116,48 +138,32 @@ macro( KiCadDocumentation DOCNAME )
                     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${DOCNAME}_${CHAPTER}.adoc )
             endforeach()
         else()
-            # Targets to update the translation files - include individual language targets
-            # as well as an "all" target. Do not include updating the translations in the
-            # default all target
-            add_custom_target( ${DOCNAME}_updatepo_${LANGUAGE}
-                COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR} &&
-                        ${PO4A_COMMAND}-updatepo -f asciidoc -v -M utf-8
-                            -m ${DOCNAME}.adoc ${DOCCHAPTERMASTERS}
-                            -p po/${LANGUAGE}.po )
+            # Targets to update the translation files using po4a.cfg
+            if( EXISTS ${PO4A_CFG_FILE} )
+                add_custom_target( ${DOCNAME}_updatepo_${LANGUAGE}
+                    COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR} &&
+                            ${PO4A_COMMAND}-updatepo -f po/po4a.cfg -v -M utf-8 )
 
-            add_dependencies( ${DOCNAME}_updatepo_all ${DOCNAME}_updatepo_${LANGUAGE} )
+                add_dependencies( ${DOCNAME}_updatepo_all ${DOCNAME}_updatepo_${LANGUAGE} )
+                add_dependencies( updatepo_${LANGUAGE} ${DOCNAME}_updatepo_${LANGUAGE} )
+                add_dependencies( updatepo_all ${DOCNAME}_updatepo_${LANGUAGE} )
+            endif()
 
-            add_dependencies( updatepo_${LANGUAGE} ${DOCNAME}_updatepo_${LANGUAGE} )
-            add_dependencies( updatepo_all ${DOCNAME}_updatepo_${LANGUAGE} )
-
+            # Translate using po4a with config file
             add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}.adoc
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}"
                 COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/images ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/images
-                COMMAND ${PO4A_COMMAND}-translate -f asciidoc -a ${CMAKE_CURRENT_SOURCE_DIR}/po/addendum.${LANGUAGE} -A utf-8 -M utf-8 -m ${CMAKE_CURRENT_SOURCE_DIR}/${DOCNAME}.adoc -p ${CMAKE_CURRENT_SOURCE_DIR}/po/${LANGUAGE}.po -k -0 -l ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}.adoc
+                COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR} && ${PO4A_COMMAND} -f po/po4a.cfg -v -M utf-8 -k 0
+                COMMAND test -d ${CMAKE_CURRENT_SOURCE_DIR}/${LANGUAGE} && ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${LANGUAGE} ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE} || true
+                COMMAND test -d ${CMAKE_CURRENT_SOURCE_DIR}/${LANGUAGE} && ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/${LANGUAGE} || true
                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${DOCNAME}.adoc
                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${DOCCHAPTERFILES}
                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/po/${LANGUAGE}.po )
 
-            # Non-ascii languages needs some special treatments
-            set(DBLATEX_OPTIONS "")
-            set_dblatex_common_options()
-            if( "${LANGUAGE}" MATCHES "ja" )
-                add_dblatex_option( -b xetex -p ${CMAKE_CURRENT_SOURCE_DIR}/../../xsl/dblatex-pdf-ja.xsl )
-            elseif( "${LANGUAGE}" MATCHES "ru" )
-                add_dblatex_option( -b xetex -p ${CMAKE_CURRENT_SOURCE_DIR}/../../xsl/dblatex-pdf-ru.xsl )
-            elseif( "${LANGUAGE}" MATCHES "zh" )
-                add_dblatex_option( -b xetex -p ${CMAKE_CURRENT_SOURCE_DIR}/../../xsl/dblatex-pdf-zh.xsl )
-            endif()
-
-            # Deal with chapters for all languages...
+            # Deal with chapters for all languages
             foreach( CHAPTER ${DOCCHAPTERS} )
                 add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}_${CHAPTER}.adoc
-                                    COMMAND ${PO4A_COMMAND}-translate -f asciidoc -A utf-8 -M utf-8
-                                        -m ${CMAKE_CURRENT_SOURCE_DIR}/${DOCNAME}_${CHAPTER}.adoc
-                                        -p ${CMAKE_CURRENT_SOURCE_DIR}/po/${LANGUAGE}.po -k -0
-                                        -l ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}_${CHAPTER}.adoc
-                                    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/po/${LANGUAGE}.po
-                                    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${DOCNAME}_${CHAPTER}.adoc )
+                                    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}.adoc )
             endforeach()
         endif()
 
@@ -239,28 +245,6 @@ macro( KiCadDocumentation DOCNAME )
             install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}.pdf DESTINATION ${KICAD_DOC_PATH}/${LANGUAGE} COMPONENT pdf-${LANGUAGE})
         endif()
 
-
-        # EPUB Generation
-        list( FIND BUILD_FORMATS "epub" EPUB_BUILD )
-        if( NOT "${EPUB_BUILD}" EQUAL "-1" )
-            add_adoc_epub_target( ${DOCNAME}_epub_${LANGUAGE}
-                    ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}.adoc
-                    ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}.epub
-                    ${LANGUAGE} )
-
-            add_dependencies( ${DOCNAME}_epub_${LANGUAGE} ${DOCNAME}_translate_${LANGUAGE} )
-            add_dependencies( ${DOCNAME}_epub_${LANGUAGE} ${DOCNAME}_git_version )
-            add_dependencies( ${DOCNAME} ${DOCNAME}_epub_${LANGUAGE} )
-
-            # Make the epub target depend on the PDF build as the targets have a race
-            # condition, a2x creates the intermediate docbook output directly in the output
-            # directory.
-            if( NOT "${PDF_BUILD}" EQUAL "-1" )
-                add_dependencies( ${DOCNAME}_epub_${LANGUAGE} ${DOCNAME}_pdf_${LANGUAGE} )
-            endif()
-
-            install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${LANGUAGE}/${DOCNAME}.epub DESTINATION ${KICAD_DOC_PATH}/${LANGUAGE} COMPONENT epub-${LANGUAGE})
-        endif()
     endforeach()
 
 endmacro()

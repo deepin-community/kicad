@@ -1,0 +1,666 @@
+# SOME DESCRIPTIVE TITLE
+# Copyright (C) YEAR Free Software Foundation, Inc.
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: 2025-10-24 23:56+0200\n"
+"PO-Revision-Date: 2025-12-05 19:16+0100\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4\n"
+
+#. type: Title =
+#: src/pcb_calculator/pcb_calculator.adoc:7
+#, no-wrap
+msgid "Calculator Tools"
+msgstr "Berechnungswerkzeuge"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:12
+msgid "_KiCad {kicad-version-short} Reference Manual_"
+msgstr "_KiCad {kicad-version-short} Referenzhandbuch_"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:15
+#, no-wrap
+msgid "*Copyright*\n"
+msgstr "*Copyright*\n"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:22
+msgid ""
+"This document is Copyright (C) 2019-2021 by its contributors as listed below.  "
+"You may distribute it and/or modify it under the terms of either the GNU General "
+"Public License (http://www.gnu.org/licenses/gpl.html), version 3 or later, or "
+"the Creative Commons Attribution License (http://creativecommons.org/licenses/"
+"by/3.0/), version 3.0 or later."
+msgstr ""
+"Dieses Dokument unterliegt dem Copyright (C) 2019-2025 der unten aufgeführten "
+"Mitwirkenden. Sie dürfen es unter den Bedingungen der GNU General Public License "
+"(http://www.gnu.org/licenses/gpl.html), Version 3 oder höher, oder der Creative "
+"Commons Attribution License (http://creativecommons.org/licenses/by/3.0/), "
+"Version 3.0 oder höher, verbreiten und/oder verändern."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:25
+#, no-wrap
+msgid "*Contributors*\n"
+msgstr "*Mitwirkende*\n"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:28
+msgid "Heitor de Bittencourt.  Mathias Neumann"
+msgstr "Heitor de Bittencourt, Mathias Neumann"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:31
+#, no-wrap
+msgid "*Feedback*\n"
+msgstr "*Feedback*\n"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:35
+msgid ""
+"The KiCad project welcomes feedback, bug reports, and suggestions related to the "
+"software or its documentation.  For more information on how to submit feedback "
+"or report an issue, please see the instructions at https://www.kicad.org/help/"
+"report-an-issue/"
+msgstr ""
+"Das KiCad-Projekt freut sich über Rückmeldungen, Fehlerberichte und Vorschläge "
+"in Bezug auf die Software oder ihre Dokumentation. Weitere Informationen zum "
+"Einreichen von Feedback oder zum Melden eines Problems finden Sie in den "
+"Anweisungen unter https://www.kicad.org/help/report-an-issue/"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:37
+#, no-wrap
+msgid "*Software and Documentation Version*\n"
+msgstr "*Version der Software und Dokumentation*\n"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:40
+msgid ""
+"This user manual is based on KiCad {kicad-version-long}. Functionality and "
+"appearance may be different in other versions of KiCad."
+msgstr ""
+"Dieses Benutzerhandbuch basiert auf KiCad {kicad-version-long}. Funktionalität "
+"und Aussehen können sich in anderen Versionen von KiCad unterscheiden."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:42
+msgid "Documentation revision: `{doc-commit}`."
+msgstr "Revision der Dokumentation: `{doc-commit}`."
+
+#. type: Title ==
+#: src/pcb_calculator/pcb_calculator.adoc:44
+#, no-wrap
+msgid "Introduction"
+msgstr "Einführung"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:49
+msgid ""
+"The KiCad PCB Calculator is a set of utilities to help you find the values of "
+"components or other parameters of a layout. The Calculator has the following "
+"tools:"
+msgstr ""
+"Die KiCad Berechnungswerkzeuge sind eine Reihe von Dienstprogrammen, mit denen "
+"Sie die Werte von Bauteilen oder andere Parameter eines Layouts ermitteln "
+"können. Die Berechnung umfasst die folgenden Tools:"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: src/pcb_calculator/pcb_calculator.adoc:51
+#: src/pcb_calculator/pcb_calculator.adoc:63
+#: src/pcb_calculator/pcb_calculator.adoc:68
+#: src/pcb_calculator/pcb_calculator.adoc:73
+#: src/pcb_calculator/pcb_calculator.adoc:78
+#, no-wrap
+msgid "Regulators"
+msgstr "Spannungsregler"
+
+#. type: Title ===
+#: src/pcb_calculator/pcb_calculator.adoc:52
+#: src/pcb_calculator/pcb_calculator.adoc:172
+#, no-wrap
+msgid "Track Width"
+msgstr "Leiterbahnbreite"
+
+#. type: Title ===
+#: src/pcb_calculator/pcb_calculator.adoc:53
+#: src/pcb_calculator/pcb_calculator.adoc:182
+#, no-wrap
+msgid "Electrical Spacing"
+msgstr "Elektrische Abstände"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:54
+msgid "Trans Line"
+msgstr "Übertragungsleitungen"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: src/pcb_calculator/pcb_calculator.adoc:55
+#: src/pcb_calculator/pcb_calculator.adoc:99
+#, no-wrap
+msgid "RF Attenuators"
+msgstr "RF-Dämpfungsglieder"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:56
+msgid "Color Code"
+msgstr "Farbcode"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:57
+msgid "Board Classes"
+msgstr "Platinenklassen"
+
+#. type: Title ==
+#: src/pcb_calculator/pcb_calculator.adoc:60
+#, no-wrap
+msgid "Calculators"
+msgstr "Werkzeuge"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:67
+msgid ""
+"This calculator helps with the task of finding the values of the resistors "
+"needed for linear and low-dropout voltage regulators."
+msgstr ""
+"Dieser Rechner hilft bei der Ermittlung der Werte der Widerstände, die für "
+"lineare Spannungsregler und für solche mit geringem Spannungsabfall benötigt "
+"werden."
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:68
+#, no-wrap
+msgid "images/en/regulators.png"
+msgstr "images/de/regulators.png"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:72
+msgid ""
+"For the _Standard Type_, the output voltage Vout as a function of the reference "
+"voltage Vref and resistors R1 and R2 is given by:"
+msgstr ""
+"Für den _Standardtyp_ ergibt sich die Ausgangsspannung Vout als Funktion der "
+"Referenzspannung Vref und der Widerstände R1 und R2 wie folgt:"
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:73
+#, no-wrap
+msgid "images/Calculation1.png"
+msgstr "images/Calculation1.png"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:77
+msgid ""
+"For the _3 terminal type_, there is a correction factor due to the quiescent "
+"current Iadj flowing from the adjust pin:"
+msgstr ""
+"Für den _Typ mit 3 Anschlüssen_ gibt es einen Korrekturfaktor aufgrund des "
+"Ruhestroms Iadj, der vom ADj-Pin fließt:"
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:78
+#, no-wrap
+msgid "images/Calculation2.png"
+msgstr "images/Calculation2.png"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:82
+msgid "This current is typically below 100 uA and can be neglected with caution."
+msgstr ""
+"Dieser Strom liegt in der Regel unter 100 µA und kann mit Vorsicht "
+"vernachlässigt werden."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:84
+msgid ""
+"To use this calculator, enter the parameters of the regulator _Type_, _Vref_ "
+"and, if needed, _Iadj_, select the field you want to calculate (one of the "
+"resistors or the output voltage) and enter the other two values."
+msgstr ""
+"Um diesen Rechner zu verwenden, geben Sie die Parameter des Reglers _Typ_, "
+"_Vref_ und, falls erforderlich, _Iadj_ ein, wählen Sie das Feld aus, das Sie "
+"berechnen möchten, entweder einen der Widerstände oder die Ausgangsspannung, und "
+"geben Sie hierfür die beiden anderen Werte ein."
+
+#. type: Title ===
+#: src/pcb_calculator/pcb_calculator.adoc:86
+#, no-wrap
+msgid "RF-Attenuators"
+msgstr "RF-Dämpfungsglieder"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:90
+msgid ""
+"With the RF Attenuator utility you can calculate the values of the resistors "
+"needed for different types of attenuators:"
+msgstr ""
+"Mit dem Rechner für RF-Dämpfungsglieder können Sie die Werte der Widerstände "
+"berechnen, die für verschiedene Arten von Dämpfungsgliedern benötigt werden:"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:92
+msgid "PI"
+msgstr "PI-Glied"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:93
+msgid "Tee"
+msgstr "T-Glied"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:94
+msgid "Bridged Tee"
+msgstr "Brücken-T-Glied"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:95
+msgid "Resistive Splitter"
+msgstr "Resistiver Splitter"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:98
+msgid ""
+"To use this tool, first select the type of attenuator you need, then enter the "
+"desired attenuation (in dB) and input/output impedances (in Ohms)."
+msgstr ""
+"Um dieses Tool zu verwenden, wählen Sie zunächst den gewünschten "
+"Dämpfungsgliedtyp aus und geben Sie dann die gewünschte Dämpfung (in dB) und die "
+"Eingangs-/Ausgangsimpedanzen (in Ohm) ein."
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:99
+#, no-wrap
+msgid "images/en/rfattenuators.png"
+msgstr "images/de/rfattenuators.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: src/pcb_calculator/pcb_calculator.adoc:102
+#: src/pcb_calculator/pcb_calculator.adoc:107
+#, no-wrap
+msgid "E-Series"
+msgstr "E-Serie"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:106
+msgid ""
+"This calculator helps to identify combinations of standard E-series resistors "
+"that meet a required resistance, optionally excluding several resistor values "
+"that are not available."
+msgstr ""
+"Dieser Rechner hilft dabei, Kombinationen von Standardwiderständen der E-Serie "
+"zu ermitteln, die einen erforderlichen Widerstand erfüllen, wobei optional "
+"mehrere nicht verfügbare Widerstandswerte ausgeschlossen werden können."
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:107
+#, no-wrap
+msgid "images/en/eseries.png"
+msgstr "images/de/eseries.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: src/pcb_calculator/pcb_calculator.adoc:110
+#: src/pcb_calculator/pcb_calculator.adoc:118
+#, no-wrap
+msgid "Color-Code"
+msgstr "Farbcode"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:113
+msgid ""
+"This calculator helps translating the color bars from the resistor to its value. "
+"To use it, first select the _tolerance_ of the resistor: 10%, 5% or equal or "
+"smaller than 2%. For example:"
+msgstr ""
+"Dieser Rechner hilft Ihnen dabei, die Farbringe auf dem Widerstand in dessen "
+"Wert umzurechnen. Wählen Sie dazu zunächst die _Toleranz_ des Widerstands aus: "
+"10 %, 5 % oder gleich oder kleiner als 2 %. Beispiel:"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:115
+msgid "Yellow Violet Red Gold: 4 7 x100 Â±5% = 4700 Ohm, 5% tolerance"
+msgstr "Gelb Violett Rot Gold: 4 7 x 100 Â±5% = 4700 Ohm, 5% Toleranz"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:116
+msgid "1kOhm, 1% tolerance: Brown Black Black Brown Brown"
+msgstr "1 kOhm, 1 % Toleranz: Braun Schwarz Schwarz Braun Braun"
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:118
+#, no-wrap
+msgid "images/en/colorcode.png"
+msgstr "images/de/colorcode.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: src/pcb_calculator/pcb_calculator.adoc:121
+#: src/pcb_calculator/pcb_calculator.adoc:160
+#, no-wrap
+msgid "TransLine"
+msgstr "Übertragungsleitungen"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:124
+msgid ""
+"Transmission line theory is a cornerstone in the teaching of RF and microwave "
+"engineering."
+msgstr ""
+"Die Theorie der Übertragungsleitungen ist ein wesentlicher Bestandteil der Lehre "
+"im Bereich der Hochfrequenz- und Mikrowellentechnik."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:126
+msgid ""
+"In the calculator you can choose different sorts of Line Types and their special "
+"parameters. The models implemented are frequency-dependent, so they disagree "
+"with simpler models at high _enough_ frequencies."
+msgstr ""
+"Im Rechner können Sie verschiedene Arten von Linientypen und deren spezielle "
+"Parameter auswählen. Die implementierten Modelle sind frequenzabhängig, sodass "
+"sie bei _ausreichend_ hohen Frequenzen von einfacheren Modellen abweichen."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:128
+msgid ""
+"This calculator is heavilly based on http://transcalc.sourceforge.net/"
+"[Transcalc]."
+msgstr ""
+"Dieser Rechner basiert weitgehend auf http://transcalc.sourceforge.net/"
+"[Transcalc]."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:130
+msgid ""
+"The transmission line types and the reference of their mathematical models are "
+"listed below:"
+msgstr ""
+"Die Arten von Übertragungsleitungen und die Referenz ihrer mathematischen "
+"Modelle sind nachfolgend aufgeführt:"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:132
+msgid "Microstrip line:"
+msgstr "Mikrostreifenleitung:"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:134
+#: src/pcb_calculator/pcb_calculator.adoc:148
+msgid ""
+"H. A. Atwater, âSimplified Design Equations for Microstrip Line Parametersâ, "
+"Microwave Journal, pp. 109-115, November 1989."
+msgstr ""
+"H. A. Atwater, âSimplified Design Equations for Microstrip Line Parametersâ, "
+"Microwave Journal, pp. 109-115, November 1989."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:136
+msgid "Coplanar wave guide."
+msgstr "Koplanarer Wellenleiter."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:138
+msgid "Coplanar wave guide with ground plane."
+msgstr "Koplanarer Wellenleiter mit Massefläche."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:140
+msgid "Rectangular waveguide:"
+msgstr "Rechteckiger Wellenleiter:"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:142
+msgid ""
+"S. Ramo, J. R. Whinnery and T. van Duzer, \"Fields and Waves in Communication "
+"Electronics\", Wiley-India, 2008, ISBN: 9788126515257."
+msgstr ""
+"S. Ramo, J. R. Whinnery and T. van Duzer, \"Fields and Waves in Communication "
+"Electronics\", Wiley-India, 2008, ISBN: 9788126515257."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:144
+msgid "Coaxial line."
+msgstr "Koaxialleiter."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:146
+msgid "Coupled microstrip line:"
+msgstr "Gekoppelte Mikrostreifenleiter:"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:150
+msgid ""
+"M. Kirschning and R. H. Jansen, \"Accurate Wide-Range Design Equations for the "
+"Frequency-Dependent Characteristic of Parallel Coupled Microstrip Lines,\" in "
+"IEEE Transactions on Microwave Theory and Techniques, vol. 32, no. 1, pp. 83-90, "
+"Jan. 1984. doi: 10.1109/TMTT.1984.1132616."
+msgstr ""
+"M. Kirschning and R. H. Jansen, \"Accurate Wide-Range Design Equations for the "
+"Frequency-Dependent Characteristic of Parallel Coupled Microstrip Lines,\" in "
+"IEEE Transactions on Microwave Theory and Techniques, vol. 32, no. 1, pp. 83-90, "
+"Jan. 1984. doi: 10.1109/TMTT.1984.1132616."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:152
+msgid ""
+"Rolf Jansen, \"High-Speed Computation of Single and Coupled Microstrip "
+"Parameters Including Dispersion, High-Order Modes, Loss and Finite Strip "
+"Thickness\", IEEE Trans. MTT, vol. 26, no. 2, pp. 75-82, Feb. 1978."
+msgstr ""
+"Rolf Jansen, \"High-Speed Computation of Single and Coupled Microstrip "
+"Parameters Including Dispersion, High-Order Modes, Loss and Finite Strip "
+"Thickness\", IEEE Trans. MTT, vol. 26, no. 2, pp. 75-82, Feb. 1978."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:154
+msgid ""
+"S. March, \"Microstrip Packaging: Watch the Last Step\", Microwaves, vol. 20, "
+"no. 13, pp. 83.94, Dec. 1981."
+msgstr ""
+"S. March, \"Microstrip Packaging: Watch the Last Step\", Microwaves, vol. 20, "
+"no. 13, pp. 83.94, Dec. 1981."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:156
+msgid "Stripline."
+msgstr "Streifenleitung."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:158
+msgid "Twisted pair."
+msgstr "Twisted pair."
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:160
+#, no-wrap
+msgid "images/en/transline.png"
+msgstr "images/de/transline.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: src/pcb_calculator/pcb_calculator.adoc:163
+#: src/pcb_calculator/pcb_calculator.adoc:168
+#, no-wrap
+msgid "Via Size"
+msgstr "Via-Größe"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:167
+msgid ""
+"The Via Size tool calculates the electrical and thermal properties of a given "
+"plated through-hole pad or via."
+msgstr ""
+"Das Tool für Via-Größen berechnet die elektrischen und thermischen Eigenschaften "
+"eines bestimmten beschichteten Durchkontaktierungspads oder eines Vias."
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:168
+#, no-wrap
+msgid "images/en/viasize.png"
+msgstr "images/de/viasize.png"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:176
+msgid ""
+"The Track Width tool calculates the trace width for printed circuit board "
+"conductors for a given current and temperature rise.  It uses formulas from "
+"IPC-2221 (formerly IPC-D-275)."
+msgstr ""
+"Das Werkzeug „Leiterbahnbreite“ berechnet die Breite für Leiterbahnen auf "
+"Leiterplatten für einen bestimmten Strom und Temperaturanstieg.  Es verwendet "
+"Formeln aus IPC-2221 (ehemals IPC-D-275)."
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: src/pcb_calculator/pcb_calculator.adoc:178
+#, no-wrap
+msgid "Track-Width"
+msgstr "Leiterbahnbreite"
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:178
+#, no-wrap
+msgid "images/en/trackwidth.png"
+msgstr "images/de/trackwidth.png"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:185
+msgid "This table helps finding the minimum clearance between conductors."
+msgstr "Diese Tabelle dient zur Ermittlung des Mindestabstands zwischen Leitern."
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:190
+msgid ""
+"Each line of the table has a minimum recomended distance between conductors for "
+"a given voltage (DC or AC peaks) range. If you need the values for voltages "
+"higher than 500V, enter the value in the box in the left corner and press "
+"_Update Values_."
+msgstr ""
+"Jede Zeile der Tabelle enthält den empfohlenen Mindestabstand zwischen den "
+"Leitern für einen bestimmten Spannungsbereich (Gleichstrom- oder "
+"Wechselstromspitzen). Wenn Sie Werte für Spannungen über 500 V benötigen, geben "
+"Sie den Wert in das Feld in der linken Ecke ein und klicken Sie auf _Werte "
+"aktualisieren_."
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: src/pcb_calculator/pcb_calculator.adoc:191
+#, no-wrap
+msgid "Electrical-Spacing"
+msgstr "Elektrische Abstände"
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:191
+#, no-wrap
+msgid "images/en/electricalspacing.png"
+msgstr "images/de/electricalspacing.png"
+
+#. type: Named 'alt' AttributeList argument for macro 'image'
+#: src/pcb_calculator/pcb_calculator.adoc:195
+#: src/pcb_calculator/pcb_calculator.adoc:230
+#, no-wrap
+msgid "Board-Classes"
+msgstr "Platinenklassen"
+
+#. type: Title ====
+#: src/pcb_calculator/pcb_calculator.adoc:197
+#, no-wrap
+msgid "Performance Classes"
+msgstr "Leistungsklassen"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:200
+msgid "In IPC-6011 have been three performance classes established"
+msgstr "In IPC-6011 wurden drei Leistungsklassen festgelegt"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:203
+#, no-wrap
+msgid ""
+"*Class 1 General Electronic Products*:\n"
+"Includes consumer products, some computer and computer peripherals suitable for applications where cosmetic imperfections are not important and the major requirement is function of the completed printed board.\n"
+msgstr ""
+"*Klasse 1 – Allgemeine Elektronikprodukte*:\n"
+"Umfasst Konsumartikel, bestimmte Computer und Computerperipheriegeräte, die für Anwendungen geeignet sind, bei denen kosmetische Mängel keine Rolle spielen und die Funktion der fertigen Leiterplatte im Vordergrund steht.\n"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:206
+#, no-wrap
+msgid ""
+"*Class 2 Dedicated Service Electronic Products*:\n"
+"Includes communications equipment, sophisticated business machines, instruments where high performance and extended life is required and for which uninterrupted service is desired but not critical. Certain cosmetic imperfections are allowed.\n"
+msgstr ""
+"*Klasse 2 – Elektronische Produkte für spezielle Anwendungen*:\n"
+"Umfasst Kommunikationsgeräte, hochentwickelte Business-Maschinen, Instrumente, bei denen hohe Leistung und lange Lebensdauer erforderlich sind und für die ein unterbrechungsfreier Betrieb wünschenswert, aber nicht kritisch ist. Bestimmte kosmetische Mängel sind zulässig.\n"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:209
+#, no-wrap
+msgid ""
+"*Class 3 High Reliability Electronic Products*:\n"
+"Includes the equipment and products where continued performance or performance on demand is critical. Equipment downtime cannot be tolerated and must function when required suchas in life support items or flight control systems. Printed boards in this class are suitable for applications where high levels of assurance are required and service is essential.\n"
+msgstr ""
+"*Klasse 3 – Elektronische Produkte mit hoher Zuverlässigkeit*:\n"
+"Umfasst Geräte und Produkte, bei denen eine kontinuierliche Leistung oder Leistung im Bedarfsfall von entscheidender Bedeutung ist. Ausfallzeiten der Geräte sind nicht tolerierbar, und sie müssen bei Bedarf funktionieren, z. B. bei lebenserhaltenden Geräten oder Flugsteuerungssystemen. Leiterplatten dieser Klasse eignen sich für Anwendungen, bei denen ein hohes Maß an Sicherheit erforderlich ist und der Betrieb unerlässlich ist.\n"
+
+#. type: Title ====
+#: src/pcb_calculator/pcb_calculator.adoc:210
+#, no-wrap
+msgid "PCB Types"
+msgstr "Leiterplattentypen"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:213
+msgid "In IPC-6012B there are also 6 Types of PCB defined:"
+msgstr "In IPC-6012B sind außerdem 6 Arten von Leiterplatten definiert:"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:215
+msgid "Printed Boards without plated through holes (1)"
+msgstr "Leiterplatten ohne durchkontaktierte Löcher (1)"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:217
+msgid "1 Single-Sided Board"
+msgstr "1 Einseitige Leiterplatte"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:219
+msgid "And Boards with plated through holes (2-6)"
+msgstr "Leiterplatten mit durchkontaktierten Löchern (2-6)"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:221
+msgid "2 Double-Sided Board"
+msgstr "2 Zweiseitige Leiterplatte"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:223
+msgid "3 Multilayer board without blind or buried vias"
+msgstr "3 Mehrlagige Leiterplatte ohne Blind- oder Buried Vias"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:225
+msgid "4 Multilayer board with blind and/or buried vias"
+msgstr "4 Mehrlagige Leiterplatte mit Blind- und/oder Buried Vias"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:227
+msgid "5 Multilayer metal core board without blind orburied vias"
+msgstr "5 Mehrlagige Metallkernplatine ohne Blind- oder Buried Vias"
+
+#. type: Plain text
+#: src/pcb_calculator/pcb_calculator.adoc:229
+msgid "6 Multilayer metal core board with blind and/orburied vias"
+msgstr "6 Mehrlagige Metallkernplatine mit Blind- und/oder Buried Vias"
+
+#. type: Target for macro image
+#: src/pcb_calculator/pcb_calculator.adoc:230
+#, no-wrap
+msgid "images/en/boardclasses.png"
+msgstr "images/de/boardclasses.png"

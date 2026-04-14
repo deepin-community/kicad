@@ -19,13 +19,16 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pns_arc.h"
-
 #include "pns_dragger.h"
+
+#include <core/typeinfo.h>
+
+#include "pns_arc.h"
 #include "pns_shove.h"
 #include "pns_router.h"
 #include "pns_debug_decorator.h"
 #include "pns_walkaround.h"
+
 
 namespace PNS {
 
@@ -113,14 +116,6 @@ bool DRAGGER::startDragSegment( const VECTOR2D& aP, SEGMENT* aSeg )
     m_draggedLine      = m_world->AssembleLine( aSeg, &m_draggedSegmentIndex );
     m_lastDragSolution = m_draggedLine;
 
-    if ( m_world->CheckColliding( &m_draggedLine ) )
-    {
-        // If we're already in a state that violates DRC then there's not much we can do but
-        // switch to mark obstacles mode.
-        m_forceMarkObstaclesMode = true;
-    }
-
-
     auto distA = ( aP - aSeg->Seg().A ).EuclideanNorm();
     auto distB = ( aP - aSeg->Seg().B ).EuclideanNorm();
 
@@ -156,13 +151,6 @@ bool DRAGGER::startDragArc( const VECTOR2D& aP, ARC* aArc )
     m_draggedLine = m_world->AssembleLine( aArc, &m_draggedSegmentIndex );
     m_mode = DM_ARC;
 
-    if ( m_world->CheckColliding( &m_draggedLine ) )
-    {
-        // If we're already in a state that violates DRC then there's not much we can do but
-        // switch to mark obstacles mode.
-        m_forceMarkObstaclesMode = true;
-    }
-
     return true;
 }
 
@@ -173,13 +161,6 @@ bool DRAGGER::startDragVia( VIA* aVia )
     m_draggedVia = m_initialVia;
 
     m_mode = DM_VIA;
-
-    if ( m_world->CheckColliding( aVia ) )
-    {
-        // If we're already in a state that violates DRC then there's not much we can do but
-        // switch to mark obstacles mode.
-        m_forceMarkObstaclesMode = true;
-    }
 
     return true;
 }
@@ -502,11 +483,11 @@ void DRAGGER::optimizeAndUpdateDraggedLine( LINE& aDragged, const LINE& aOrig, c
 
         optimizer.SetRestrictArea( *affectedArea );
 
-        PNS_DBG( Dbg(), AddItem, aDragged.Clone(), RED, 0, wxT( "drag-preopt" ) );
+        PNS_DBG( Dbg(), AddItem, &aDragged, RED, 0, wxT( "drag-preopt" ) );
         aDragged.Line().Split( anchor );
 
         optimizer.Optimize( &aDragged, &draggedPostOpt, &origLine );
-        PNS_DBG( Dbg(), AddItem, aDragged.Clone(), GREEN, 0, wxT( "drag-postopt" ) );
+        PNS_DBG( Dbg(), AddItem, &aDragged, GREEN, 0, wxT( "drag-postopt" ) );
     }
     else
     {
@@ -522,7 +503,6 @@ void DRAGGER::optimizeAndUpdateDraggedLine( LINE& aDragged, const LINE& aOrig, c
 bool DRAGGER::tryWalkaround( NODE* aNode, LINE& aOrig, LINE& aWalk )
 {
         WALKAROUND walkaround( aNode, Router() );
-    bool       ok = false;
     walkaround.SetSolidsOnly( false );
     walkaround.SetDebugDecorator( Dbg() );
     walkaround.SetLogger( Logger() );
@@ -636,12 +616,17 @@ bool DRAGGER::dragShove( const VECTOR2I& aP )
         auto preShoveNode = m_shove->CurrentNode();
 
         if( preShoveNode )
-        {
             preShoveNode->Remove( draggedPreShove );
-        }
+
+        int policy = SHOVE::SHP_SHOVE | SHOVE::SHP_DONT_LOCK_ENDPOINTS;
+
+        PNS_DBG( Dbg(), Message, wxString::Format( "drag seg index %d", m_draggedSegmentIndex ) );
+
+        if( m_mode == DM_CORNER && m_draggedSegmentIndex == 0 )
+            policy |= SHOVE::SHP_REVERSED;
 
         m_shove->ClearHeads();
-        m_shove->AddHeads( draggedPreShove, SHOVE::SHP_SHOVE );
+        m_shove->AddHeads( draggedPreShove, policy );
         ok = m_shove->Run() == SHOVE::SH_OK;
 
         LINE draggedPostShove( draggedPreShove );
@@ -649,20 +634,17 @@ bool DRAGGER::dragShove( const VECTOR2I& aP )
         if( ok )
         {
             if( m_shove->HeadsModified() )
-            {
                 draggedPostShove = m_shove->GetModifiedHead( 0 );
-            }
         }
 
         m_lastNode = m_shove->CurrentNode()->Branch();
 
         if( ok )
         {
-            VECTOR2D lockV;
             draggedPostShove.ClearLinks();
             draggedPostShove.Unmark();
             optimizeAndUpdateDraggedLine( draggedPostShove, m_draggedLine, aP );
-            m_lastDragSolution = draggedPostShove;
+            m_lastDragSolution = std::move( draggedPostShove );
         }
 
         m_dragStatus = ok;
@@ -763,6 +745,7 @@ bool DRAGGER::Drag( const VECTOR2I& aP )
 {
     m_mouseTrailTracer.AddTrailPoint( aP );
 
+    bool firstDrag = m_lastNode == nullptr;
     bool ret = false;
 
     if( m_freeAngleMode || m_forceMarkObstaclesMode )
@@ -786,8 +769,19 @@ bool DRAGGER::Drag( const VECTOR2I& aP )
     }
     else
     {
-        if( m_lastNode )
+        if( firstDrag )
         {
+            // First collision resolution failed, switch to highlight mode
+            m_forceMarkObstaclesMode = true;
+
+            ret = dragMarkObstacles( aP );
+
+            if( ret )
+                m_lastValidPoint = aP;
+        }
+        else if( m_lastNode )
+        {
+            // Restore last solution
             NODE* parent = m_lastNode->GetParent()->Branch();
             delete m_lastNode;
             m_lastNode = parent;

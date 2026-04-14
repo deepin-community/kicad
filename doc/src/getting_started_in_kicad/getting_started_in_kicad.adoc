@@ -12,10 +12,11 @@ include::../version.adoc[]
 [[copyright]]
 *Copyright*
 
-This document is Copyright (C) 2010-2024 by its contributors as listed below. You may distribute it
-and/or modify it under the terms of either the GNU General Public License
-(http://www.gnu.org/licenses/gpl.html), version 3 or later, or the Creative Commons Attribution
-License (http://creativecommons.org/licenses/by/3.0/), version 3.0 or later.
+This document is Copyright The KiCad Documentation Contributors.
+You may distribute it and/or modify it under the terms of either
+the GNU General Public License (https://www.gnu.org/licenses/gpl.html),
+version 3 or later, or the Creative Commons Attribution License
+(https://creativecommons.org/licenses/by/3.0/), version 3.0 or later.
 
 All trademarks within this guide belong to their legitimate owners.
 
@@ -60,8 +61,7 @@ with up to 32 copper layers and is suitable for creating designs of all complexi
 developed by a volunteer team of software and electrical engineers around the world with a mission
 of creating free and open-source electronics design software suitable for professional designers.
 
-The latest documentation for KiCad is available at https://docs.kicad.org. This
-document applies to KiCad version 9.0.
+The latest documentation for KiCad is available at https://docs.kicad.org.
 
 [[download-and-install-kicad]]
 === Downloading and installing KiCad
@@ -69,9 +69,13 @@ document applies to KiCad version 9.0.
 KiCad runs on many operating systems, including Microsoft Windows, Apple macOS, and many major
 Linux distributions.
 
-You can find the most up to date instructions and download links at
+You can find the most up to date download links and installation instructions at
 https://www.kicad.org/download/. These instructions are not included in this manual as they may
 change over time with the release of operating system updates.
+
+If you run into problems running KiCad on your system, check the list of known
+system-related issues and workarounds at
+https://www.kicad.org/help/known-system-related-issues/.
 
 IMPORTANT: KiCad stable releases occur periodically per the
 https://dev-docs.kicad.org/en/rules-guidelines/release-policy/[KiCad
@@ -94,7 +98,7 @@ If you have ideas, remarks or questions, or if you just need help:
 * Check the KiCad website for https://www.kicad.org/help/learning-resources/[learning resources]
   made by the KiCad community.
 
-== Basic Concepts and Workflow
+== Basic concepts and workflow
 The typical workflow in KiCad consists of two main tasks: drawing a schematic
 and laying out a circuit board.
 
@@ -134,7 +138,7 @@ including net classes and design rules, are stored at the project level. Opening
 a board outside of its associated project may result in missing design
 information, so be sure to keep all files associated with a project together.
 
-=== PCB Design Workflow
+=== PCB design workflow
 
 Typically, the schematic is drawn first. This means adding symbols to the
 schematic and drawing the connections between them. Custom symbols may need to
@@ -161,14 +165,65 @@ When the board layout is complete and the board has passed the Design Rules
 Check (DRC), fabrication outputs are generated so that the board can be
 manufactured by a PCB fabricator.
 
+[[first-time-setup]]
+== First time setup
+
+The first time you open KiCad, a Welcome window appears to guide you through the initial setup.
+
+image::images/welcome.png[]
+
+The next page asks you if you want to start with fresh preferences or if you want to import your settings from an older version of KiCad.
+
+image::images/welcome_import_prefs.png[]
+
+The next page asks you how you want to configure your symbol and footprint libraries.
+In most cases, you should select the first option, **Start with the built-in KiCad libraries (recommended)**.
+This initializes your library tables to include all of the libraries that come with KiCad.
+
+The other options are to import your library table setup from the previously installed KiCad version,
+or to start with no libraries and do all of the configuration yourself.
+Refer to the xref:../eeschema/eeschema.adoc#managing-symbol-libraries[Schematic Editor]
+and xref:../pcbnew/pcbnew.adoc#managing-footprint-libraries[PCB Editor] documentation
+for details on how to manually configure libraries.
+
+Depending on your system and how KiCad was installed, some options may not be available.
+KiCad may also not be able to locate any libraries installed on your system.
+In this case, you should ensure you have installed the libraries, or you can manually configure the libraries after completing setup.
+
+NOTE: On some systems the KiCad libraries are installed as a separate package.
+
+The location of the default library table files depends on operating system and
+may vary based on installation location. Below are the defaults for each
+operating system:
+
+[width="75%",cols="25%,75%"]
+|===========================
+|Windows |`C:\Program Files\KiCad\10.0\share\kicad\template\`
+|Linux   |`/usr/share/kicad/template/`
+|macOS  |`/Applications/KiCad/KiCad.app/Contents/SharedSupport/template/`
+|===========================
+
+image::images/welcome_libraries.png[]
+
+The last page asks you whether you want to automatically check for updates to the KiCad application and to third-party packages you may have installed through KiCad's Plugin and Content Manager (plugins, themes, libraries, etc.).
+
+On Windows, you also have the option to enable anonymous crash reporting, which helps the KiCad team diagnose and fix critical issues in the application.
+
+image::images/welcome_updates_privacy.png[]
+
+
 == Tutorial Part 1: Project
 
-The first thing to do when starting a new design is to create a new project.
-Opening KiCad will bring up the Project Manager. Click **File** -> **New
-Project**, browse to your desired location, and give your project a name, such
-as `getting-started`. Make sure the **Create a new folder for the project**
-checkbox is ticked, then click **Save**. This will create your project files in
-a new subfolder with the same name as your project.
+Opening KiCad will bring up the Project Manager.
+To create a new project:
+
+1. Click **File** -> **New Project**
+2. Select the **Default** project template and click **OK**.
+3. Browse to the location where you want to save your project, and give your project a name, such as `getting-started`.
+4. Make sure the **Create a new folder for the project** checkbox is ticked.
+5. Click **Save**.
+
+This will create your project files in a new subfolder with the same name as your project.
 
 image::images/project-manager-new-project.png["Project Manager After Creating a New Project"]
 
@@ -188,41 +243,14 @@ NOTE: Opening the Preferences dialog may trigger a library table configuration
 NOTE: On macOS, the Preferences dialog is in the **KiCad** menu, not the
       **Preferences** menu.
 
-image::images/project-backup-settings.png["Project Backup Settings"]
-
 At right of the Project Window, there are buttons to launch the various tools that
 KiCad provides. Launching these tools will automatically open the associated design
 file (schematic or PCB) from the current project. Start by opening the Schematic
 Editor.
 
-== Tutorial Part 2: Schematic
+== Tutorial part 2: schematic
 
-[[sym-lib-table-setup]]
-=== Symbol Library Table Setup
-The first time the schematic editor is opened, a dialog will appear asking how
-to configure the global symbol library table. The symbol library table tells
-KiCad which symbol libraries to use and where they are located. If you have
-installed the default libraries with KiCad, which is recommended, select the
-default option: **Copy default global symbol library table (recommended)**.
-
-[[sym-lib-table-default-location]]
-If KiCad cannot find the libraries in their expected installation location, this
-option will be disabled. In this case, the user should choose the second
-option, **Copy custom global symbol library table**. Click the folder button at
-the bottom, and browse to the location given below. Select the `sym-lib-table`
-file.
-
-The location of the default library table files depends on operating system and
-may vary based on installation location. Below are the defaults for each
-operating system:
-
-* Windows: `C:\Program Files\KiCad\9.0\share\kicad\template\`
-* Linux: `/usr/share/kicad/template/`
-* macOS: `/Applications/KiCad/KiCad.app/Contents/SharedSupport/template/`
-
-image::images/symbol-lib-table-configuration.png["Symbol Library Table Configuration"]
-
-=== Schematic Editor Basics
+=== Schematic editor basics
 To pan around the schematic, click and drag with the middle mouse button or
 right mouse button. Zoom in and out with the mousewheel or kbd:[F1] and
 kbd:[F2]. Laptop users may find it useful to change the mouse controls to be
@@ -246,11 +274,20 @@ The toolbar at the left side of the schematic editor screen contains basic
 display settings. The toolbar at the right side of the screen contains tools for
 editing the schematic.
 
+NOTE: Some toolbar buttons have a small triangle in the bottom
+      right corner image:images/pcbnew_palette_buttons.png[]. The triangle
+      indicates that the button has an expanding palette containing several
+      related tools, for example different kinds of labels. To select an
+      alternate tool, click and hold on the button until the palette appears,
+      then click on the alternate tool. Another way to use the palettes is to
+      click on the button and drag to the left until the palette appears, then
+      release the mouse button when the desired tool is highlighted.
+
 Most tools in KiCad either have default hotkeys assigned, or can have custom
 hotkeys assigned. To view all hotkeys, go to **Help** -> **List Hotkeys...**.
 Hotkeys can be changed in the **Hotkeys** panel of the Preferences dialog.
 
-=== Schematic Sheet Setup
+=== Schematic sheet setup
 
 Before drawing anything in the schematic, set up the schematic sheet itself.
 Click **File** -> **Page Settings**. Give the schematic a title and date, and
@@ -259,23 +296,11 @@ change the paper size if desired.
 image::images/schematic-page-setup.png["Schematic Page Settings"]
 
 [[fp-lib-table-setup]]
-=== Adding Symbols to the Schematic
+=== Adding symbols to the schematic
 Start making the circuit by adding some symbols to the schematic. Open the
 Choose Symbol dialog by clicking the **Add Symbols** button
 image:images/add_component_24.png[] on the right side of the window or
 pressing kbd:[A].
-
-This action will trigger the Footprint Library Table Setup dialog if it has not
-already been triggered. This dialog is equivalent to the
-<<sym-lib-table-setup,Symbol Library Table Setup dialog explained earlier>>, but
-for footprints instead of symbols.
-
-Again, select the default option: **Copy default global footprint library table
-(recommended)**. If this is option is disabled, select the second option, **Copy
-custom global footprint library table**. Click the folder button at the bottom,
-and browse to the location given in
-<<sym-lib-table-default-location,the symbol library table setup instructions>>.
-Select the `fp-lib-table` file and click **OK**.
 
 The Choose Symbol dialog lists the available symbol libraries and the component
 symbols contained within them. Basic devices like passive components, diodes,
@@ -299,7 +324,7 @@ Finally, add a battery to power the LED. The `Device` library has a suitable
 
 image::images/symbols-placed.png["Schematic with Symbols Placed"]
 
-=== Selecting and Moving Objects
+=== Selecting and moving objects
 Next, position the symbols correctly relative to each other, as shown in the
 screenshot. You will do this by selecting each symbol, then moving and rotating
 it.
@@ -336,7 +361,7 @@ with wires attached, kbd:[G] moves the symbol and keeps the wires attached,
 while kbd:[M] moves the symbol and leaves the wires behind. Selected objects can
 be deleted with the kbd:[Del] key.
 
-=== Wiring the Schematic
+=== Wiring the schematic
 
 The symbol pins all have small circles on them, indicating that they are not
 connected. Fix that by drawing wires between symbol pins as shown in the
@@ -365,7 +390,7 @@ Add a VCC symbol and GND symbol and then connect them to the circuit with wires.
 
 Finally, add a label to the wire between the LED and resistor. Again, this may not
 be necessary in a simple circuit, but it is good practice to label important nets.
-Click the **Draw Net Labels** button image:images/add_label_24.png[] in the right
+Click the **Place Net Labels** button image:images/add_label_24.png[] in the right
 toolbar (kbd:[L]), type a label name (`led`), and place the label into the
 schematic so that the square attachment point overlaps with the wire. Rotate and
 align the label as necessary.
@@ -376,7 +401,7 @@ Note that labels and power symbols with the same name are connected together.
 Another GND symbol or wire labeled `led` on this schematic page would be shorted
 to the existing one, even without wires visually connecting them.
 
-=== Annotation, Symbol Properties, and Footprints
+=== Annotation, symbol properties, and footprints
 
 ==== Annotation
 Each symbol needs a unique reference designator assigned to it. This process is
@@ -390,7 +415,7 @@ While it is not necessary for this guide, symbols can be manually annotated or
 reannotated using the **Fill in schematic symbol reference designators** button
 (image:images/annotate_24.png[]) in the top toolbar.
 
-==== Symbol Properties
+==== Symbol properties
 Next, fill in values for each component. Select the LED, right-click, and select
 Properties... (kbd:[E]). This project will use a red LED, so change the `Value`
 field to be `red`. In a real project, it might be better to write the LED
@@ -401,7 +426,7 @@ This project will use a 3V lithium coin cell battery, so change the `Value`
 field of `BT1` to `3V`. Change the resistor's value to `1k`.
 
 [[footprint-assignment]]
-==== Footprint Assignment
+==== Footprint assignment
 Finally, assign a footprint to each component. This defines how each component
 will attach to the PCB. Some symbols come with footprints pre-assigned, but
 for many components there are multiple possible footprints, so the user needs
@@ -462,7 +487,7 @@ There are other ways to assign footprints; one way is through the symbol
 properties window. For more information on assigning footprints, see the
 xref:../eeschema/eeschema.adoc#assigning-footprints[manual].
 
-=== Electrical Rules Check
+=== Electrical rules check
 
 The last remaining thing to do in the schematic is to check for electrical
 errors. KiCad's Electrical Rules Checker (ERC) cannot make sure that the design
@@ -503,7 +528,7 @@ to solve this problem by telling KiCad that the nets are actually driven. Add th
 symbol to the `VCC` and `GND` nets and re-run ERC. When ERC passes without any
 violations, the schematic is complete.
 
-=== Bill of Materials
+=== Bill of materials
 A final optional step is to generate a Bill of Materials listing all components
 used in the project. Click **Tools** -> **Generate Bill of Materials...**.
 
@@ -511,7 +536,7 @@ image::images/bom-generator.png["BOM Dialog"]
 
 KiCad has a GUI for BOM export. You can configure which symbol metadata will
 be exported, and how the symbols are grouped, in the **Edit** tab, and configure
-the output format in the **Export** tab. 
+the output format in the **Export** tab.
 
 For now, the default settings should be fine, but you can see a raw view of what
 will be exported in the preview pane. Specify an output file in the **Export**
@@ -522,11 +547,11 @@ program.
 
 image::images/bom.png["Generated BOM"]
 
-== Tutorial Part 3: Circuit Board
+== Tutorial part 3: circuit board
 With the schematic completed, go back to the Project Window and open the PCB
 Editor, either by clicking the PCB Editor button or opening the board file.
 
-=== PCB Editor Basics
+=== PCB editor basics
 Navigation in the PCB Editor is the same as the Schematic editor: pan by
 dragging with the middle mouse button or right mouse button, and zoom with the
 scrollwheel or kbd:[F1]/kbd:[F2].
@@ -537,7 +562,7 @@ including units and toggles for outline/filled display modes for tracks, vias,
 pads, and zones. The toolbar just to the right of the canvas contains tools for
 designing the PCB.
 
-NOTE: Some buttons on the right toolbar have a small triangle in the bottom
+NOTE: Some toolbar buttons have a small triangle in the bottom
       right corner image:images/pcbnew_palette_buttons.png[]. The triangle
       indicates that the button has an expanding palette containing several
       related tools, for example different kinds of dimensions. To select an
@@ -554,7 +579,7 @@ Below the Appearance Panel is the Selection Filter, which enables and disables
 selection of various types of PCB objects. This is useful to select specific
 items in a crowded layout.
 
-=== Board Setup and Stackup
+=== Board setup and stackup
 Before designing the board, set the page size and add information to the title
 block. Click **File** -> **Page Settings...**, then choose an appropriate paper
 size and enter a date, revision, and title.
@@ -592,13 +617,19 @@ but net classes are recommended because they provide an automatic way to manage
 and check design rules.
 
 In this design, no net classes are specified, so all nets will belong to the
-`Default` net class. The default design rules for this net class are
-acceptable for this project, but other designs may have multiple net classes,
-each with different design rules. For example a board might have a `High
-Current` netclass with wide tracks, or a `50 ohm` netclass with specific width
+`Default` net class. A single net class is acceptable for this project,
+but other designs may have multiple net classes, each with different design rules.
+For example a board might have a `High Current` netclass with wide tracks,
+or a `50 ohm` netclass with specific width
 and clearance rules for 50 ohm controlled-impedance tracks.
 
-=== Importing Changes From Schematic
+This project has relatively few components and is not space constrained,
+so we can be generous with track sizing.
+Larger tracks can carry more current and are more mechanically robust.
+Increase the `Default` net class's `Track Width` from `0.2 mm` to `0.4 mm`.
+When we route tracks, they will automatically have a width of `0.4 mm`.
+
+=== Importing changes from schematic
 The schematic is complete, but there are not yet any components in the layout.
 To import design data from the schematic into the layout, click **Tools** ->
 **Update PCB from Schematic...**, or press kbd:[F8]. There is also a button
@@ -618,7 +649,7 @@ the designer decides when it is appropriate to update the PCB with modifications
 in the schematic. Each time the schematic is edited, the designer must use the
 **Update PCB from Schematic** tool to keep the schematic and layout in sync.
 
-=== Drawing A Board Outline
+=== Drawing a board outline
 Now the three components have been placed, but the board itself has not been
 defined. The board is defined by drawing a board outline on the `Edge.Cuts`
 layer.
@@ -643,7 +674,13 @@ outline is a single closed shape that doesn't intersect itself.
 
 image::images/select-edge-cuts.png["Edge Cuts"]
 
-=== Placing Footprints
+The board outline should look like this:
+
+image::images/board-outline.png[]
+
+The lighter grey color inside the outline indicates the interior of the board.
+
+=== Placing footprints
 The next step in the layout process is to arrange the footprints on the board.
 In general, there are a several considerations for positioning footprints:
 
@@ -656,17 +693,17 @@ In general, there are a several considerations for positioning footprints:
   defined). Generally courtyards should not intersect.
 * Otherwise components should be positioned for ease of routing. Connected
   components should generally be close together, and arranged to minimize
-  routing complexity. The ratsnest (the thin lines indicating connections
+  routing complexity. The _ratsnest_ (the thin lines indicating connections
   between pads) is useful for determining how best position footprints relative
   to other footprints.
 
 For the purposes of this guide, the only placement goal is to make the routing
 process as simple as possible.
 
-Start by moving the battery holder `BT1` onto the back side of the board. Click
-it to select it, then press kbd:[M] to move it. Press kbd:[F] to flip it to the
-opposite side; it now appears mirrored and its pads have changed from red to
-blue.
+Start by moving the battery holder `BT1` onto the back side of the board.
+Click it to select it, then press kbd:[M] to move it.
+Press kbd:[F] to flip it to the opposite side, then click to place it.
+It now appears mirrored and its pads have changed from red to blue.
 
 image::images/bt1-flipped.png["BT1 flipped to the back"]
 
@@ -677,15 +714,18 @@ Each PCB layer has a unique color, which is shown by the swatches in the Layers
 tab of the Appearance panel. In the default color scheme, items on the `F.Cu`
 (Front Copper) layer are red, while items on the `B.Cu` (Back Copper) are blue.
 
-Now place the other two components. One at a time, select each component, then
-move and rotate it with kbd:[M] and kbd:[R]. Watch the ratsnest lines between
-each pad to choose the simplest arrangement of components; a good arrangement
-will leave the lines untangled. One possible arrangement is shown in the
-screenshot below.
+Now place the other two components.
+One at a time, select each component, then move and rotate it with kbd:[M] and kbd:[R].
+The thin lines between pads are called _ratsnest_ lines;
+they indicate connections in the schematic that you have not yet created in the PCB.
+Watch the ratsnest lines between each pad to choose the simplest arrangement of components;
+a good arrangement will leave the lines untangled,
+which means it will be easy to route the tracks between pads.
+One possible arrangement is shown in the screenshot below.
 
 image::images/footprints-positioned.png["Footprints positioned optimally"]
 
-=== Routing Tracks
+=== Routing tracks
 With the components in place, it's time to connect the pads with copper tracks.
 
 The first track will be drawn on the front of the board, so change the active
@@ -723,7 +763,7 @@ At this point, all connections are routed. This can be confirmed by looking at
 the status screen in the bottom left of the window, where the number of unrouted
 nets is given as 0.
 
-=== Placing Copper Zones
+=== Placing copper zones
 Copper zones are regions of copper with an associated net. Zones automatically
 connect to copper objects belonging to the same net and avoid objects belonging
 to other nets. Zones are often used for ground and power connections because they
@@ -734,7 +774,7 @@ layer and clicking the **Add a filled zone** button
 image:images/add_zone_24.png[] in the right toolbar. Click on the PCB to place
 the first corner of the zone.
 
-In the Copper Zone Properties dialog that appears, select the `GND` net and make
+In the Copper Zone Properties dialog that appears, select the `GND` net from the **Net name** dropdown and make
 sure that the `B.Cu` layer is selected. Click **OK**, then click to place the other
 three corners of the zone. Double click when placing the last corner to complete
 the zone.
@@ -769,7 +809,7 @@ layers can also be hidden or dimmed using the **Layer Display Options** in the
 Appearance Panel.
 
 [[drc]]
-=== Design Rule Checking
+=== Design rule checking
 Design Rule Checking is the layout equivalent of Electrical Rule Checking for
 the schematic. DRC looks for design mistakes like mismatches between the
 schematic and layout, copper regions that have insufficient clearance or are
@@ -808,7 +848,7 @@ Close the DRC dialog, press kbd:[B] to refill the zone, and re-run DRC.
 Alternatively, check the **Refill all zones before performing DRC** checkbox and
 re-run DRC. All violations are fixed.
 
-=== 3D Viewer
+=== 3D viewer
 KiCad offers a 3D viewer that is useful for inspecting the PCB. Open the 3D
 viewer with **View** -> **3D Viewer**. Pan by dragging with the middle mouse
 button, and orbit by dragging with the left mouse button. Orbit around the PCB
@@ -825,7 +865,7 @@ the footprints used in this guide. Some footprints do not come with 3D models,
 <<footprints-and-3d-models,but users can add their own>>.
 
 [[fab]]
-=== Fabrication Outputs
+=== Fabrication outputs
 With the board design finished, the final step is to generate fabrication
 outputs so the board can be manufactured.
 
@@ -835,12 +875,16 @@ from a PCB fabricator.
 
 Specify an output directory so that the plotted files will be collected in a
 folder. Otherwise, the default settings are fine, but make sure all the necessary
-layers are checked: include the copper layers (`++*++.Cu`), board outline
-(`Edge.Cuts`), soldermask (`++*++.Mask`), and silkscreen (`++*++.Silkscreen`).
-The paste layers (`++*++.Paste`) are useful for manufacturing solder paste
-stencils. The Adhesive layers (`++*++.Adhesive`) are needed only if any
-components will be glued to the board during assembly. Other layers may be
-useful to plot, but are not typically necessary for PCB fabrication.
+layers are checked:
+
+- Copper layers (`++*++.Cu`).
+- Board outline (`Edge.Cuts`).
+- Solder mask (`++*++.Mask`).
+- Silkscreen (`++*++.Silkscreen`).
+- Solder paste (`++*++.Paste`).
+  This layer is needed for manufacturing solder paste stencils, but is otherwise optional.
+
+Other layers may be useful to plot, but are not typically necessary for PCB fabrication.
 
 image::images/fabrication-outputs.png["Plot dialog"]
 
@@ -851,7 +895,7 @@ dialog. The design is finished.
 
 image::images/generate-drill-files.png["Generate Drill Files dialog"]
 
-== Tutorial Part 4: Custom Symbols and Footprints
+== Tutorial part 4: custom symbols and footprints
 
 The circuit would be improved by adding a switch to turn the LED on and off. The
 process to add this switch will require creating a new symbol and footprint
@@ -862,18 +906,20 @@ https://www.nkkswitches.com/pdf/MtogglesBushing.pdf[NKK M2011S3A1W03], an SPST
 toggle switch. Many other switches could be used, but the pin numbering and
 footprint dimensions may need to be adjusted.
 
-=== Library and Library Table Basics
+=== Library and library table basics
 
-Symbols and footprints are organized into libraries. A library can hold symbols
+Symbols and footprints are organized into _libraries_. A library can hold symbols
 or footprints, but not both.
 
 KiCad keeps track of the user's symbol libraries and footprint libraries in the
-symbol library table and footprint library table, respectively. Each library
+_symbol library table_ and _footprint library table_, respectively. Each library
 table is a list of library names and the location of where each library exists
 on disk.
+Library tables can also include other library tables,
+which effectively adds all of the libraries in the child table to the parent table.
 
-In addition to global symbol and footprint library tables, there are also
-project library tables for symbols and footprints. Symbols and footprints that
+In addition to _global_ symbol and footprint library tables, there are also
+_project_ library tables for symbols and footprints. Symbols and footprints that
 are added to the global tables are available in all projects, while symbols and
 footprints in the project-specific tables are available only for that specific
 project. Users can add their own libraries to the global library tables or to
@@ -899,47 +945,44 @@ points at the current project directory, so it can be used for including
 project-specific libraries that are stored inside the project directory.
 
 On first run, KiCad
-<<sym-lib-table-setup,prompts the user to set up the symbol library table>>
-and <<fp-lib-table-setup,footprint library table>>. To go through this setup
-again, delete or rename the symbol library table or footprint library table
-files. Make a backup of the tables before deleting them.
+<<first-time-setup,prompts the user to set up the symbol and footprint library tables>>.
+To reset your libraries to default, press the **Reset Libraries** button in the library table dialog.
 
-The location of the symbol and footprint library table files depends on
-operating system.
-
-* Windows: `%APPDATA%\kicad\9.0\sym-lib-table` and `%APPDATA%\kicad\9.0\fp-lib-table`
-* Linux: `~/.config/kicad/9.0/sym-lib-table` and `~/.config/kicad/9.0/fp-lib-table`
-* macOS: `~/Library/Preferences/kicad/9.0/sym-lib-table` and
-    `~/Library/Preferences/kicad/9.0/fp-lib-table`
-
-=== Creating New Global or Project Libraries
+=== Creating new global or project libraries
 
 The first step in drawing a new symbol or footprint is to choose a library in
 which to store it. For this guide, the switch symbol and footprint will go into
 new project-specific libraries.
 
-Open the Symbol Editor from the Project Manager. Click **File** -> **New
-Library**, and select **Project**. Choose a name for the new library (e.g.
-`getting-started.kicad_sym`) and save it in the project directory. The empty new
-library is now selected in the Libraries pane at left, and has been
-automatically added to the project library table (check the Project Specific
-Libraries tab in **Preferences** -> **Manage Symbol Libraries...**).
+1. Open the Symbol Editor from the Project Manager.
+2. Click **File** -> **New Library**.
+3. Select the **Add new library to project library table** option in the file browser.
+4. Choose a name for the new library (e.g. `getting-started.kicad_sym`).
+5. Save the new symbol library in the project directory.
 
-=== Creating New Symbols
+The empty new library is now selected in the Libraries pane at left,
+and has been automatically added to the project library table
+(check the Project Specific Libraries tab in **Preferences** -> **Manage Symbol Libraries...**).
 
-Now create the switch symbol in the new library. With the `getting-started`
-library selected in the Libraries pane, click **File** -> **New Symbol...**. In
-the **Symbol name** field, enter the part number: `M2011S3A1W03`. Switch symbols
-should have reference designators that start with `SW`, so change the **Default
-reference designator** field to `SW`. All other fields can remain as the
-defaults.
+=== Creating new symbols
+
+Now create the switch symbol in the new library.
+
+1. Select the `getting-started` library in the Libraries pane at left.
+2. Click **File** -> **New Symbol...**.
+3. In the **Symbol name** field, enter the part number: `M2011S3A1W03`.
+4. Switch symbols should have reference designators that start with `SW`,
+   so change the **Default reference designator** field to `SW`.
+5. Uncheck **Show pin name text**.
+6. Leave all other fields as the defaults.
+7. Press **OK**.
 
 In the Libraries pane, the `M2011S3A1W03` symbol now appears under the
 `getting-started` library. In the canvas, a cross indicates the center of
 the footprint, and text has been added for the reference designator. For now,
 move the text away from the center of the symbol to get it out of the way.
 
-==== Symbol Pins
+==== Symbol pins
 
 Start drawing the symbol by adding a pin. This symbol will not have a pin 1, so
 we will start with a pin numbered 2. Click the **Add a pin** button
@@ -997,7 +1040,7 @@ With pin 3 selected, use the Properties panel to set its properties as follows:
 NOTE: The Properties Panel is available in every KiCad editor (Schematic, Board,
       Symbol, and Footprint).
 
-==== Graphical Features
+==== Symbol graphics
 
 With the pins placed, use the circle image:images/add_circle_24.png[] and line
 image:images/add_line_24.png[] tools to make the symbol look like an SPST
@@ -1011,14 +1054,12 @@ always be placed on a 50 mil (1.27 mm) grid**. Pins which are not aligned to a
 
 image::images/symbol-drawn.png["symbol drawn"]
 
-==== Symbol Properties
+==== Symbol properties
 
 Now edit the properties for the whole symbol with **File** -> **Symbol
 Properties**, or by double clicking on the canvas. Change the **Value** field to
 `M2011S3A1W03`, and add `spst switch toggle` to the **Keyword** field to make it
-easier to find the symbol by searching. For this symbol, the pin names do not
-add any useful information, so uncheck **Show pin name** to make the symbol
-visually simpler.
+easier to find the symbol by searching.
 
 After clicking **OK**, move the value field's text lower so that it does not
 overlap with the symbol graphics.
@@ -1027,21 +1068,30 @@ image::images/symbol-properties.png["symbol properties"]
 
 The symbol is now complete. Save it and move on to creating a footprint.
 
-=== Creating New Footprints
+=== Creating new footprints
 
-Open the Footprint Editor and create a new project-specific footprint library
-named `getting-started.pretty` (**File** -> **New Library...**). As with symbol
-libraries, the new footprint library is added to the project library table. With
-the new library selected in the Libraries pane, create a new footprint (**File**
--> **New Footprint...**). Edit the footprint's properties
-(image:images/module_options_24.png[] button in the top toolbar) and set the
+To create a new footprint, follow a similar process as for symbols.
+First you need to create a library, then create a new footprint in the library.
+
+1. Open the Footprint Editor from the Project Manager.
+2. Click **File** -> **New Library...**.
+3. Select the **Add new library to project library table** option in the file browser.
+4. Choose a name for the new library (e.g. `getting-started.pretty`)
+5. Save the new footprint library in the project directory.
+
+As with the symbol library, the new footprint library is added to the project library table.
+You can now add a footprint to the new library.
+
+1. Select the `getting-started` library in the Libraries pane at left.
+2. Click **File** -> **New Footprint**. This creates an empty, untitled footprint.
+3. Edit the footprint's properties (image:images/module_options_24.png[] button in the top toolbar) and set the
 following properties:
-
++
 * **Footprint name**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`
 * **Value**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`
-* **Component type**: `Through hole`
+* **Component type**: Through hole
 
-==== Footprint Pads
+==== Footprint pads
 
 The switch has two pins, numbered in the datasheet as 2 and 3, and spaced 4.7 mm
 apart. For ease of placement, adjust the grid to match the pad spacing. Open the
@@ -1052,7 +1102,7 @@ go back to the editing canvas, and then switch to the new grid in the grid
 dropdown in the top toolbar, if it is not already selected.
 
 By convention, through-hole footprints have pin 1 located at `(0,0)` and are
-oriented with pin 1 in the top left. The SPST version of this switch does not
+oriented with pin 1 in the top left. We are using the SPST version of this switch which does not
 have pin 1, so the footprint will leave `(0,0)` empty and place pads 2 and 3 at
 `(0, 4.7 mm)` and `(0, 9.4 mm)`. Note that in KiCad's default coordinate system,
 the positive Y-axis is oriented downwards.
@@ -1061,14 +1111,18 @@ NOTE: The X and Y coordinates of the cursor are displayed in the status bar at
       the bottom of the window. You can use this to check the coordinates when
       you are drawing or placing something.
 
-Use the **Add a pad** tool image:images/pad_24.png[] in the right toolbar to
-place a pad one grid division below the origin, which is (0, 4.7 mm). Press
-kbd:[Esc] to exit the pad tool, then double click on the pad to edit its
-properties. Change the pad number to `2` and verify that the position is
-correct. The switch pins are 1.17 mm x 0.8 mm, which gives a diagonal (maximum
-pin dimension) of 1.42 mm. Therefore set the hole diameter to 1.42 mm + 0.2 mm =
-`1.62 mm`, and the pad diameter to 1.62 mm + 2*0.15 mm = `1.92 mm` to provide a
-sufficient annular ring.
+1. Use the **Add a pad** tool image:images/pad_24.png[] in the right toolbar to place a pad one grid division below the origin, which is (0, 4.7 mm).
+2. Press kbd:[Esc] to exit the pad tool.
+3. Double click on the pad to edit its properties.
+4. Change the pad number to `2`.
+5. Verify that the position is correct.
+6. Set the pad shape to Circular.
+7. Set the hole diameter.
+   The switch pins are 1.17 mm x 0.8 mm, which gives a diagonal (maximum pin dimension) of 1.42 mm.
+   Therefore set the hole diameter to 1.42 mm + 0.2 mm = `1.62 mm`.
+8. Set the pad diameter.
+   For a hole diameter of 1.62 mm, set the pad diameter to 1.62 mm + 2*0.15 mm = `1.92 mm` to provide a sufficient annular ring.
+9. Press **OK** to apply the pad modifications.
 
 image::images/pad-properties.png["pad properties"]
 
@@ -1090,23 +1144,16 @@ Make the same annular ring modification to the other pad as well. As a shortcut,
 right click on pad 2, click **Push Pad Properties to Other Pads...**, and then
 click **Change Pads on Current Footprint**.
 
-==== Footprint Graphics
+==== Footprint graphics
 A good footprint will have the exact part outline drawn on the fabrication layer
 (`F.Fab`), a slightly larger outline on the silkscreen layer (`F.Silkscreen`),
 and a courtyard (`F.Courtyard`) surrounding the entire footprint to prevent
 overlaps with other footprints.
 
-Switch to the front fabrication layer by clicking **F.Fab** in the Layers panel
-at right. The fabrication outline should precisely match the physical dimensions
-of the part, which is 7.9 mm wide and 13 mm tall. Use the line
-image:images/add_line_24.png[], rectangle image:images/add_rectangle_24.png[],
-or polygon image:images/add_graphical_polygon_24.png[] tools to draw the outline
-of the part as shown in the screenshot below. One way to precisely place the
-outline is to create a new grid with the correct X and Y spacing, as we did for
-the pads. Make sure to uncheck the **Linked** checkbox in the Grid Settings
-dialog to allow unequal X and Y grid spacing. You can then adjust the grid
-origin by right clicking the image:images/grid_24.png[] button and selecting
-**Grid Origin...**.
+The fabrication outline should precisely match the physical dimensions of the part, which is 7.9 mm wide and 13 mm tall.
+One way to precisely place the outline is to create a new grid with the correct X and Y spacing, as we did for the pads.
+Make sure to uncheck the **Linked** checkbox in the Grid Settings dialog to allow unequal X and Y grid spacing.
+You can then adjust the grid origin by right clicking the image:images/grid_24.png[] button and selecting **Grid Origin...**.
 
 Configure the grid spacing and origin as follows:
 
@@ -1115,8 +1162,14 @@ Configure the grid spacing and origin as follows:
 * X origin: 7.9 mm / 2 = `3.95 mm`
 * Y origin: 4.7 mm - (13 mm / 2) = `-1.8 mm`.
 
-The completed fabrication drawing is shown below, with corner coordinates
-annotated.
+To draw the fab outline, switch to the front fabrication layer by clicking **F.Fab** in the Layers panel at right.
+Use the line image:images/add_line_24.png[], rectangle image:images/add_rectangle_24.png[],
+or polygon image:images/add_graphical_polygon_24.png[] tools to draw the outline of the part as shown in the screenshot below,
+with corner coordinates annotated.
+
+NOTE: If you use the rectangle tool, you will need to make sure the _line mode_ is set to the free-angle mode or you will only be able to draw squares.
+      To change the line mode to free-angle, click the image:images/lines90_24.png[] / image:images/hv45mode_24.png[] / image:images/lines_any_24.png[] button on the left toolbar until it shows image:images/lines_any_24.png[].
+      You can also use kbd:[Shift+Space] to cycle the line mode.
 
 image::images/fab-outline.png["fab outline coordinates"]
 
@@ -1130,6 +1183,9 @@ coordinates are shown in the screenshot below, and helpful grid settings are:
 * Y grid: 13 mm + 2 * 0.11 mm = `13.22 mm`
 * X origin: 8.12 mm / 2 = `4.06 mm`
 * Y origin: -1.8 mm - 0.11 mm = `-1.91 mm`
+
+Also change the silk outline thickness to `0.12 mm` by selecting each outline segment and editing its properties
+(right click -> **Properties...** or press kbd:[E]).
 
 image::images/silk-outline.png["silk outline coordinates"]
 
@@ -1162,7 +1218,7 @@ Footprints and symbols in the https://gitlab.com/kicad/libraries[official
 library] are required to follow KLC. KLC is used as a basis for the symbol and
 footprint in this guide.
 
-==== Add Switch to Schematic
+==== Add switch to schematic
 
 [[default-footprint]]
 Now that the footprint is complete, the switch symbol can be modified so that
@@ -1187,7 +1243,7 @@ modified schematic doesn't violate any electrical rules.
 
 image::images/schematic-with-switch.png["schematic edited to include switch"]
 
-==== Add Switch to Layout
+==== Add switch to layout
 
 Make sure the schematic is saved, then open the Board Editor to add the symbol
 to the layout. Update the PCB with the schematic changes using **Tools** ->
@@ -1214,9 +1270,9 @@ rules.
 image::images/board-with-switch-routed.png["board with switch added, before routing"]
 
 [[linking-symbols-footprints-3d-models]]
-=== Linking Symbols, Footprints, and 3D Models
+=== Linking symbols, footprints, and 3D models
 
-==== Symbols and Footprints
+==== Symbols and footprints
 
 As described in <<footprint-assignment,the footprint assignment section>>, each
 symbol in the schematic needs to have a footprint assigned to it during the
@@ -1244,7 +1300,7 @@ The https://klc.kicad.org/symbol/s5/s5.2/[KLC requirements for footprint filters
 contain some useful tips for effective footprint filters.
 
 [[footprints-and-3d-models]]
-==== Footprints and 3D Models
+==== Footprints and 3D models
 
 3D models for components are stored in separate files. Filenames for the
 component's 3D model(s) are saved in the footprint. Any number of 3D models can
@@ -1257,25 +1313,22 @@ image::images/footprint-3d-model.png["footprint 3D model properties"]
 Both STEP (`.step`) and VRML (`.wrl`) 3D model formats are supported. STEP files
 are useful where dimensional accuracy is needed, while VRML files can be used
 for more visually attractive renders. Many footprints in KiCad's library have
-associated 3D models; these models are provided in both VRML and STEP formats.
-Only one of the two models needs to be listed in the footprint (typically the
-VRML filename is given). KiCad can automatically substitute the STEP version
-when exporting a 3D model of the board for mechanical CAD purposes.
+associated 3D models; these models are provided in STEP format.
 
 NOTE: Not all footprints in KiCad's library are provided with 3D models,
 but all footprints list a 3D model filename even if the 3D model does not
 exist. This is so 3D models can be added at a later date without needing to edit
 the footprint.
 
-https://www.freecadweb.org/[FreeCAD] together with the
+https://www.freecad.org/[FreeCAD] together with the
 https://github.com/easyw/kicadStepUpMod/[StepUp Workbench] are useful for
 creating component 3D models; they are used for many of the models in KiCad's
 library. StepUp is used to generate STEP and VRML files with correct placement,
 scaling, and rotation.
 
-== Where To Go From Here
+== Where to go from here
 
-=== More Learning Resources
+=== More learning resources
 
 For more information on how to use KiCad, see the https://docs.kicad.org/[manual].
 
@@ -1290,7 +1343,7 @@ https://www.kicad.org/made-with-kicad/[Made With KiCad] section of the website,
 or open the demo projects included with KiCad
 (**File** -> **Open Demo Project...**).
 
-=== Help Improve KiCad
+=== Help improve KiCad
 
 To report a bug or request a feature, please use **Help** -> **Report a Bug**
 or open an issue on https://gitlab.com/kicad/code/kicad/-/issues[Gitlab].

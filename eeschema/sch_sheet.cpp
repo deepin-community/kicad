@@ -36,48 +36,22 @@
 #include <string_utils.h>
 #include <widgets/msgpanel.h>
 #include <math/util.h>      // for KiROUND
+#include <geometry/geometry_utils.h>
 #include <sch_sheet.h>
 #include <sch_sheet_path.h>
 #include <sch_sheet_pin.h>
+#include <sch_no_connect.h>
 #include <sch_symbol.h>
 #include <sch_painter.h>
 #include <schematic.h>
-#include <settings/color_settings.h>
 #include <settings/settings_manager.h>
 #include <trace_helpers.h>
+#include <validators.h>
+#include <properties/property_validators.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 #include <pgm_base.h>
 #include <wx/log.h>
-
-// N.B. Do not change these values without transitioning the file format
-#define SHEET_NAME_CANONICAL "Sheetname"
-#define SHEET_FILE_CANONICAL "Sheetfile"
-#define USER_FIELD_CANONICAL "Field%d"
-
-static wxString s_CanonicalSheetName( SHEET_NAME_CANONICAL );
-static wxString s_CanonicalSheetFile( SHEET_FILE_CANONICAL );
-
-const wxString SCH_SHEET::GetDefaultFieldName( int aFieldNdx, bool aTranslated )
-{
-    if( !aTranslated )
-    {
-        switch( aFieldNdx )
-        {
-        case  SHEETNAME:     return s_CanonicalSheetName;
-        case  SHEETFILENAME: return s_CanonicalSheetFile;
-        default:             return wxString::Format( wxS( USER_FIELD_CANONICAL ), aFieldNdx );
-        }
-    }
-    else
-    {
-        switch( aFieldNdx )
-        {
-        case  SHEETNAME:     return _( SHEET_NAME_CANONICAL );
-        case  SHEETFILENAME: return _( SHEET_FILE_CANONICAL );
-        default:             return wxString::Format( _( USER_FIELD_CANONICAL ), aFieldNdx );
-        }
-    }
-}
-
 
 SCH_SHEET::SCH_SHEET( EDA_ITEM* aParent, const VECTOR2I& aPos, VECTOR2I aSize ) :
         SCH_ITEM( aParent, SCH_SHEET_T ),
@@ -96,14 +70,11 @@ SCH_SHEET::SCH_SHEET( EDA_ITEM* aParent, const VECTOR2I& aPos, VECTOR2I aSize ) 
     m_backgroundColor = COLOR4D::UNSPECIFIED;
     m_fieldsAutoplaced = AUTOPLACE_AUTO;
 
-    m_fields.emplace_back( aPos, SHEETNAME, this, GetDefaultFieldName( SHEETNAME, DO_TRANSLATE ) );
-    m_fields.back().SetVisible( true );
-    m_fields.back().SetLayer( LAYER_SHEETNAME );
+    m_fields.emplace_back( this, FIELD_T::SHEET_NAME,
+                           GetDefaultFieldName( FIELD_T::SHEET_NAME, DO_TRANSLATE ) );
 
-    m_fields.emplace_back( aPos, SHEETFILENAME, this,
-                           GetDefaultFieldName( SHEETFILENAME, DO_TRANSLATE ) );
-    m_fields.back().SetVisible( true );
-    m_fields.back().SetLayer( LAYER_SHEETFILENAME );
+    m_fields.emplace_back( this, FIELD_T::SHEET_FILENAME,
+                           GetDefaultFieldName( FIELD_T::SHEET_FILENAME, DO_TRANSLATE ) );
 
     AutoplaceFields( nullptr, m_fieldsAutoplaced );
 }
@@ -200,11 +171,19 @@ int SCH_SHEET::GetScreenCount() const
 }
 
 
-bool SCH_SHEET::IsRootSheet() const
+bool SCH_SHEET::IsVirtualRootSheet() const
 {
-    wxCHECK_MSG( Schematic(), false, "Can't call IsRootSheet without setting a schematic" );
+    wxCHECK_MSG( Schematic(), false, "Can't call IsVirtualRootSheet without setting a schematic" );
 
-    return &Schematic()->Root() == this;
+    return m_Uuid == niluuid;
+}
+
+
+bool SCH_SHEET::IsTopLevelSheet() const
+{
+    wxCHECK_MSG( Schematic(), false, "Can't call IsTopLevelSheet without setting a schematic" );
+
+    return Schematic()->IsTopLevelSheet( this );
 }
 
 
@@ -278,7 +257,8 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
         }
     }
 
-    PROJECT* project = &schematic->Prj();
+    PROJECT* project = &schematic->Project();
+    wxString variant = schematic->GetCurrentVariant();
 
     // We cannot resolve text variables initially on load as we need to first load the screen and
     // then parse the hierarchy.  So skip the resolution if the screen isn't set yet
@@ -306,7 +286,7 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     {
         *token = wxEmptyString;
 
-        if( aPath->GetExcludedFromBOM() || this->GetExcludedFromBOM() )
+        if( aPath->GetExcludedFromBOM( variant ) || this->ResolveExcludedFromBOM( aPath, variant ) )
             *token = _( "Excluded from BOM" );
 
         return true;
@@ -315,7 +295,7 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     {
         *token = wxEmptyString;
 
-        if( aPath->GetExcludedFromBoard() || this->GetExcludedFromBoard() )
+        if( aPath->GetExcludedFromBoard( variant ) || this->ResolveExcludedFromBoard( aPath, variant ) )
             *token = _( "Excluded from board" );
 
         return true;
@@ -324,7 +304,7 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     {
         *token = wxEmptyString;
 
-        if( aPath->GetExcludedFromSim() || this->GetExcludedFromSim() )
+        if( aPath->GetExcludedFromSim( variant ) || this->ResolveExcludedFromSim( aPath, variant ) )
             *token = _( "Excluded from simulation" );
 
         return true;
@@ -333,7 +313,7 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
     {
         *token = wxEmptyString;
 
-        if( aPath->GetDNP() || this->GetDNP() )
+        if( aPath->GetDNP( variant ) || this->ResolveDNP( aPath, variant ) )
             *token = _( "DNP" );
 
         return true;
@@ -359,10 +339,8 @@ bool SCH_SHEET::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, in
 }
 
 
-void SCH_SHEET::SwapData( SCH_ITEM* aItem )
+void SCH_SHEET::swapData( SCH_ITEM* aItem )
 {
-    SCH_ITEM::SwapFlags( aItem );
-
     wxCHECK_RET( aItem->Type() == SCH_SHEET_T,
                  wxString::Format( wxT( "SCH_SHEET object cannot swap data with %s object." ),
                                    aItem->GetClass() ) );
@@ -400,26 +378,152 @@ void SCH_SHEET::SwapData( SCH_ITEM* aItem )
 }
 
 
+SCH_FIELD* SCH_SHEET::GetField( FIELD_T aFieldType )
+{
+    if( SCH_FIELD* field = FindField( m_fields, aFieldType ) )
+        return field;
+
+    m_fields.emplace_back( this, aFieldType );
+    return &m_fields.back();
+}
+
+
+const SCH_FIELD* SCH_SHEET::GetField( FIELD_T aFieldType ) const
+{
+    return FindField( m_fields, aFieldType );
+}
+
+
+SCH_FIELD* SCH_SHEET::GetField( const wxString& aFieldName )
+{
+    return FindField( m_fields, aFieldName );
+}
+
+
+const SCH_FIELD* SCH_SHEET::GetField( const wxString& aFieldName ) const
+{
+    return FindField( m_fields, aFieldName );
+}
+
+
+int SCH_SHEET::GetNextFieldOrdinal() const
+{
+    return NextFieldOrdinal( m_fields );
+}
+
+
 void SCH_SHEET::SetFields( const std::vector<SCH_FIELD>& aFields )
 {
     m_fields = aFields;
 
-    // Ensure that mandatory fields are at the beginning
-    std::sort( m_fields.begin(), m_fields.end(),
-               []( const SCH_FIELD& a, const SCH_FIELD& b )
-               {
-                   return a.GetId() < b.GetId();
-               } );
+    // Make sure that we get the UNIX variant of the file path
+    SetFileName( GetField( FIELD_T::SHEET_FILENAME )->GetText() );
+}
 
-    // After mandatory fields, the rest should be sequential user fields
-    for( int ii = 0; ii < static_cast<int>( m_fields.size() ); ++ii )
+
+SCH_FIELD* SCH_SHEET::AddField( const SCH_FIELD& aField )
+{
+    m_fields.emplace_back( aField );
+    return &m_fields.back();
+}
+
+
+void SCH_SHEET::SetFieldText( const wxString& aFieldName, const wxString& aFieldText, const SCH_SHEET_PATH* aPath,
+                              const wxString& aVariantName )
+{
+    wxCHECK( !aFieldName.IsEmpty(), /* void */ );
+
+    SCH_FIELD* field = GetField( aFieldName );
+
+    wxCHECK( field, /* void */ );
+
+    switch( field->GetId() )
     {
-        if( !m_fields[ii].IsMandatory() )
-            m_fields[ii].SetId( ii );
+    case FIELD_T::SHEET_FILENAME:
+    {
+        // File names are stored using unix separators.
+        wxString tmp = aFieldText;
+        tmp.Replace( wxT( "\\" ), wxT( "/" ) );
+        GetField( FIELD_T::SHEET_FILENAME )->SetText( tmp );
+        break;
     }
 
-    // Make sure that we get the UNIX variant of the file path
-    SetFileName( m_fields[SHEETFILENAME].GetText() );
+    case FIELD_T::SHEET_NAME:
+        field->SetText( aFieldText );
+        break;
+
+    default:
+    {
+        wxString defaultText = field->GetText( aPath );
+
+        if( aVariantName.IsEmpty() )
+        {
+            if( aFieldText != defaultText )
+                field->SetText( aFieldText );
+        }
+        else
+        {
+            SCH_SHEET_INSTANCE* instance = getInstance( *aPath );
+
+            wxCHECK( instance, /* void */ );
+
+            if( instance->m_Variants.contains( aVariantName ) )
+            {
+                if( aFieldText != defaultText )
+                    instance->m_Variants[aVariantName].m_Fields[aFieldName] = aFieldText;
+                else
+                    instance->m_Variants[aVariantName].m_Fields.erase( aFieldName );
+            }
+            else if( aFieldText != defaultText )
+            {
+                SCH_SHEET_VARIANT newVariant( aVariantName );
+
+                newVariant.InitializeAttributes( *this );
+                newVariant.m_Fields[aFieldName] = aFieldText;
+                instance->m_Variants.insert( std::make_pair( aVariantName, newVariant ) );
+            }
+        }
+
+        break;
+    }
+    }
+}
+
+
+wxString SCH_SHEET::GetFieldText( const wxString& aFieldName, const SCH_SHEET_PATH* aPath,
+                                  const wxString& aVariantName ) const
+{
+    wxCHECK( !aFieldName.IsEmpty(), wxEmptyString );
+
+    const SCH_FIELD* field = GetField( aFieldName );
+
+    wxCHECK( field, wxEmptyString );
+
+    switch( field->GetId() )
+    {
+    case FIELD_T::REFERENCE:
+    case FIELD_T::FOOTPRINT:
+        return field->GetText();
+        break;
+
+    default:
+        if( aVariantName.IsEmpty() )
+        {
+            return field->GetText();
+        }
+        else
+        {
+            const SCH_SHEET_INSTANCE* instance = getInstance( *aPath );
+
+            if( instance->m_Variants.contains( aVariantName )
+              && instance->m_Variants.at( aVariantName ).m_Fields.contains( aFieldName ) )
+                return instance->m_Variants.at( aVariantName ).m_Fields.at( aFieldName );
+        }
+
+        break;
+    }
+
+    return field->GetText();
 }
 
 
@@ -662,41 +766,44 @@ int SCH_SHEET::GetPenWidth() const
 
 void SCH_SHEET::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
 {
-    VECTOR2I textSize = m_fields[SHEETNAME].GetTextSize();
-    int      borderMargin = KiROUND( GetPenWidth() / 2.0 ) + 4;
-    int      margin = borderMargin + KiROUND( std::max( textSize.x, textSize.y ) * 0.5 );
+    SCH_FIELD* sheetNameField = GetField( FIELD_T::SHEET_NAME );
+    VECTOR2I  textSize = sheetNameField->GetTextSize();
+    int       borderMargin = KiROUND( GetPenWidth() / 2.0 ) + 4;
+    int       margin = borderMargin + KiROUND( std::max( textSize.x, textSize.y ) * 0.5 );
 
     if( IsVerticalOrientation() )
     {
-        m_fields[SHEETNAME].SetTextPos( m_pos + VECTOR2I( -margin, m_size.y ) );
-        m_fields[ SHEETNAME ].SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
-        m_fields[ SHEETNAME ].SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
-        m_fields[ SHEETNAME ].SetTextAngle( ANGLE_VERTICAL );
+        sheetNameField->SetTextPos( m_pos + VECTOR2I( -margin, m_size.y ) );
+        sheetNameField->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+        sheetNameField->SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
+        sheetNameField->SetTextAngle( ANGLE_VERTICAL );
     }
     else
     {
-        m_fields[SHEETNAME].SetTextPos( m_pos + VECTOR2I( 0, -margin ) );
-        m_fields[ SHEETNAME ].SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
-        m_fields[ SHEETNAME ].SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
-        m_fields[ SHEETNAME ].SetTextAngle( ANGLE_HORIZONTAL );
+        sheetNameField->SetTextPos( m_pos + VECTOR2I( 0, -margin ) );
+        sheetNameField->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+        sheetNameField->SetVertJustify( GR_TEXT_V_ALIGN_BOTTOM );
+        sheetNameField->SetTextAngle( ANGLE_HORIZONTAL );
     }
 
-    textSize = m_fields[ SHEETFILENAME ].GetTextSize();
+    SCH_FIELD* sheetFilenameField = GetField( FIELD_T::SHEET_FILENAME );
+
+    textSize = sheetFilenameField->GetTextSize();
     margin = borderMargin + KiROUND( std::max( textSize.x, textSize.y ) * 0.4 );
 
     if( IsVerticalOrientation() )
     {
-        m_fields[SHEETFILENAME].SetTextPos( m_pos + VECTOR2I( m_size.x + margin, m_size.y ) );
-        m_fields[ SHEETFILENAME ].SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
-        m_fields[ SHEETFILENAME ].SetVertJustify( GR_TEXT_V_ALIGN_TOP );
-        m_fields[ SHEETFILENAME ].SetTextAngle( ANGLE_VERTICAL );
+        sheetFilenameField->SetTextPos( m_pos + VECTOR2I( m_size.x + margin, m_size.y ) );
+        sheetFilenameField->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+        sheetFilenameField->SetVertJustify( GR_TEXT_V_ALIGN_TOP );
+        sheetFilenameField->SetTextAngle( ANGLE_VERTICAL );
     }
     else
     {
-        m_fields[SHEETFILENAME].SetTextPos( m_pos + VECTOR2I( 0, m_size.y + margin ) );
-        m_fields[ SHEETFILENAME ].SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
-        m_fields[ SHEETFILENAME ].SetVertJustify( GR_TEXT_V_ALIGN_TOP );
-        m_fields[ SHEETFILENAME ].SetTextAngle( ANGLE_HORIZONTAL );
+        sheetFilenameField->SetTextPos( m_pos + VECTOR2I( 0, m_size.y + margin ) );
+        sheetFilenameField->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+        sheetFilenameField->SetVertJustify( GR_TEXT_V_ALIGN_TOP );
+        sheetFilenameField->SetTextAngle( ANGLE_HORIZONTAL );
     }
 
     if( aAlgo == AUTOPLACE_AUTO || aAlgo == AUTOPLACE_MANUAL )
@@ -761,7 +868,7 @@ int SCH_SHEET::SymbolCount() const
         {
             SCH_SYMBOL* symbol = (SCH_SYMBOL*) aItem;
 
-            if( symbol->GetField( VALUE_FIELD )->GetText().GetChar( 0 ) != '#' )
+            if( !symbol->IsPower() )
                 n++;
         }
 
@@ -833,6 +940,23 @@ bool SCH_SHEET::LocatePathOfScreen( SCH_SCREEN* aScreen, SCH_SHEET_PATH* aList )
 }
 
 
+int SCH_SHEET::CountSheets( const wxString& aFilename ) const
+{
+    int count = 0;
+
+    if( m_screen )
+    {
+        if( m_screen->GetFileName().Cmp( aFilename ) == 0 )
+            count++;
+
+        for( SCH_ITEM* aItem : m_screen->Items().OfType( SCH_SHEET_T ) )
+            count += static_cast<SCH_SHEET*>( aItem )->CountSheets( aFilename );
+    }
+
+    return count;
+}
+
+
 int SCH_SHEET::CountSheets() const
 {
     int count = 1; //1 = this!!
@@ -847,23 +971,38 @@ int SCH_SHEET::CountSheets() const
 }
 
 
+int SCH_SHEET::CountActiveSheets() const
+{
+    int count = CountSheets();
+
+    if( IsVirtualRootSheet() )
+        count--;
+
+    return count;
+}
+
+
 void SCH_SHEET::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     // Don't use GetShownText(); we want to see the variable references here
-    aList.emplace_back( _( "Sheet Name" ),
-                        KIUI::EllipsizeStatusText( aFrame, m_fields[ SHEETNAME ].GetText() ) );
+    aList.emplace_back( _( "Sheet Name" ), KIUI::EllipsizeStatusText( aFrame, GetName() ) );
 
-    if( SCH_EDIT_FRAME* schframe = dynamic_cast<SCH_EDIT_FRAME*>( aFrame ) )
+    SCH_EDIT_FRAME* schframe = dynamic_cast<SCH_EDIT_FRAME*>( aFrame );
+    SCH_SHEET_PATH* currentSheet = nullptr;
+    wxString        currentVariant;
+
+    if( schframe )
     {
         SCH_SHEET_PATH path = schframe->GetCurrentSheet();
         path.push_back( this );
+        currentSheet = &schframe->GetCurrentSheet();
+        currentVariant = Schematic() ? Schematic()->GetCurrentVariant() : wxString();
 
         aList.emplace_back( _( "Hierarchical Path" ), path.PathHumanReadable( false, true ) );
     }
 
     // Don't use GetShownText(); we want to see the variable references here
-    aList.emplace_back( _( "File Name" ),
-                        KIUI::EllipsizeStatusText( aFrame, m_fields[ SHEETFILENAME ].GetText() ) );
+    aList.emplace_back( _( "File Name" ), KIUI::EllipsizeStatusText( aFrame, GetFileName() ) );
 
     wxArrayString msgs;
     wxString      msg;
@@ -877,7 +1016,7 @@ void SCH_SHEET::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
     if( GetExcludedFromBoard() )
         msgs.Add( _( "Board" ) );
 
-    if( GetDNP() )
+    if( GetDNP( currentSheet, currentVariant ) )
         msgs.Add( _( "DNP" ) );
 
     msg = wxJoin( msgs, '|' );
@@ -885,6 +1024,23 @@ void SCH_SHEET::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_I
 
     if( !msg.empty() )
         aList.emplace_back( _( "Exclude from" ), msg );
+}
+
+
+std::map<SCH_SHEET_PIN*, SCH_NO_CONNECT*> SCH_SHEET::GetNoConnects() const
+{
+    std::map<SCH_SHEET_PIN*, SCH_NO_CONNECT*> noConnects;
+
+    if( SCH_SCREEN* screen = dynamic_cast<SCH_SCREEN*>( GetParent() ) )
+    {
+        for( SCH_SHEET_PIN* sheetPin : m_pins )
+        {
+            for( SCH_ITEM* noConnect : screen->Items().Overlapping( SCH_NO_CONNECT_T, sheetPin->GetTextPos() ) )
+                noConnects[sheetPin] = static_cast<SCH_NO_CONNECT*>( noConnect );
+        }
+    }
+
+    return noConnects;
 }
 
 
@@ -1164,7 +1320,7 @@ INSPECT_RESULT SCH_SHEET::Visit( INSPECTOR aInspector, void* testData,
 }
 
 
-void SCH_SHEET::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction )
+void SCH_SHEET::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction, RECURSE_MODE aMode )
 {
     for( SCH_FIELD& field : m_fields )
         aFunction( &field );
@@ -1176,9 +1332,11 @@ void SCH_SHEET::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction
 
 wxString SCH_SHEET::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Hierarchical Sheet %s" ),
-                             aFull ? m_fields[ SHEETNAME ].GetShownText( false )
-                                   : KIUI::EllipsizeMenuText( m_fields[ SHEETNAME ].GetText() ) );
+    const SCH_FIELD* sheetnameField = GetField( FIELD_T::SHEET_NAME );
+
+    return wxString::Format( _( "Hierarchical Sheet '%s'" ),
+                             aFull ? sheetnameField->GetShownText( false )
+                                   : KIUI::EllipsizeMenuText( sheetnameField->GetText() ) );
 }
 
 
@@ -1211,6 +1369,12 @@ bool SCH_SHEET::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) co
 }
 
 
+bool SCH_SHEET::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    return KIGEOM::BoxHitTest( aPoly, GetBodyBoundingBox(), aContained );
+}
+
+
 void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                       int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
@@ -1227,17 +1391,23 @@ void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
     if( renderSettings->m_OverrideItemColors || backgroundColor == COLOR4D::UNSPECIFIED )
         backgroundColor = aPlotter->RenderSettings()->GetLayerColor( LAYER_SHEET_BACKGROUND );
 
+    if( borderColor.m_text && Schematic() )
+        borderColor = COLOR4D( ResolveText( *borderColor.m_text, &Schematic()->CurrentSheet() ) );
+
+    if( backgroundColor.m_text && Schematic() )
+        backgroundColor = COLOR4D( ResolveText( *backgroundColor.m_text, &Schematic()->CurrentSheet() ) );
+
     if( aBackground && backgroundColor.a > 0.0 )
     {
         aPlotter->SetColor( backgroundColor );
-        aPlotter->Rect( m_pos, m_pos + m_size, FILL_T::FILLED_SHAPE, 1 );
+        aPlotter->Rect( m_pos, m_pos + m_size, FILL_T::FILLED_SHAPE, 1, 0 );
     }
     else
     {
         aPlotter->SetColor( borderColor );
 
         int penWidth = GetEffectivePenWidth( getRenderSettings( aPlotter ) );
-        aPlotter->Rect( m_pos, m_pos + m_size, FILL_T::NO_FILL, penWidth );
+        aPlotter->Rect( m_pos, m_pos + m_size, FILL_T::NO_FILL, penWidth, 0 );
     }
 
     // Make the sheet object a clickable hyperlink (e.g. for PDF plotter)
@@ -1269,82 +1439,34 @@ void SCH_SHEET::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& 
     for( SCH_FIELD& field : m_fields )
         field.Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed );
 
-    if( GetDNP() )
+    SCH_SHEET_PATH instance;
+    wxString variantName;
+
+    if( Schematic() )
     {
-        COLOR_SETTINGS* colors = Pgm().GetSettingsManager().GetColorSettings();
-        BOX2I           bbox = GetBodyBoundingBox();
-        BOX2I           pins = GetBoundingBox();
-        VECTOR2D        margins( std::max( bbox.GetX() - pins.GetX(),
-                                           pins.GetEnd().x - bbox.GetEnd().x ),
-                                 std::max( bbox.GetY() - pins.GetY(),
-                                           pins.GetEnd().y - bbox.GetEnd().y ) );
-        int             strokeWidth = 3.0 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS );
-
-        margins.x = std::max( margins.x * 0.6, margins.y * 0.3 );
-        margins.y = std::max( margins.y * 0.6, margins.x * 0.3 );
-        bbox.Inflate( KiROUND( margins.x ), KiROUND( margins.y ) );
-
-        aPlotter->SetColor( colors->GetColor( LAYER_DNP_MARKER ) );
-
-        aPlotter->ThickSegment( bbox.GetOrigin(), bbox.GetEnd(), strokeWidth, FILLED, nullptr );
-
-        aPlotter->ThickSegment( bbox.GetOrigin() + VECTOR2I( bbox.GetWidth(), 0 ),
-                                bbox.GetOrigin() + VECTOR2I( 0, bbox.GetHeight() ),
-                                strokeWidth, FILLED, nullptr );
+        instance = Schematic()->CurrentSheet();
+        variantName = Schematic()->GetCurrentVariant();
     }
-}
 
-
-void SCH_SHEET::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                       const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
-{
-    wxDC*    DC = aSettings->GetPrintDC();
-    VECTOR2I pos = m_pos + aOffset;
-    int      lineWidth = GetEffectivePenWidth( aSettings );
-    COLOR4D  border = GetBorderColor();
-    COLOR4D  background = GetBackgroundColor();
-
-    if( aSettings->m_OverrideItemColors || border == COLOR4D::UNSPECIFIED )
-        border = aSettings->GetLayerColor( LAYER_SHEET );
-
-    if( aSettings->m_OverrideItemColors || background == COLOR4D::UNSPECIFIED )
-        background = aSettings->GetLayerColor( LAYER_SHEET_BACKGROUND );
-
-    if( GetGRForceBlackPenState() )     // printing in black & white
-        background = COLOR4D::UNSPECIFIED;
-
-    if( background.a > 0.0 )
-        GRFilledRect( DC, pos, pos + m_size, 0, background, background );
-
-    GRRect( DC, pos, pos + m_size, lineWidth, border );
-
-    for( SCH_FIELD& field : m_fields )
-        field.Print( aSettings, aUnit, aBodyStyle, aOffset, aForceNoFill, aDimmed );
-
-    for( SCH_SHEET_PIN* sheetPin : m_pins )
-        sheetPin->Print( aSettings, aUnit, aBodyStyle, aOffset, aForceNoFill, aDimmed );
-
-    if( GetDNP() )
+    if( GetDNP( &instance, variantName) )
     {
         BOX2I    bbox = GetBodyBoundingBox();
         BOX2I    pins = GetBoundingBox();
-        COLOR4D  dnp_color = aSettings->GetLayerColor( LAYER_DNP_MARKER );
         VECTOR2D margins( std::max( bbox.GetX() - pins.GetX(), pins.GetEnd().x - bbox.GetEnd().x ),
-                          std::max( bbox.GetY() - pins.GetY(),
-                                    pins.GetEnd().y - bbox.GetEnd().y ) );
+                          std::max( bbox.GetY() - pins.GetY(), pins.GetEnd().y - bbox.GetEnd().y ) );
+        int      strokeWidth = 3.0 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS );
 
         margins.x = std::max( margins.x * 0.6, margins.y * 0.3 );
         margins.y = std::max( margins.y * 0.6, margins.x * 0.3 );
         bbox.Inflate( KiROUND( margins.x ), KiROUND( margins.y ) );
 
-        GRFilledSegment( DC, bbox.GetOrigin(), bbox.GetEnd(),
-                             3.0 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ),
-                             dnp_color );
+        aPlotter->SetColor( renderSettings->GetLayerColor( LAYER_DNP_MARKER ) );
 
-        GRFilledSegment( DC, bbox.GetOrigin() + VECTOR2I( bbox.GetWidth(), 0 ),
-                             bbox.GetOrigin() + VECTOR2I( 0, bbox.GetHeight() ),
-                             3.0 * schIUScale.MilsToIU( DEFAULT_LINE_WIDTH_MILS ),
-                             dnp_color );
+        aPlotter->ThickSegment( bbox.GetOrigin(), bbox.GetEnd(), strokeWidth, nullptr );
+
+        aPlotter->ThickSegment( bbox.GetOrigin() + VECTOR2I( bbox.GetWidth(), 0 ),
+                                bbox.GetOrigin() + VECTOR2I( 0, bbox.GetHeight() ),
+                                strokeWidth, nullptr );
     }
 }
 
@@ -1384,13 +1506,13 @@ bool SCH_SHEET::operator <( const SCH_ITEM& aItem ) const
     if( Type() != aItem.Type() )
         return Type() < aItem.Type();
 
-    auto sheet = static_cast<const SCH_SHEET*>( &aItem );
+    const SCH_SHEET* otherSheet = static_cast<const SCH_SHEET*>( &aItem );
 
-    if (m_fields[ SHEETNAME ].GetText() != sheet->m_fields[ SHEETNAME ].GetText() )
-        return m_fields[ SHEETNAME ].GetText() < sheet->m_fields[ SHEETNAME ].GetText();
+    if( GetName() != otherSheet->GetName() )
+        return GetName() < otherSheet->GetName();
 
-    if (m_fields[ SHEETFILENAME ].GetText() != sheet->m_fields[ SHEETFILENAME ].GetText() )
-        return m_fields[ SHEETFILENAME ].GetText() < sheet->m_fields[ SHEETFILENAME ].GetText();
+    if( GetFileName() != otherSheet->GetFileName() )
+        return GetFileName() < otherSheet->GetFileName();
 
     return false;
 }
@@ -1399,19 +1521,19 @@ bool SCH_SHEET::operator <( const SCH_ITEM& aItem ) const
 void SCH_SHEET::RemoveInstance( const KIID_PATH& aInstancePath )
 {
     // Search for an existing path and remove it if found (should not occur)
-    for( unsigned ii = 0; ii < m_instances.size(); ii++ )
+    // (search from back to avoid invalidating iterator on remove)
+    for( int ii = m_instances.size() - 1; ii >= 0; --ii )
     {
         if( m_instances[ii].m_Path == aInstancePath )
         {
             wxLogTrace( traceSchSheetPaths, "Removing sheet instance:\n"
-                                            "  sheet path %s\n"
-                                            "  page %s, from project %s.",
+                                            "    sheet path %s\n"
+                                            "    page %s, from project %s.",
                         aInstancePath.AsString(),
                         m_instances[ii].m_PageNumber,
                         m_instances[ii].m_ProjectName );
 
             m_instances.erase( m_instances.begin() + ii );
-            ii--;
         }
     }
 }
@@ -1476,6 +1598,30 @@ bool SCH_SHEET::getInstance( SCH_SHEET_INSTANCE& aInstance, const KIID_PATH& aSh
 }
 
 
+SCH_SHEET_INSTANCE* SCH_SHEET::getInstance( const KIID_PATH& aSheetPath )
+{
+    for( SCH_SHEET_INSTANCE& instance : m_instances )
+    {
+        if( instance.m_Path == aSheetPath )
+            return &instance;
+    }
+
+    return nullptr;
+}
+
+
+const SCH_SHEET_INSTANCE* SCH_SHEET::getInstance( const KIID_PATH& aSheetPath ) const
+{
+    for( const SCH_SHEET_INSTANCE& instance : m_instances )
+    {
+        if( instance.m_Path == aSheetPath )
+            return &instance;
+    }
+
+    return nullptr;
+}
+
+
 bool SCH_SHEET::HasRootInstance() const
 {
     for( const SCH_SHEET_INSTANCE& instance : m_instances )
@@ -1504,13 +1650,13 @@ const SCH_SHEET_INSTANCE& SCH_SHEET::GetRootInstance() const
 }
 
 
-wxString SCH_SHEET::getPageNumber( const KIID_PATH& aPath ) const
+wxString SCH_SHEET::getPageNumber( const KIID_PATH& aParentPath ) const
 {
     wxString pageNumber;
 
     for( const SCH_SHEET_INSTANCE& instance : m_instances )
     {
-        if( instance.m_Path == aPath )
+        if( instance.m_Path == aParentPath )
         {
             pageNumber = instance.m_PageNumber;
             break;
@@ -1684,6 +1830,269 @@ double SCH_SHEET::Similarity( const SCH_ITEM& aOther ) const
 }
 
 
+void SCH_SHEET::AddVariant( const SCH_SHEET_PATH& aInstance, const SCH_SHEET_VARIANT& aVariant )
+{
+    SCH_SHEET_INSTANCE* instance = getInstance( aInstance );
+
+    // The instance path must already exist.
+    if( !instance )
+        return;
+
+    instance->m_Variants.insert( std::make_pair( aVariant.m_Name, aVariant ) );
+}
+
+
+void SCH_SHEET::DeleteVariant( const KIID_PATH& aPath, const wxString& aVariantName )
+{
+    SCH_SHEET_INSTANCE* instance = getInstance( aPath );
+
+    // The instance path must already exist.
+    if( !instance || !instance->m_Variants.contains( aVariantName ) )
+        return;
+
+    instance->m_Variants.erase( aVariantName );
+}
+
+
+void SCH_SHEET::RenameVariant( const KIID_PATH& aPath, const wxString& aOldName,
+                               const wxString& aNewName )
+{
+    SCH_SHEET_INSTANCE* instance = getInstance( aPath );
+
+    // The instance path must already exist and contain the old variant.
+    if( !instance || !instance->m_Variants.contains( aOldName ) )
+        return;
+
+    // Get the variant data, update the name, and re-insert with new key
+    SCH_SHEET_VARIANT variant = instance->m_Variants[aOldName];
+    variant.m_Name = aNewName;
+    instance->m_Variants.erase( aOldName );
+    instance->m_Variants.insert( std::make_pair( aNewName, variant ) );
+}
+
+
+void SCH_SHEET::CopyVariant( const KIID_PATH& aPath, const wxString& aSourceVariant,
+                             const wxString& aNewVariant )
+{
+    SCH_SHEET_INSTANCE* instance = getInstance( aPath );
+
+    // The instance path must already exist and contain the source variant.
+    if( !instance || !instance->m_Variants.contains( aSourceVariant ) )
+        return;
+
+    // Copy the variant data with a new name
+    SCH_SHEET_VARIANT variant = instance->m_Variants[aSourceVariant];
+    variant.m_Name = aNewVariant;
+    instance->m_Variants.insert( std::make_pair( aNewVariant, variant ) );
+}
+
+
+void SCH_SHEET::SetDNP( bool aEnable, const SCH_SHEET_PATH* aInstance, const wxString& aVariantName )
+{
+    if( !aInstance || aVariantName.IsEmpty() )
+    {
+        m_DNP = aEnable;
+        return;
+    }
+
+    SCH_SHEET_INSTANCE* instance = getInstance( *aInstance );
+
+    wxCHECK_MSG( instance, /* void */,
+                 wxString::Format( wxS( "Cannot get DNP attribute for invalid sheet path '%s'." ),
+                                   aInstance->PathHumanReadable() ) );
+
+    if( aVariantName.IsEmpty() )
+    {
+        m_DNP = aEnable;
+    }
+    else
+    {
+        if( instance->m_Variants.contains( aVariantName ) && ( aEnable != instance->m_Variants[aVariantName].m_DNP ) )
+        {
+            instance->m_Variants[aVariantName].m_DNP = aEnable;
+        }
+        else
+        {
+            SCH_SHEET_VARIANT variant( aVariantName );
+
+            variant.InitializeAttributes( *this );
+            variant.m_DNP = aEnable;
+            AddVariant( *aInstance, variant );
+        }
+    }
+}
+
+
+bool SCH_SHEET::GetDNP( const SCH_SHEET_PATH* aInstance, const wxString& aVariantName ) const
+{
+    if( !aInstance || aVariantName.IsEmpty() )
+        return m_DNP;
+
+    SCH_SHEET_INSTANCE instance;
+
+    if( !getInstance( instance, aInstance->Path() ) )
+        return m_DNP;
+
+    if( aVariantName.IsEmpty() )
+        return m_DNP;
+    else if( instance.m_Variants.contains( aVariantName ) )
+        return instance.m_Variants[aVariantName].m_DNP;
+
+    // If the variant has not been defined, return the default DNP setting.
+    return m_DNP;
+}
+
+
+bool SCH_SHEET::GetDNPProp() const
+{
+    return GetDNP( &Schematic()->CurrentSheet(), Schematic()->GetCurrentVariant() );
+}
+
+
+void SCH_SHEET::SetDNPProp( bool aEnable )
+{
+    SetDNP( aEnable, &Schematic()->CurrentSheet(), Schematic()->GetCurrentVariant() );
+}
+
+
+void SCH_SHEET::SetExcludedFromSim( bool aEnable, const SCH_SHEET_PATH* aInstance, const wxString& aVariantName )
+{
+    if( !aInstance || aVariantName.IsEmpty() )
+    {
+        m_excludedFromSim = aEnable;
+        return;
+    }
+
+    SCH_SHEET_INSTANCE* instance = getInstance( *aInstance );
+
+    wxCHECK_MSG( instance, /* void */,
+                 wxString::Format( wxS( "Cannot get m_excludedFromSim attribute for invalid sheet path '%s'." ),
+                                   aInstance->PathHumanReadable() ) );
+
+    if( aVariantName.IsEmpty() )
+    {
+        m_excludedFromSim = aEnable;
+    }
+    else
+    {
+        if( instance->m_Variants.contains( aVariantName )
+          && ( aEnable != instance->m_Variants[aVariantName].m_ExcludedFromSim ) )
+        {
+            instance->m_Variants[aVariantName].m_ExcludedFromSim = aEnable;
+        }
+        else
+        {
+            SCH_SHEET_VARIANT variant( aVariantName );
+
+            variant.InitializeAttributes( *this );
+            variant.m_ExcludedFromSim = aEnable;
+            AddVariant( *aInstance, variant );
+        }
+    }
+}
+
+
+bool SCH_SHEET::GetExcludedFromSim( const SCH_SHEET_PATH* aInstance, const wxString& aVariantName ) const
+{
+    if( !aInstance || aVariantName.IsEmpty() )
+        return m_excludedFromSim;
+
+    SCH_SHEET_INSTANCE instance;
+
+    if( !getInstance( instance, aInstance->Path() ) )
+        return m_excludedFromSim;
+
+    if( aVariantName.IsEmpty() )
+        return m_excludedFromSim;
+    else if( instance.m_Variants.contains( aVariantName ) )
+        return instance.m_Variants[aVariantName].m_ExcludedFromSim;
+
+    // If the variant has not been defined, return the default DNP setting.
+    return m_excludedFromSim;
+}
+
+
+bool SCH_SHEET::GetExcludedFromSimProp() const
+{
+    return GetExcludedFromSim( &Schematic()->CurrentSheet(), Schematic()->GetCurrentVariant() );
+}
+
+
+void SCH_SHEET::SetExcludedFromSimProp( bool aEnable )
+{
+    SetExcludedFromSim( aEnable, &Schematic()->CurrentSheet(), Schematic()->GetCurrentVariant() );
+}
+
+
+void SCH_SHEET::SetExcludedFromBOM( bool aEnable, const SCH_SHEET_PATH* aInstance, const wxString& aVariantName )
+{
+    if( !aInstance || aVariantName.IsEmpty() )
+    {
+        m_excludedFromBOM = aEnable;
+        return;
+    }
+
+    SCH_SHEET_INSTANCE* instance = getInstance( *aInstance );
+
+    wxCHECK_MSG( instance, /* void */,
+                 wxString::Format( wxS( "Cannot get m_excludedFromBOM attribute for invalid sheet path '%s'." ),
+                                   aInstance->PathHumanReadable() ) );
+
+    if( aVariantName.IsEmpty() )
+    {
+        m_excludedFromBOM = aEnable;
+    }
+    else
+    {
+        if( instance->m_Variants.contains( aVariantName )
+          && ( aEnable != instance->m_Variants[aVariantName].m_ExcludedFromBOM ) )
+        {
+            instance->m_Variants[aVariantName].m_ExcludedFromBOM = aEnable;
+        }
+        else
+        {
+            SCH_SHEET_VARIANT variant( aVariantName );
+
+            variant.InitializeAttributes( *this );
+            variant.m_ExcludedFromBOM = aEnable;
+            AddVariant( *aInstance, variant );
+        }
+    }
+}
+
+
+bool SCH_SHEET::GetExcludedFromBOM( const SCH_SHEET_PATH* aInstance, const wxString& aVariantName ) const
+{
+    if( !aInstance || aVariantName.IsEmpty() )
+        return m_excludedFromBOM;
+
+    SCH_SHEET_INSTANCE instance;
+
+    if( !getInstance( instance, aInstance->Path() ) )
+        return m_excludedFromBOM;
+
+    if( aVariantName.IsEmpty() )
+        return m_excludedFromBOM;
+    else if( instance.m_Variants.contains( aVariantName ) )
+        return instance.m_Variants[aVariantName].m_ExcludedFromBOM;
+
+    // If the variant has not been defined, return the default DNP setting.
+    return m_excludedFromBOM;
+}
+
+
+bool SCH_SHEET::GetExcludedFromBOMProp() const
+{
+    return GetExcludedFromBOM( &Schematic()->CurrentSheet(), Schematic()->GetCurrentVariant() );
+}
+
+
+void SCH_SHEET::SetExcludedFromBOMProp( bool aEnable )
+{
+    SetExcludedFromBOM( aEnable, &Schematic()->CurrentSheet(), Schematic()->GetCurrentVariant() );
+}
+
+
 #if defined(DEBUG)
 
 void SCH_SHEET::Show( int nestLevel, std::ostream& os ) const
@@ -1692,7 +2101,7 @@ void SCH_SHEET::Show( int nestLevel, std::ostream& os ) const
     wxString s = GetClass();
 
     NestedSpace( nestLevel, os ) << '<' << s.Lower().mb_str() << ">" << " sheet_name=\""
-                                 << TO_UTF8( m_fields[ SHEETNAME ].GetText() ) << '"' << ">\n";
+                                 << TO_UTF8( GetName() ) << '"' << ">\n";
 
     // show all the pins, and check the linked list integrity
     for( SCH_SHEET_PIN* sheetPin : m_pins )
@@ -1712,7 +2121,21 @@ static struct SCH_SHEET_DESC
         propMgr.InheritsAfter( TYPE_HASH( SCH_SHEET ), TYPE_HASH( SCH_ITEM ) );
 
         propMgr.AddProperty( new PROPERTY<SCH_SHEET, wxString>( _HKI( "Sheet Name" ),
-                             &SCH_SHEET::SetName, &SCH_SHEET::GetName ) );
+                             &SCH_SHEET::SetName, &SCH_SHEET::GetName ) )
+                .SetValidator( []( const wxAny&& aValue, EDA_ITEM* ) -> VALIDATOR_RESULT
+                                {
+                                    wxString value;
+
+                                    if( !aValue.GetAs( &value ) )
+                                        return {};
+
+                                    wxString msg = GetFieldValidationErrorMessage( FIELD_T::SHEET_NAME, value );
+
+                                    if( msg.empty() )
+                                        return {};
+
+                                    return std::make_unique<VALIDATION_ERROR_MSG>( msg );
+                                } );
 
         propMgr.AddProperty( new PROPERTY<SCH_SHEET, int>( _HKI( "Border Width" ),
                              &SCH_SHEET::SetBorderWidth, &SCH_SHEET::GetBorderWidth,
@@ -1727,18 +2150,18 @@ static struct SCH_SHEET_DESC
         const wxString groupAttributes = _HKI( "Attributes" );
 
         propMgr.AddProperty( new PROPERTY<SCH_SHEET, bool>( _HKI( "Exclude From Board" ),
-                    &SCH_SHEET::SetExcludedFromBoard, &SCH_SHEET::GetExcludedFromBoard ),
+                    &SCH_SHEET::SetExcludedFromBoardProp, &SCH_SHEET::GetExcludedFromBoardProp ),
                     groupAttributes );
         propMgr.AddProperty( new PROPERTY<SCH_SHEET, bool>( _HKI( "Exclude From Simulation" ),
-                    &SCH_SHEET::SetExcludedFromSim, &SCH_SHEET::GetExcludedFromSim ),
+                    &SCH_SHEET::SetExcludedFromSimProp, &SCH_SHEET::GetExcludedFromSimProp ),
                     groupAttributes );
         propMgr.AddProperty(
                 new PROPERTY<SCH_SHEET, bool>( _HKI( "Exclude From Bill of Materials" ),
-                                               &SCH_SHEET::SetExcludedFromBOM,
-                                               &SCH_SHEET::GetExcludedFromBOM ),
+                                               &SCH_SHEET::SetExcludedFromBOMProp,
+                                               &SCH_SHEET::GetExcludedFromBOMProp ),
                 groupAttributes );
         propMgr.AddProperty( new PROPERTY<SCH_SHEET, bool>( _HKI( "Do not Populate" ),
-                    &SCH_SHEET::SetDNP, &SCH_SHEET::GetDNP ),
+                    &SCH_SHEET::SetDNPProp, &SCH_SHEET::GetDNPProp ),
                     groupAttributes );
     }
 } _SCH_SHEET_DESC;

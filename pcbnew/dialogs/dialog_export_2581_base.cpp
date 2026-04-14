@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include "widgets/std_bitmap_button.h"
+#include "widgets/wx_html_report_panel.h"
 
 #include "dialog_export_2581_base.h"
 
@@ -90,6 +91,17 @@ DIALOG_EXPORT_2581_BASE::DIALOG_EXPORT_2581_BASE( wxWindow* parent, wxWindowID i
 
 	gbSizer1->Add( m_cbCompress, wxGBPosition( 3, 0 ), wxGBSpan( 1, 2 ), wxTOP, 5 );
 
+	m_lblBomRev = new wxStaticText( this, wxID_ANY, _("BOM revision:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_lblBomRev->Wrap( -1 );
+	m_lblBomRev->SetToolTip( _("Revision string for the BOM section. Auto-populated from schematic title block revision") );
+
+	gbSizer1->Add( m_lblBomRev, wxGBPosition( 4, 0 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxRIGHT|wxTOP, 5 );
+
+	m_textBomRev = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	m_textBomRev->SetToolTip( _("Revision string for the BOM section. Auto-populated from schematic title block revision") );
+
+	gbSizer1->Add( m_textBomRev, wxGBPosition( 4, 1 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxEXPAND|wxRIGHT|wxTOP, 5 );
+
 
 	gbSizer1->AddGrowableCol( 1 );
 
@@ -123,7 +135,7 @@ DIALOG_EXPORT_2581_BASE::DIALOG_EXPORT_2581_BASE( wxWindow* parent, wxWindowID i
 
 	fgSizer4->Add( m_lblOEM, 0, wxALIGN_CENTER_VERTICAL|wxEXPAND, 5 );
 
-	wxString m_oemRefChoices[] = { _("Generate Unique") };
+	wxString m_oemRefChoices[] = { _("Generate unique") };
 	int m_oemRefNChoices = sizeof( m_oemRefChoices ) / sizeof( wxString );
 	m_oemRef = new wxChoice( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_oemRefNChoices, m_oemRefChoices, 0 );
 	m_oemRef->SetSelection( 0 );
@@ -184,6 +196,11 @@ DIALOG_EXPORT_2581_BASE::DIALOG_EXPORT_2581_BASE( wxWindow* parent, wxWindowID i
 
 
 	bMainSizer->Add( bSizerMiddle, 0, wxEXPAND|wxBOTTOM, 5 );
+
+	m_messagesPanel = new WX_HTML_REPORT_PANEL( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	m_messagesPanel->SetMinSize( wxSize( -300,150 ) );
+
+	bMainSizer->Add( m_messagesPanel, 1, wxEXPAND|wxLEFT|wxRIGHT, 5 );
 
 	m_stdButtons = new wxStdDialogButtonSizer();
 	m_stdButtonsOK = new wxButton( this, wxID_OK );

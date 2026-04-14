@@ -26,18 +26,20 @@
 #include <connection_graph.h>
 #include <locale_io.h>
 #include <schematic.h>
+#include <sch_commit.h>
 #include <sch_edit_frame.h>
 #include <sch_label.h>
 #include <sch_io/sch_io.h>
 #include <sch_io/sch_io_mgr.h>
 #include <settings/settings_manager.h>
 #include <wildcards_and_files_ext.h>
+#include <tool/tool_manager.h>
+#include <kiface_base.h>
 
 #include <wx/app.h>
 
 
 SCH_EDIT_FRAME*   EESCHEMA_HELPERS::s_SchEditFrame = nullptr;
-SETTINGS_MANAGER* EESCHEMA_HELPERS::s_SettingsManager = nullptr;
 
 
 void EESCHEMA_HELPERS::SetSchEditFrame( SCH_EDIT_FRAME* aSchEditFrame )
@@ -46,54 +48,19 @@ void EESCHEMA_HELPERS::SetSchEditFrame( SCH_EDIT_FRAME* aSchEditFrame )
 }
 
 
-SETTINGS_MANAGER* EESCHEMA_HELPERS::GetSettingsManager()
-{
-    if( !s_SettingsManager )
-    {
-        if( s_SchEditFrame )
-        {
-            s_SettingsManager = s_SchEditFrame->GetSettingsManager();
-        }
-        else
-        {
-            s_SettingsManager = new SETTINGS_MANAGER( true );
-        }
-    }
-
-    return s_SettingsManager;
-}
-
-
-PROJECT* EESCHEMA_HELPERS::GetDefaultProject( bool aSetActive )
-{
-    // For some reasons, LoadProject() needs a C locale, so ensure we have the right locale
-    // This is mainly when running QA Python tests
-    LOCALE_IO dummy;
-
-    PROJECT* project = GetSettingsManager()->GetProject( "" );
-
-    if( !project )
-    {
-        GetSettingsManager()->LoadProject( "", aSetActive );
-        project = GetSettingsManager()->GetProject( "" );
-    }
-
-    return project;
-}
-
-
 SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName, bool aSetActive,
-                                            bool aForceDefaultProject, PROJECT* aProject )
+                                            bool aForceDefaultProject, PROJECT* aProject, bool aCalculateConnectivity )
 {
     if( aFileName.EndsWith( FILEEXT::KiCadSchematicFileExtension ) )
         return LoadSchematic( aFileName, SCH_IO_MGR::SCH_KICAD, aSetActive, aForceDefaultProject,
-                              aProject );
+                              aProject, aCalculateConnectivity );
     else if( aFileName.EndsWith( FILEEXT::LegacySchematicFileExtension ) )
         return LoadSchematic( aFileName, SCH_IO_MGR::SCH_LEGACY, aSetActive, aForceDefaultProject,
-                              aProject );
+                              aProject, aCalculateConnectivity );
 
     // as fall back for any other kind use the legacy format
-    return LoadSchematic( aFileName, SCH_IO_MGR::SCH_LEGACY, aSetActive, aForceDefaultProject, aProject );
+    return LoadSchematic( aFileName, SCH_IO_MGR::SCH_LEGACY, aSetActive, aForceDefaultProject, aProject,
+                          aCalculateConnectivity );
 }
 
 
@@ -101,7 +68,8 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
                                             SCH_IO_MGR::SCH_FILE_T aFormat,
                                             bool aSetActive,
                                             bool aForceDefaultProject,
-                                            PROJECT* aProject )
+                                            PROJECT* aProject,
+                                            bool aCalculateConnectivity )
 {
     wxFileName pro = aFileName;
     pro.SetExt( FILEEXT::ProjectFileExtension );
@@ -113,10 +81,11 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
     LOCALE_IO dummy;
 
     PROJECT* project = aProject;
+    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
 
     if( !project )
     {
-        project = GetSettingsManager()->GetProject( projectPath );
+        project = mgr.GetProject( projectPath );
     }
 
     if( !aForceDefaultProject )
@@ -125,11 +94,11 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
         {
             if( wxFileExists( projectPath ) )
             {
-                GetSettingsManager()->LoadProject( projectPath, aSetActive );
-                project = GetSettingsManager()->GetProject( projectPath );
+                mgr.LoadProject( projectPath, aSetActive );
+                project = mgr.GetProject( projectPath );
             }
         }
-        else if( s_SchEditFrame && project == &GetSettingsManager()->Prj() )
+        else if( s_SchEditFrame && project == &mgr.Prj() )
         {
             // Project is already loaded?  Then so is the board
             return &s_SchEditFrame->Schematic();
@@ -138,30 +107,24 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
 
     // Board cannot be loaded without a project, so create the default project
     if( !project || aForceDefaultProject )
-        project = GetDefaultProject( aSetActive );
+        project = &mgr.Prj();
 
     IO_RELEASER<SCH_IO> pi( SCH_IO_MGR::FindPlugin( aFormat ) );
 
     SCHEMATIC* schematic = new SCHEMATIC( project );
-
-    SCH_SHEET* rootSheet = new SCH_SHEET( schematic );
-    schematic->SetRoot( rootSheet );
-
-    SCH_SCREEN* rootScreen = new SCH_SCREEN( schematic );
-    const_cast<KIID&>( rootSheet->m_Uuid ) = rootScreen->GetUuid();
-    schematic->Root().SetScreen( rootScreen );
-
-    schematic->RootScreen()->SetFileName( wxEmptyString );
-
-    // Don't leave root page number empty
-    schematic->RootScreen()->SetPageNumber( wxT( "1" ) );
+    schematic->CreateDefaultScreens();
 
     wxFileName schFile = aFileName;
     schFile.MakeAbsolute();
 
     try
     {
-        schematic->SetRoot( pi->LoadSchematicFile( schFile.GetFullPath(), schematic ) );
+        SCH_SHEET* rootSheet = pi->LoadSchematicFile( schFile.GetFullPath(), schematic );
+
+        if( rootSheet )
+            schematic->SetTopLevelSheets( { rootSheet } );
+        else
+            return nullptr;
     }
     catch( ... )
     {
@@ -189,14 +152,19 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
 
     schematic->ConnectionGraph()->Reset();
 
-    schematic->SetSheetNumberAndCount();
-    schematic->RecomputeIntersheetRefs( []( SCH_GLOBALLABEL* aGlobal )
-                                        {
-                                            for( SCH_FIELD& field : aGlobal->GetFields() )
-                                                field.ClearBoundingBoxCache();
+    TOOL_MANAGER* toolManager = new TOOL_MANAGER;
+    toolManager->SetEnvironment( schematic, nullptr, nullptr, Kiface().KifaceSettings(), nullptr );
 
-                                            aGlobal->ClearBoundingBoxCache();
-                                        } );
+    if( aCalculateConnectivity )
+    {
+        SCH_COMMIT dummyCommit( toolManager );
+        schematic->RecalculateConnections( &dummyCommit, GLOBAL_CLEANUP, toolManager );
+    }
+
+    schematic->ResolveERCExclusionsPostUpdate();
+
+    schematic->SetSheetNumberAndCount();
+    schematic->RecomputeIntersheetRefs();
 
     for( SCH_SHEET_PATH& sheet : sheetList )
     {
@@ -204,8 +172,8 @@ SCHEMATIC* EESCHEMA_HELPERS::LoadSchematic( const wxString& aFileName,
         sheet.LastScreen()->TestDanglingEnds( nullptr, nullptr );
     }
 
-    schematic->ConnectionGraph()->Recalculate( sheetList, true );
-
+    if( aCalculateConnectivity )
+        schematic->ConnectionGraph()->Recalculate( sheetList, true );
 
     return schematic;
 }

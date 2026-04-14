@@ -29,6 +29,7 @@
 #include <bitmaps.h>
 #include <core/mirror.h>
 #include <geometry/shape_rect.h>
+#include <geometry/geometry_utils.h>
 #include <sch_painter.h>
 #include <sch_junction.h>
 #include <sch_edit_frame.h>
@@ -37,6 +38,8 @@
 #include <settings/color_settings.h>
 #include <connection_graph.h>
 #include <string_utils.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 SCH_JUNCTION::SCH_JUNCTION( const VECTOR2I& aPosition, int aDiameter, SCH_LAYER_ID aLayer ) :
@@ -58,10 +61,8 @@ EDA_ITEM* SCH_JUNCTION::Clone() const
 }
 
 
-void SCH_JUNCTION::SwapData( SCH_ITEM* aItem )
+void SCH_JUNCTION::swapData( SCH_ITEM* aItem )
 {
-    SCH_ITEM::SwapFlags( aItem );
-
     wxCHECK_RET( ( aItem != nullptr ) && ( aItem->Type() == SCH_JUNCTION_T ),
                  wxT( "Cannot swap junction data with invalid item." ) );
 
@@ -108,21 +109,6 @@ const BOX2I SCH_JUNCTION::GetBoundingBox() const
     bbox.Inflate( getEffectiveShape().GetRadius() );
 
     return bbox;
-}
-
-
-void SCH_JUNCTION::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                          const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
-{
-    wxDC*   DC    = aSettings->GetPrintDC();
-    COLOR4D color = GetJunctionColor();
-
-    if( color == COLOR4D::UNSPECIFIED )
-        color = aSettings->GetLayerColor( GetLayer() );
-
-    SHAPE_CIRCLE circle = getEffectiveShape();
-
-    GRFilledCircle( DC, circle.GetCenter() + aOffset, circle.GetRadius(), 0, color, color );
 }
 
 
@@ -230,6 +216,15 @@ bool SCH_JUNCTION::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy )
 }
 
 
+bool SCH_JUNCTION::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    if( m_flags & STRUCT_DELETED || m_flags & SKIP_STRUCT )
+        return false;
+
+    return KIGEOM::ShapeHitTest( aPoly, getEffectiveShape(), aContained );
+}
+
+
 bool SCH_JUNCTION::HasConnectivityChanges( const SCH_ITEM* aItem,
                                            const SCH_SHEET_PATH* aInstance ) const
 {
@@ -264,9 +259,12 @@ void SCH_JUNCTION::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPT
     if( color == COLOR4D::UNSPECIFIED )
         color = settings->GetLayerColor( GetLayer() );
 
+    if( color.m_text && Schematic() )
+        color = COLOR4D( ResolveText( *color.m_text, &Schematic()->CurrentSheet() ) );
+
     aPlotter->SetColor( color );
 
-    aPlotter->Circle( m_pos, GetEffectiveDiameter(), FILL_T::FILLED_SHAPE );
+    aPlotter->Circle( m_pos, GetEffectiveDiameter(), FILL_T::FILLED_SHAPE, 0 );
 }
 
 

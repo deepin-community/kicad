@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -10,12 +10,12 @@
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/intl.h>
-class PinShapeComboBox;
-class PinTypeComboBox;
+class PINSHAPE_COMBOBOX;
+class PINTYPE_COMBOBOX;
 class STD_BITMAP_BUTTON;
+class WX_BITMAP_COMBOBOX;
 class WX_GRID;
 class WX_INFOBAR;
-class wxBitmapComboBox;
 
 #include "dialog_shim.h"
 #include <wx/infobar.h>
@@ -66,11 +66,11 @@ class DIALOG_PIN_PROPERTIES_BASE : public DIALOG_SHIM
 		wxStaticText* m_numberSizeLabel;
 		wxTextCtrl* m_numberSizeCtrl;
 		wxStaticText* m_staticTextEType;
-		PinTypeComboBox* m_choiceElectricalType;
+		PINTYPE_COMBOBOX* m_choiceElectricalType;
 		wxStaticText* m_staticTextGstyle;
-		PinShapeComboBox* m_choiceStyle;
+		PINSHAPE_COMBOBOX* m_choiceStyle;
 		wxStaticText* m_staticTextOrient;
-		wxBitmapComboBox* m_choiceOrientation;
+		WX_BITMAP_COMBOBOX* m_choiceOrientation;
 		wxStaticText* m_posXUnits;
 		wxStaticText* m_posYUnits;
 		wxStaticText* m_pinLengthUnits;
@@ -93,7 +93,6 @@ class DIALOG_PIN_PROPERTIES_BASE : public DIALOG_SHIM
 		virtual void OnSize( wxSizeEvent& event ) { event.Skip(); }
 		virtual void OnUpdateUI( wxUpdateUIEvent& event ) { event.Skip(); }
 		virtual void OnPropertiesChange( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnPaintShowPanel( wxPaintEvent& event ) { event.Skip(); }
 		virtual void OnCollapsiblePaneChange( wxCollapsiblePaneEvent& event ) { event.Skip(); }
 		virtual void OnAddAlternate( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnDeleteAlternate( wxCommandEvent& event ) { event.Skip(); }

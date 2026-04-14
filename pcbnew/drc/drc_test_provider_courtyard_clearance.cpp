@@ -24,10 +24,9 @@
 #include <geometry/shape_poly_set.h>
 #include <drc/drc_engine.h>
 #include <drc/drc_item.h>
-#include <drc/drc_rule.h>
 #include <pad.h>
 #include <geometry/shape_segment.h>
-#include <drc/drc_test_provider_clearance_base.h>
+#include <drc/drc_test_provider.h>
 #include <footprint.h>
 
 /*
@@ -40,31 +39,21 @@
     - DRCE_NPTH_IN_COURTYARD,
 */
 
-class DRC_TEST_PROVIDER_COURTYARD_CLEARANCE : public DRC_TEST_PROVIDER_CLEARANCE_BASE
+class DRC_TEST_PROVIDER_COURTYARD_CLEARANCE : public DRC_TEST_PROVIDER
 {
 public:
     DRC_TEST_PROVIDER_COURTYARD_CLEARANCE () :
-        DRC_TEST_PROVIDER_CLEARANCE_BASE(),
-        m_largestCourtyardClearance( 0 )
+            DRC_TEST_PROVIDER(),
+            m_largestCourtyardClearance( 0 )
     {
         m_isRuleDriven = false;
     }
 
-    virtual ~DRC_TEST_PROVIDER_COURTYARD_CLEARANCE ()
-    {
-    }
+    virtual ~DRC_TEST_PROVIDER_COURTYARD_CLEARANCE () = default;
 
     virtual bool Run() override;
 
-    virtual const wxString GetName() const override
-    {
-        return wxT( "courtyard_clearance" );
-    }
-
-    virtual const wxString GetDescription() const override
-    {
-        return wxT( "Tests footprints' courtyard clearance" );
-    }
+    virtual const wxString GetName() const override { return wxT( "courtyard_clearance" ); }
 
 private:
     bool testFootprintCourtyardDefinitions();
@@ -92,7 +81,7 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::testFootprintCourtyardDefinitions()
     }
     else
     {
-        reportAux( wxT( "All courtyard violations ignored. Tests not run." ) );
+        REPORT_AUX( wxT( "All courtyard violations ignored. Tests not run." ) );
         return true;        // continue with other tests
     }
 
@@ -113,7 +102,7 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::testFootprintCourtyardDefinitions()
                     [&]( const wxString& msg, BOARD_ITEM*, BOARD_ITEM*, const VECTOR2I& pt )
                     {
                         std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_MALFORMED_COURTYARD );
-                        drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
+                        drcItem->SetErrorDetail( msg );
                         drcItem->SetItems( footprint );
                         reportViolation( drcItem, pt, UNDEFINED_LAYER );
                     };
@@ -127,7 +116,7 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::testFootprintCourtyardDefinitions()
             if( m_drcEngine->IsErrorLimitExceeded( DRCE_MISSING_COURTYARD ) )
                 continue;
 
-            if( footprint->GetAttributes() & FP_ALLOW_MISSING_COURTYARD )
+            if( footprint->AllowMissingCourtyard() )
                 continue;
 
             std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_MISSING_COURTYARD );
@@ -238,21 +227,19 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::testCourtyardClearances()
                 {
                     if( frontA.Collide( &frontB, clearance, &actual, &pos ) )
                     {
-                        auto drce = DRC_ITEM::Create( DRCE_OVERLAPPING_FOOTPRINTS );
+                        std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_OVERLAPPING_FOOTPRINTS );
 
                         if( clearance > 0 )
                         {
-                            wxString msg = formatMsg( _( "(%s clearance %s; actual %s)" ),
-                                                      constraint.GetName(),
-                                                      clearance,
-                                                      actual );
-
-                            drce->SetErrorMessage( drce->GetErrorText() + wxS( " " ) + msg );
+                            drcItem->SetErrorDetail( formatMsg( _( "(%s clearance %s; actual %s)" ),
+                                                                constraint.GetName(),
+                                                                clearance,
+                                                                actual ) );
                         }
 
-                        drce->SetViolatingRule( constraint.GetParentRule() );
-                        drce->SetItems( fpA, fpB );
-                        reportViolation( drce, pos, F_CrtYd );
+                        drcItem->SetViolatingRule( constraint.GetParentRule() );
+                        drcItem->SetItems( fpA, fpB );
+                        reportTwoShapeGeometry( drcItem, pos, &frontA, &frontB, F_CrtYd, actual );
                     }
                 }
             }
@@ -270,21 +257,19 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::testCourtyardClearances()
                 {
                     if( backA.Collide( &backB, clearance, &actual, &pos ) )
                     {
-                        auto drce = DRC_ITEM::Create( DRCE_OVERLAPPING_FOOTPRINTS );
+                        std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_OVERLAPPING_FOOTPRINTS );
 
                         if( clearance > 0 )
                         {
-                            wxString msg = formatMsg( _( "(%s clearance %s; actual %s)" ),
-                                                      constraint.GetName(),
-                                                      clearance,
-                                                      actual );
-
-                            drce->SetErrorMessage( drce->GetErrorText() + wxS( " " ) + msg );
+                            drcItem->SetErrorDetail( formatMsg( _( "(%s clearance %s; actual %s)" ),
+                                                                constraint.GetName(),
+                                                                clearance,
+                                                                actual ) );
                         }
 
-                        drce->SetViolatingRule( constraint.GetParentRule() );
-                        drce->SetItems( fpA, fpB );
-                        reportViolation( drce, pos, B_CrtYd );
+                        drcItem->SetViolatingRule( constraint.GetParentRule() );
+                        drcItem->SetItems( fpA, fpB );
+                        reportTwoShapeGeometry( drcItem, pos, &backA, &backB, B_CrtYd, actual );
                     }
                 }
             }
@@ -327,7 +312,9 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::testCourtyardClearances()
                     {
                         int errorCode = 0;
 
-                        if( pad->GetAttribute() == PAD_ATTRIB::PTH )
+                        if( pad->GetProperty() == PAD_PROP::HEATSINK )
+                            return;
+                        else if( pad->GetAttribute() == PAD_ATTRIB::PTH )
                             errorCode = DRCE_PTH_IN_COURTYARD;
                         else if( pad->GetAttribute() == PAD_ATTRIB::NPTH )
                             errorCode = DRCE_NPTH_IN_COURTYARD;
@@ -388,8 +375,6 @@ bool DRC_TEST_PROVIDER_COURTYARD_CLEARANCE::Run()
 
     if( m_drcEngine->QueryWorstConstraint( COURTYARD_CLEARANCE_CONSTRAINT, constraint ) )
         m_largestCourtyardClearance = constraint.GetValue().Min();
-
-    reportAux( wxT( "Worst courtyard clearance : %d nm" ), m_largestCourtyardClearance );
 
     if( !testFootprintCourtyardDefinitions() )
         return false;

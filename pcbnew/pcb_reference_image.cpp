@@ -31,6 +31,7 @@
 #include <common.h>
 #include <core/mirror.h>
 #include <eda_draw_frame.h>
+#include <footprint.h>
 #include <pcb_draw_panel_gal.h>
 #include <pcb_painter.h>
 #include <plotters/plotter.h>
@@ -40,6 +41,8 @@
 #include <trigo.h>
 
 #include <wx/mstream.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 using KIGFX::PCB_PAINTER;
 using KIGFX::PCB_RENDER_SETTINGS;
@@ -171,7 +174,13 @@ void PCB_REFERENCE_IMAGE::Move( const VECTOR2I& aMoveVector )
 void PCB_REFERENCE_IMAGE::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
     m_referenceImage.Flip( aCentre, aFlipDirection );
+
+    if( GetBoard() )
+        SetLayer( GetBoard()->FlipLayer( GetLayer() ) );
+    else
+        SetLayer( FlipLayer( GetLayer() ) );
 }
+
 
 void PCB_REFERENCE_IMAGE::Rotate( const VECTOR2I& aCenter, const EDA_ANGLE& aAngle )
 {
@@ -200,6 +209,12 @@ bool PCB_REFERENCE_IMAGE::HitTest( const VECTOR2I& aPosition, int aAccuracy ) co
 bool PCB_REFERENCE_IMAGE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) const
 {
     return KIGEOM::BoxHitTest( aRect, GetBoundingBox(), aContained, aAccuracy );
+}
+
+
+bool PCB_REFERENCE_IMAGE::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    return KIGEOM::BoxHitTest( aPoly, GetBoundingBox(), aContained );
 }
 
 
@@ -357,31 +372,25 @@ static struct PCB_REFERENCE_IMAGE_DESC
                              &PCB_REFERENCE_IMAGE::GetImageScale ),
                              groupImage );
 
-        propMgr.AddProperty( new PROPERTY<PCB_REFERENCE_IMAGE, int>(
-                                     _HKI( "Transform Offset X" ),
+        propMgr.AddProperty( new PROPERTY<PCB_REFERENCE_IMAGE, int>( _HKI( "Transform Offset X" ),
                                      &PCB_REFERENCE_IMAGE::SetTransformOriginOffsetX,
                                      &PCB_REFERENCE_IMAGE::GetTransformOriginOffsetX,
                                      PROPERTY_DISPLAY::PT_COORD, ORIGIN_TRANSFORMS::ABS_X_COORD ),
                              groupImage );
 
-        propMgr.AddProperty( new PROPERTY<PCB_REFERENCE_IMAGE, int>(
-                                     _HKI( "Transform Offset Y" ),
+        propMgr.AddProperty( new PROPERTY<PCB_REFERENCE_IMAGE, int>( _HKI( "Transform Offset Y" ),
                                      &PCB_REFERENCE_IMAGE::SetTransformOriginOffsetY,
                                      &PCB_REFERENCE_IMAGE::GetTransformOriginOffsetY,
                                      PROPERTY_DISPLAY::PT_COORD, ORIGIN_TRANSFORMS::ABS_Y_COORD ),
                              groupImage );
 
-        propMgr.AddProperty( new PROPERTY<PCB_REFERENCE_IMAGE, int>(
-                                     _HKI( "Width" ),
-                                     &PCB_REFERENCE_IMAGE::SetWidth,
-                                     &PCB_REFERENCE_IMAGE::GetWidth,
+        propMgr.AddProperty( new PROPERTY<PCB_REFERENCE_IMAGE, int>( _HKI( "Width" ),
+                                     &PCB_REFERENCE_IMAGE::SetWidth, &PCB_REFERENCE_IMAGE::GetWidth,
                                      PROPERTY_DISPLAY::PT_COORD ),
                              groupImage );
 
-        propMgr.AddProperty( new PROPERTY<PCB_REFERENCE_IMAGE, int>(
-                                     _HKI( "Height" ),
-                                     &PCB_REFERENCE_IMAGE::SetHeight,
-                                     &PCB_REFERENCE_IMAGE::GetHeight,
+        propMgr.AddProperty( new PROPERTY<PCB_REFERENCE_IMAGE, int>( _HKI( "Height" ),
+                                     &PCB_REFERENCE_IMAGE::SetHeight, &PCB_REFERENCE_IMAGE::GetHeight,
                                      PROPERTY_DISPLAY::PT_COORD ),
                              groupImage );
 

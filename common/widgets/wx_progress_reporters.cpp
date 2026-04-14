@@ -24,22 +24,24 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <wx/evtloop.h>
 #include <thread>
+#include <widgets/wx_event_utils.h>
 #include <widgets/wx_progress_reporters.h>
 
 
 WX_PROGRESS_REPORTER::WX_PROGRESS_REPORTER( wxWindow* aParent, const wxString& aTitle,
-                                            int aNumPhases, bool aCanAbort,
+                                            int aNumPhases, int aCanAbort,
                                             bool aReserveSpaceForMessage ) :
         PROGRESS_REPORTER_BASE( aNumPhases ),
-        wxProgressDialog( aTitle, ( aReserveSpaceForMessage ? wxT( " " ) : wxT( "" ) ), 1, aParent,
+        WX_PROGRESS_REPORTER_BASE( aTitle,
+                          ( aReserveSpaceForMessage ? wxT( " " ) : wxT( "" ) ),
+                          1, aParent,
                           // wxPD_APP_MODAL |   // Don't use; messes up OSX when called from
                                                 // quasi-modal dialog
                           wxPD_AUTO_HIDE |      // *MUST* use; otherwise wxWidgets will spin
                                                 // up another event loop on completion which
                                                 // causes all sorts of grief
-                          ( aCanAbort ? wxPD_CAN_ABORT : 0 ) | wxPD_ELAPSED_TIME ),
+                          aCanAbort | wxPD_ELAPSED_TIME ),
         m_appProgressIndicator( aParent ),
         m_messageWidth( 0 )
 {
@@ -88,8 +90,13 @@ bool WX_PROGRESS_REPORTER::updateUI()
         m_messageChanged = false;
     }
 
+    // Allowing interaction with other windows has unintended consequences
+    wxWindowDisabler ed( this );
+
     // Returns false when cancelled (if it's a cancellable dialog)
-    bool diag = wxProgressDialog::Update( cur, message );
+    bool diag = WX_PROGRESS_REPORTER_BASE::Update( cur, message );
+
+    DrainPendingEvents();
 
     return diag;
 }
@@ -111,7 +118,8 @@ bool GAUGE_PROGRESS_REPORTER::updateUI()
         cur = 0;
 
     wxGauge::SetValue( cur );
-    wxEventLoopBase::GetActive()->YieldFor( wxEVT_CATEGORY_UI );
+
+    DrainPendingEvents( wxEVT_CATEGORY_UI );
 
     return true;  // No cancel button on a wxGauge
 }

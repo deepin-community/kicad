@@ -25,16 +25,16 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef __COMMIT_H
-#define __COMMIT_H
+#pragma once
 
 #include <set>
 #include <vector>
 #include <wx/string.h>
 #include <undo_redo_container.h>
 #include <kiid.h>
+#include <eda_item.h>
 
-class EDA_ITEM;
+class EDA_GROUP;
 class BASE_SCREEN;
 
 ///< Types of changes
@@ -42,9 +42,7 @@ enum CHANGE_TYPE {
     CHT_ADD     = 1,
     CHT_REMOVE  = 2,
     CHT_MODIFY  = 4,
-    CHT_GROUP   = 8,
-    CHT_UNGROUP = 16,
-    CHT_TYPE    = CHT_ADD | CHT_REMOVE | CHT_MODIFY | CHT_GROUP | CHT_UNGROUP,
+    CHT_TYPE    = CHT_ADD | CHT_REMOVE | CHT_MODIFY,
 
     CHT_DONE    = 32,             ///< Flag to indicate the change is already applied
     CHT_FLAGS   = CHT_DONE
@@ -105,9 +103,10 @@ public:
      *
      * @note Must be called before modification is performed.
      */
-    COMMIT& Modify( EDA_ITEM* aItem, BASE_SCREEN *aScreen = nullptr )
+    COMMIT& Modify( EDA_ITEM* aItem, BASE_SCREEN *aScreen = nullptr,
+                    RECURSE_MODE aRecurse = RECURSE_MODE::NO_RECURSE )
     {
-        return Stage( aItem, CHT_MODIFY, aScreen );
+        return Stage( aItem, CHT_MODIFY, aScreen, aRecurse );
     }
 
     /**
@@ -115,31 +114,19 @@ public:
      *
      * @note Requires a copy done before the modification.
      */
-    COMMIT& Modified( EDA_ITEM* aItem, EDA_ITEM* aCopy, BASE_SCREEN *aScreen = nullptr )
-    {
-        return createModified( aItem, aCopy, 0, aScreen );
-    }
-
-    template<class Range>
-
-    COMMIT& StageItems( const Range& aRange, CHANGE_TYPE aChangeType )
-    {
-        for( const auto& item : aRange )
-            Stage( item, aChangeType );
-
-        return *this;
-    }
+    COMMIT& Modified( EDA_ITEM* aItem, EDA_ITEM* aCopy, BASE_SCREEN *aScreen = nullptr );
 
     /// Add a change of the item aItem of type aChangeType to the change list.
-    virtual COMMIT& Stage( EDA_ITEM* aItem, CHANGE_TYPE aChangeType,
-                           BASE_SCREEN *aScreen = nullptr );
+    virtual COMMIT& Stage( EDA_ITEM* aItem, CHANGE_TYPE aChangeType, BASE_SCREEN *aScreen = nullptr,
+                           RECURSE_MODE aRecurse = RECURSE_MODE::NO_RECURSE );
 
     virtual COMMIT& Stage( std::vector<EDA_ITEM*>& container, CHANGE_TYPE aChangeType,
                            BASE_SCREEN *aScreen = nullptr );
 
-    virtual COMMIT& Stage( const PICKED_ITEMS_LIST& aItems,
-                           UNDO_REDO aModFlag = UNDO_REDO::UNSPECIFIED,
+    virtual COMMIT& Stage( const PICKED_ITEMS_LIST& aItems, UNDO_REDO aModFlag = UNDO_REDO::UNSPECIFIED,
                            BASE_SCREEN *aScreen = nullptr );
+
+    void Unstage( EDA_ITEM* aItem, BASE_SCREEN* aScreen );
 
     /// Execute the changes.
     virtual void Push( const wxString& aMessage = wxT( "A commit" ), int aFlags = 0 ) = 0;
@@ -149,13 +136,13 @@ public:
 
     bool Empty() const
     {
-        return m_changes.empty();
+        return m_entries.empty();
     }
 
     /// Returns status of an item.
     int GetStatus( EDA_ITEM* aItem, BASE_SCREEN *aScreen = nullptr );
 
-    EDA_ITEM* GetFirst() const { return m_changes.empty() ? nullptr : m_changes[0].m_item; }
+    EDA_ITEM* GetFirst() const { return m_entries.empty() ? nullptr : m_entries[0].m_item; }
 
 protected:
     struct COMMIT_LINE
@@ -163,7 +150,6 @@ protected:
         EDA_ITEM*    m_item;                ///< Main item that is added/deleted/modified
         EDA_ITEM*    m_copy;                ///< Optional copy of the item
         CHANGE_TYPE  m_type;                ///< Modification type
-        KIID         m_parent = NilUuid();  ///< Parent item (primarily for undo of deleted items)
         BASE_SCREEN* m_screen;
     };
 
@@ -172,11 +158,8 @@ protected:
     {
         m_changedItems.clear();
         m_deletedItems.clear();
-        m_changes.clear();
+        m_entries.clear();
     }
-
-    COMMIT& createModified( EDA_ITEM* aItem, EDA_ITEM* aCopy, int aExtraFlags = 0,
-                            BASE_SCREEN *aScreen = nullptr );
 
     virtual void makeEntry( EDA_ITEM* aItem, CHANGE_TYPE aType, EDA_ITEM* aCopy = nullptr,
                             BASE_SCREEN *aScreen = nullptr );
@@ -188,7 +171,7 @@ protected:
      */
     COMMIT_LINE* findEntry( EDA_ITEM* aItem, BASE_SCREEN *aScreen = nullptr );
 
-    virtual EDA_ITEM* parentObject( EDA_ITEM* aItem ) const = 0;
+    virtual EDA_ITEM* undoLevelItem( EDA_ITEM* aItem ) const = 0;
 
     virtual EDA_ITEM* makeImage( EDA_ITEM* aItem ) const = 0;
 
@@ -196,9 +179,9 @@ protected:
     UNDO_REDO convert( CHANGE_TYPE aType ) const;
 
 protected:
-    std::set<EDA_ITEM*>      m_changedItems;
-    std::set<EDA_ITEM*>      m_deletedItems;
-    std::vector<COMMIT_LINE> m_changes;
+    std::set<std::pair<EDA_ITEM*, BASE_SCREEN*>> m_addedItems;
+    std::set<std::pair<EDA_ITEM*, BASE_SCREEN*>> m_changedItems;
+    std::set<std::pair<EDA_ITEM*, BASE_SCREEN*>> m_deletedItems;
+    std::vector<COMMIT_LINE>                     m_entries;
 };
 
-#endif

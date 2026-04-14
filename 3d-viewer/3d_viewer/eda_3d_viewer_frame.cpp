@@ -34,6 +34,7 @@
 #include "dialogs/appearance_controls_3D.h"
 #include <dialogs/eda_view_switcher.h>
 #include <eda_3d_viewer_settings.h>
+#include <3d_rendering/raytracing/render_3d_raytrace_ram.h>
 #include <3d_viewer_id.h>
 #include <3d_viewer/tools/eda_3d_actions.h>
 #include <3d_viewer/tools/eda_3d_controller.h>
@@ -57,9 +58,16 @@
 #include <widgets/wx_infobar.h>
 #include <widgets/wx_aui_utils.h>
 #include <wildcards_and_files_ext.h>
+#include <kiplatform/ui.h>
 #include <project_pcb.h>
+#include <toolbars_3d.h>
 
+#if defined(__linux__) || defined(__FreeBSD__)
+#include <spacenav/libspnav_driver.h>
+#include <3d_spacenav/spnav_viewer_plugin.h>
+#else
 #include <3d_navlib/nl_3d_viewer_plugin.h>
+#endif
 
 /**
  * Flag to enable 3D viewer main frame window debug tracing.
@@ -80,7 +88,6 @@ BEGIN_EVENT_TABLE( EDA_3D_VIEWER_FRAME, KIWAY_PLAYER )
                     EDA_3D_VIEWER_FRAME::Process_Special_Functions )
 
     EVT_MENU( wxID_CLOSE, EDA_3D_VIEWER_FRAME::Exit3DFrame )
-    EVT_MENU( ID_RENDER_CURRENT_VIEW, EDA_3D_VIEWER_FRAME::onRenderEngineSelection )
     EVT_MENU( ID_DISABLE_RAY_TRACING, EDA_3D_VIEWER_FRAME::onDisableRayTracing )
 
     EVT_CLOSE( EDA_3D_VIEWER_FRAME::OnCloseWindow )
@@ -91,7 +98,6 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
                                           const wxString& aTitle, long style ) :
         KIWAY_PLAYER( aKiway, aParent, FRAME_PCB_DISPLAY3D, aTitle, wxDefaultPosition,
                       wxDefaultSize, style, QUALIFIED_VIEWER3D_FRAMENAME( aParent ), unityScale ),
-        m_mainToolBar( nullptr ),
         m_canvas( nullptr ),
         m_currentCamera( m_trackBallCamera ),
         m_trackBallCamera( 2 * RANGE_SCALE_3D )
@@ -112,24 +118,26 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
     wxStatusBar *status_bar = CreateStatusBar( arrayDim( status_dims ) );
     SetStatusWidths( arrayDim( status_dims ), status_dims );
 
-    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-    EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
-    ANTIALIASING_MODE       aaMode = static_cast<ANTIALIASING_MODE>( cfg->m_Render.opengl_AA_mode );
+    ANTIALIASING_MODE       aaMode = ANTIALIASING_MODE::AA_NONE;
+    EDA_3D_VIEWER_SETTINGS* cfg = GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
 
-    m_canvas = new EDA_3D_CANVAS( this, OGL_ATT_LIST::GetAttributesList( aaMode, true ),
-                                  m_boardAdapter, m_currentCamera,
-                                  PROJECT_PCB::Get3DCacheManager( &Prj() ) );
+    if( cfg )
+        aaMode = static_cast<ANTIALIASING_MODE>( cfg->m_Render.opengl_AA_mode );
+
+    m_canvas = new EDA_3D_CANVAS( this, OGL_ATT_LIST::GetAttributesList( aaMode, true ), m_boardAdapter,
+                                  m_currentCamera, PROJECT_PCB::Get3DCacheManager( &Prj() ) );
 
     m_appearancePanel = new APPEARANCE_CONTROLS_3D( this, GetCanvas() );
 
-    LoadSettings( cfg );
+    LoadSettings( GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) );
     loadCommonSettings();
 
     m_appearancePanel->SetUserViewports( Prj().GetProjectFile().m_Viewports3D );
 
     // Create the manager
     m_toolManager = new TOOL_MANAGER;
-    m_toolManager->SetEnvironment( GetBoard(), nullptr, nullptr, cfg, this );
+    m_toolManager->SetEnvironment( GetBoard(), nullptr, nullptr,
+                                   GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ), this );
 
     m_actions = new EDA_3D_ACTIONS();
     m_toolDispatcher = new TOOL_DISPATCHER( m_toolManager );
@@ -143,35 +151,39 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
     setupUIConditions();
 
     if( EDA_3D_CONTROLLER* ctrlTool = GetToolManager()->GetTool<EDA_3D_CONTROLLER>() )
-        ctrlTool->SetRotationIncrement( cfg->m_Camera.rotation_increment );
+        ctrlTool->SetRotationIncrement( cfg ? cfg->m_Camera.rotation_increment : 10.0 );
 
     // Run the viewer control tool, it is supposed to be always active
     m_toolManager->InvokeTool( "3DViewer.Control" );
 
     ReCreateMenuBar();
-    ReCreateMainToolbar();
+
+    m_toolbarSettings = Pgm().GetSettingsManager().GetToolbarSettings<EDA_3D_VIEWER_TOOLBAR_SETTINGS>( "3d_viewer-toolbars" );
+    configureToolbars();
+    RecreateToolbars();
 
     m_infoBar = new WX_INFOBAR( this, &m_auimgr );
 
     m_auimgr.SetManagedWindow( this );
 
-    m_auimgr.AddPane( m_mainToolBar, EDA_PANE().HToolbar().Name( wxS( "MainToolbar" ) )
+    m_auimgr.AddPane( m_tbTopMain, EDA_PANE().HToolbar().Name( wxS( "TopMainToolbar" ) )
                       .Top().Layer( 6 ) );
     m_auimgr.AddPane( m_infoBar, EDA_PANE().InfoBar().Name( wxS( "InfoBar" ) )
                       .Top().Layer( 1 ) );
     m_auimgr.AddPane( m_appearancePanel, EDA_PANE().Name( "LayersManager" )
                       .Right().Layer( 3 )
                       .Caption( _( "Appearance" ) ).PaneBorder( false )
-                      .MinSize( 180, -1 ).BestSize( 190, -1 ) );
+                      .MinSize( FromDIP( 180 ), -1 ).BestSize( FromDIP( 190 ), -1 ) );
     m_auimgr.AddPane( m_canvas, EDA_PANE().Canvas().Name( wxS( "DrawFrame" ) )
                       .Center() );
 
     wxAuiPaneInfo& layersManager = m_auimgr.GetPane( "LayersManager" );
 
-    if( cfg->m_AuiPanels.right_panel_width > 0 )
+    if( cfg && cfg->m_AuiPanels.right_panel_width > 0 )
         SetAuiPaneSize( m_auimgr, layersManager, cfg->m_AuiPanels.right_panel_width, -1 );
 
-    layersManager.Show( cfg->m_AuiPanels.show_layer_manager );
+    if( cfg )
+        layersManager.Show( cfg->m_AuiPanels.show_layer_manager );
 
     // Call Update() to fix all pane default sizes, especially the "InfoBar" pane before
     // hiding it.
@@ -186,7 +198,11 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
 
     try
     {
+#if defined(__linux__) || defined(__FreeBSD__)
+        m_spaceMouse = std::make_unique<SPNAV_VIEWER_PLUGIN>( m_canvas );
+#else
         m_spaceMouse = std::make_unique<NL_3D_VIEWER_PLUGIN>( m_canvas );
+#endif
     }
     catch( const std::system_error& e )
     {
@@ -202,6 +218,10 @@ EDA_3D_VIEWER_FRAME::EDA_3D_VIEWER_FRAME( KIWAY* aKiway, PCB_BASE_FRAME* aParent
 
 EDA_3D_VIEWER_FRAME::~EDA_3D_VIEWER_FRAME()
 {
+    // Shutdown all running tools
+    if( m_toolManager )
+        m_toolManager->ShutdownAllTools();
+
     Prj().GetProjectFile().m_Viewports3D = m_appearancePanel->GetUserViewports();
 
     m_canvas->SetEventDispatcher( nullptr );
@@ -255,10 +275,10 @@ void EDA_3D_VIEWER_FRAME::setupUIConditions()
             {
                 return m_boardAdapter.m_Cfg->m_Render.show_model_bbox;
             };
-    auto showAxes =
+    auto showNavig =
             [this]( const SELECTION& aSel )
             {
-                return m_boardAdapter.m_Cfg->m_Render.show_axis;
+                return m_boardAdapter.m_Cfg->m_Render.show_navigator;
             };
     auto ortho =
             [this]( const SELECTION& )
@@ -272,7 +292,7 @@ void EDA_3D_VIEWER_FRAME::setupUIConditions()
                 return m_boardAdapter.m_Cfg->m_AuiPanels.show_layer_manager;
             };
 
-    RegisterUIUpdateHandler( ID_RENDER_CURRENT_VIEW, ACTION_CONDITIONS().Check( raytracing ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::toggleRaytacing, ACTION_CONDITIONS().Check( raytracing ) );
 
     mgr->SetConditions( EDA_3D_ACTIONS::showTHT, ACTION_CONDITIONS().Check( showTH ) );
     mgr->SetConditions( EDA_3D_ACTIONS::showSMD, ACTION_CONDITIONS().Check( showSMD ) );
@@ -282,7 +302,7 @@ void EDA_3D_VIEWER_FRAME::setupUIConditions()
     mgr->SetConditions( EDA_3D_ACTIONS::showDNP, ACTION_CONDITIONS().Check( show_DNP ) );
 
     mgr->SetConditions( EDA_3D_ACTIONS::showBBoxes, ACTION_CONDITIONS().Check( showBBoxes ) );
-    mgr->SetConditions( EDA_3D_ACTIONS::showAxis, ACTION_CONDITIONS().Check( showAxes ) );
+    mgr->SetConditions( EDA_3D_ACTIONS::showNavigator, ACTION_CONDITIONS().Check( showNavig ) );
 
     mgr->SetConditions( EDA_3D_ACTIONS::noGrid, GridSizeCheck( GRID3D_TYPE::NONE ) );
     mgr->SetConditions( EDA_3D_ACTIONS::show10mmGrid, GridSizeCheck( GRID3D_TYPE::GRID_10MM ) );
@@ -454,45 +474,25 @@ void EDA_3D_VIEWER_FRAME::OnCloseWindow( wxCloseEvent &event )
 
 void EDA_3D_VIEWER_FRAME::Process_Special_Functions( wxCommandEvent &event )
 {
-    int     id = event.GetId();
-    bool    isChecked = event.IsChecked();
-
-    wxLogTrace( m_logTrace, wxT( "EDA_3D_VIEWER_FRAME::Process_Special_Functions id %d "
-                                 "isChecked %d" ),
-                id,
-                isChecked );
-
     if( m_canvas == nullptr )
         return;
 
-    switch( id )
+    switch( event.GetId() )
     {
-    case ID_RELOAD3D_BOARD:
-        NewDisplay( true );
-        break;
-
-    case ID_TOOL_SCREENCOPY_TOCLIBBOARD:
-    case ID_MENU_SCREENCOPY_PNG:
-    case ID_MENU_SCREENCOPY_JPEG:
-        takeScreenshot( event );
-        return;
-
     case ID_MENU3D_RESET_DEFAULTS:
     {
-        SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-        EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
-
         m_boardAdapter.SetLayerColors( m_boardAdapter.GetDefaultColors() );
 
-        cfg->ResetToDefaults();
-        LoadSettings( cfg );
+        if( EDA_3D_VIEWER_SETTINGS* cfg = GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) )
+            cfg->ResetToDefaults();
+
+        LoadSettings( GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) );
 
         // Tell canvas that we (may have) changed the render engine
         RenderEngineChanged();
-
         NewDisplay( true );
-    }
         return;
+    }
 
     default:
         wxFAIL_MSG( wxT( "Invalid event in EDA_3D_VIEWER_FRAME::Process_Special_Functions()" ) );
@@ -501,28 +501,9 @@ void EDA_3D_VIEWER_FRAME::Process_Special_Functions( wxCommandEvent &event )
 }
 
 
-void EDA_3D_VIEWER_FRAME::onRenderEngineSelection( wxCommandEvent &event )
-{
-    RENDER_ENGINE& engine = m_boardAdapter.m_Cfg->m_Render.engine;
-    RENDER_ENGINE  old_engine = engine;
-
-    if( old_engine == RENDER_ENGINE::OPENGL )
-        engine = RENDER_ENGINE::RAYTRACING;
-    else
-        engine = RENDER_ENGINE::OPENGL;
-
-    wxLogTrace( m_logTrace, wxT( "EDA_3D_VIEWER_FRAME::OnRenderEngineSelection type %s " ),
-                engine == RENDER_ENGINE::RAYTRACING ? wxT( "raytracing" ) : wxT( "realtime" ) );
-
-    if( old_engine != engine )
-        RenderEngineChanged();
-}
-
-
 void EDA_3D_VIEWER_FRAME::onDisableRayTracing( wxCommandEvent& aEvent )
 {
-    wxLogTrace( m_logTrace, wxT( "EDA_3D_VIEWER_FRAME::%s disabling ray tracing." ),
-                __WXFUNCTION__ );
+    wxLogTrace( m_logTrace, wxT( "EDA_3D_VIEWER_FRAME::%s disabling ray tracing." ), __WXFUNCTION__ );
 
     m_disable_ray_tracing = true;
     m_boardAdapter.m_Cfg->m_Render.engine = RENDER_ENGINE::OPENGL;
@@ -574,9 +555,6 @@ void EDA_3D_VIEWER_FRAME::LoadSettings( APP_SETTINGS_BASE *aCfg )
     {
         applySettings( cfg );
 
-        if( !GetBoard()->GetProject() )
-            GetBoard()->SetProject( &Prj() );
-
         m_boardAdapter.SetBoard( GetBoard() );
 
         // When opening the 3D viewer, we use the OpenGL mode, never the ray tracing engine
@@ -610,19 +588,9 @@ void EDA_3D_VIEWER_FRAME::LoadSettings( APP_SETTINGS_BASE *aCfg )
 
 void EDA_3D_VIEWER_FRAME::SaveSettings( APP_SETTINGS_BASE *aCfg )
 {
-    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-    EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
+    EDA_BASE_FRAME::SaveSettings( GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) );
 
-    EDA_BASE_FRAME::SaveSettings( cfg );
-
-    wxLogTrace( m_logTrace, wxT( "EDA_3D_VIEWER_FRAME::SaveSettings" ) );
-
-    wxLogTrace( m_logTrace, m_boardAdapter.m_Cfg->m_Render.engine == RENDER_ENGINE::RAYTRACING ?
-                               wxT( "EDA_3D_VIEWER_FRAME::SaveSettings render setting Ray Trace" )
-                               :
-                               wxT( "EDA_3D_VIEWER_FRAME::SaveSettings render setting OpenGL" ) );
-
-    if( cfg )
+    if( EDA_3D_VIEWER_SETTINGS* cfg = GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) )
     {
         cfg->m_AuiPanels.right_panel_width    = m_appearancePanel->GetSize().x;
 
@@ -643,12 +611,8 @@ void EDA_3D_VIEWER_FRAME::CommonSettingsChanged( int aFlags )
     // Regen menu bars, etc
     EDA_BASE_FRAME::CommonSettingsChanged( aFlags );
 
-    // There is no base class that handles toolbars for this frame
-    ReCreateMainToolbar();
-
     loadCommonSettings();
-    applySettings(
-            Pgm().GetSettingsManager().GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) );
+    applySettings( GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) );
 
     m_appearancePanel->CommonSettingsChanged();
 
@@ -661,7 +625,7 @@ void EDA_3D_VIEWER_FRAME::ShowChangedLanguage()
     EDA_BASE_FRAME::ShowChangedLanguage();
 
     SetTitle( _( "3D Viewer" ) );
-    ReCreateMainToolbar();
+    RecreateToolbars();
 
     if( m_appearancePanel )
     {
@@ -676,23 +640,24 @@ void EDA_3D_VIEWER_FRAME::ShowChangedLanguage()
 
 void EDA_3D_VIEWER_FRAME::ToggleAppearanceManager()
 {
-    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-    EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
-    wxAuiPaneInfo&          layersManager = m_auimgr.GetPane( "LayersManager" );
+    wxAuiPaneInfo& layersManager = m_auimgr.GetPane( "LayersManager" );
 
-    // show auxiliary Vertical layers and visibility manager toolbar
-    cfg->m_AuiPanels.show_layer_manager = !cfg->m_AuiPanels.show_layer_manager;
-
-    layersManager.Show( cfg->m_AuiPanels.show_layer_manager );
-
-    if( cfg->m_AuiPanels.show_layer_manager )
+    if( EDA_3D_VIEWER_SETTINGS* cfg = GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) )
     {
-        SetAuiPaneSize( m_auimgr, layersManager, cfg->m_AuiPanels.right_panel_width, -1 );
-    }
-    else
-    {
-        cfg->m_AuiPanels.right_panel_width = m_appearancePanel->GetSize().x;
-        m_auimgr.Update();
+        // show auxiliary Vertical layers and visibility manager toolbar
+        cfg->m_AuiPanels.show_layer_manager = !cfg->m_AuiPanels.show_layer_manager;
+
+        layersManager.Show( cfg->m_AuiPanels.show_layer_manager );
+
+        if( cfg->m_AuiPanels.show_layer_manager )
+        {
+            SetAuiPaneSize( m_auimgr, layersManager, cfg->m_AuiPanels.right_panel_width, -1 );
+        }
+        else
+        {
+            cfg->m_AuiPanels.right_panel_width = m_appearancePanel->GetSize().x;
+            m_auimgr.Update();
+        }
     }
 }
 
@@ -704,103 +669,330 @@ void EDA_3D_VIEWER_FRAME::OnDarkModeToggle()
 }
 
 
-void EDA_3D_VIEWER_FRAME::takeScreenshot( wxCommandEvent& event )
+void EDA_3D_VIEWER_FRAME::TakeScreenshot( EDA_3D_VIEWER_EXPORT_FORMAT aFormat )
 {
-    wxString   fullFileName;
-    bool       fmt_is_jpeg = false;
+    wxString fullFileName;
 
-    if( event.GetId() == ID_MENU_SCREENCOPY_JPEG )
-        fmt_is_jpeg = true;
-
-    if( event.GetId() != ID_TOOL_SCREENCOPY_TOCLIBBOARD )
+    if( aFormat != EDA_3D_VIEWER_EXPORT_FORMAT::CLIPBOARD )
     {
-        // Remember path between saves during this session only.
-        const wxString wildcard =
-                fmt_is_jpeg ? FILEEXT::JpegFileWildcard() : FILEEXT::PngFileWildcard();
-        const wxString ext = fmt_is_jpeg ? FILEEXT::JpegFileExtension : FILEEXT::PngFileExtension;
-
-        // First time path is set to the project path.
-        if( !m_defaultSaveScreenshotFileName.IsOk() )
-            m_defaultSaveScreenshotFileName = Parent()->Prj().GetProjectFullName();
-
-        m_defaultSaveScreenshotFileName.SetExt( ext );
-
-        wxFileDialog dlg( this, _( "3D Image File Name" ),
-                          m_defaultSaveScreenshotFileName.GetPath(),
-                          m_defaultSaveScreenshotFileName.GetFullName(), wildcard,
-                          wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
-
-        if( dlg.ShowModal() == wxID_CANCEL )
+        if( !getExportFileName( aFormat, fullFileName ) )
             return;
-
-        m_defaultSaveScreenshotFileName = dlg.GetPath();
-
-        if( m_defaultSaveScreenshotFileName.GetExt().IsEmpty() )
-            m_defaultSaveScreenshotFileName.SetExt( ext );
-
-        fullFileName = m_defaultSaveScreenshotFileName.GetFullPath();
-
-        wxFileName fn = fullFileName;
-
-        if( !fn.IsDirWritable() )
-        {
-            wxString msg;
-
-            msg.Printf( _( "Insufficient permissions to save file '%s'." ), fullFileName );
-            wxMessageBox( msg, _( "Error" ), wxOK | wxICON_ERROR, this );
-            return;
-        }
-
-        // Be sure the screen area destroyed by the file dialog is redrawn
-        // before making a screen copy.
-        // Without this call, under Linux the screen refresh is made to late.
-        wxYield();
     }
 
-    // Be sure we have the latest 3D view (remember 3D view is buffered)
+    wxImage screenshotImage = captureCurrentViewScreenshot();
+
+    if( screenshotImage.IsOk() )
+    {
+        saveOrCopyImage( screenshotImage, aFormat, fullFileName );
+    }
+}
+
+
+wxImage EDA_3D_VIEWER_FRAME::captureCurrentViewScreenshot()
+{
+    // Ensure we have the latest 3D view (remember 3D view is buffered)
     // Also ensure any highlighted item is not highlighted when creating screen shot
     EDA_3D_VIEWER_SETTINGS::RENDER_SETTINGS& cfg = m_boardAdapter.m_Cfg->m_Render;
-    bool allow_highlight = cfg.highlight_on_rollover;
+    bool original_highlight = cfg.highlight_on_rollover;
     cfg.highlight_on_rollover = false;
 
     m_canvas->DoRePaint();      // init first buffer
     m_canvas->DoRePaint();      // init second buffer
 
-    // Build image from the 3D buffer
-    wxWindowUpdateLocker noUpdates( this );
-
     wxImage screenshotImage;
 
     if( m_canvas )
-        m_canvas->GetScreenshot( screenshotImage );
-
-    cfg.highlight_on_rollover = allow_highlight;
-
-    if( event.GetId() == ID_TOOL_SCREENCOPY_TOCLIBBOARD )
     {
-        wxBitmap bitmap( screenshotImage );
+        // Build image from the 3D buffer
+        wxWindowUpdateLocker noUpdates( this );
+        m_canvas->GetScreenshot( screenshotImage );
+    }
 
-        wxLogNull doNotLog; // disable logging of failed clipboard actions
+    // Restore highlight setting
+    cfg.highlight_on_rollover = original_highlight;
 
-        if( wxTheClipboard->Open() )
+    return screenshotImage;
+}
+
+
+void EDA_3D_VIEWER_FRAME::ExportImage( EDA_3D_VIEWER_EXPORT_FORMAT aFormat, const wxSize& aSize )
+{
+    wxString fullFileName;
+
+    if( aFormat != EDA_3D_VIEWER_EXPORT_FORMAT::CLIPBOARD )
+    {
+        if( !getExportFileName( aFormat, fullFileName ) )
+            return;
+    }
+
+    wxImage screenshotImage = captureScreenshot( aSize );
+
+    if( screenshotImage.IsOk() )
+    {
+        saveOrCopyImage( screenshotImage, aFormat, fullFileName );
+    }
+}
+
+
+bool EDA_3D_VIEWER_FRAME::getExportFileName( EDA_3D_VIEWER_EXPORT_FORMAT& aFormat, wxString& fullFileName )
+{
+    // Create combined wildcard for both formats
+    const wxString wildcard = FILEEXT::JpegFileWildcard() + "|" + FILEEXT::PngFileWildcard();
+
+    if( !m_defaultSaveScreenshotFileName.IsOk() )
+        m_defaultSaveScreenshotFileName = Parent()->Prj().GetProjectFullName();
+
+    // Set default extension based on current format
+    const wxString defaultExt = ( aFormat == EDA_3D_VIEWER_EXPORT_FORMAT::JPEG ) ?
+                                FILEEXT::JpegFileExtension : FILEEXT::PngFileExtension;
+    m_defaultSaveScreenshotFileName.SetExt( defaultExt );
+
+    wxFileDialog dlg( this, _( "3D Image File Name" ),
+                      m_defaultSaveScreenshotFileName.GetPath(),
+                      m_defaultSaveScreenshotFileName.GetFullName(), wildcard,
+                      wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
+    // Set initial filter index based on current format
+    dlg.SetFilterIndex( ( aFormat == EDA_3D_VIEWER_EXPORT_FORMAT::JPEG ) ? 0 : 1 );
+
+    if( dlg.ShowModal() == wxID_CANCEL )
+        return false;
+
+    m_defaultSaveScreenshotFileName = dlg.GetPath();
+
+    // Determine format based on file extension first
+    wxString fileExt = m_defaultSaveScreenshotFileName.GetExt().Lower();
+    EDA_3D_VIEWER_EXPORT_FORMAT detectedFormat;
+    bool formatDetected = false;
+
+    if( fileExt == wxT("jpg") || fileExt == wxT("jpeg") )
+    {
+        detectedFormat = EDA_3D_VIEWER_EXPORT_FORMAT::JPEG;
+        formatDetected = true;
+    }
+    else if( fileExt == wxT("png") )
+    {
+        detectedFormat = EDA_3D_VIEWER_EXPORT_FORMAT::PNG;
+        formatDetected = true;
+    }
+
+    // If format can't be determined from extension, use dropdown selection
+    if( !formatDetected )
+    {
+        int filterIndex = dlg.GetFilterIndex();
+        detectedFormat = ( filterIndex == 0 ) ? EDA_3D_VIEWER_EXPORT_FORMAT::JPEG :
+                                               EDA_3D_VIEWER_EXPORT_FORMAT::PNG;
+
+        // Append appropriate extension
+        const wxString ext = ( detectedFormat == EDA_3D_VIEWER_EXPORT_FORMAT::JPEG ) ?
+                            FILEEXT::JpegFileExtension : FILEEXT::PngFileExtension;
+        m_defaultSaveScreenshotFileName.SetExt( ext );
+    }
+
+    // Update the format parameter
+    aFormat = detectedFormat;
+
+    // Check directory permissions using the updated filename
+    wxFileName fn = m_defaultSaveScreenshotFileName;
+
+    if( !fn.IsDirWritable() )
+    {
+        wxString msg;
+        msg.Printf( _( "Insufficient permissions to save file '%s'." ),
+                   m_defaultSaveScreenshotFileName.GetFullPath() );
+        wxMessageBox( msg, _( "Error" ), wxOK | wxICON_ERROR, this );
+        return false;
+    }
+
+    fullFileName = m_defaultSaveScreenshotFileName.GetFullPath();
+    return true;
+}
+
+
+wxImage EDA_3D_VIEWER_FRAME::captureScreenshot( const wxSize& aSize )
+{
+    TRACK_BALL    camera  = m_trackBallCamera;
+    camera.SetCurWindowSize( aSize );
+
+    EDA_3D_VIEWER_SETTINGS* cfg = GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
+    EDA_3D_VIEWER_SETTINGS* backupCfg = m_boardAdapter.m_Cfg;
+
+    auto configRestorer = std::unique_ptr<void, std::function<void(void*)>>(
+        reinterpret_cast<void*>(1),
+        [&](void*) { m_boardAdapter.m_Cfg = backupCfg; }
+    );
+
+    if( cfg )
+        m_boardAdapter.m_Cfg = cfg;
+
+    if( cfg && cfg->m_Render.engine == RENDER_ENGINE::RAYTRACING )
+        return captureRaytracingScreenshot( m_boardAdapter, camera, aSize );
+    else
+        return captureOpenGLScreenshot( m_boardAdapter, camera, aSize );
+}
+
+
+void EDA_3D_VIEWER_FRAME::setupRenderingConfig( BOARD_ADAPTER& aAdapter )
+{
+    EDA_3D_VIEWER_SETTINGS* cfg = GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
+
+    if( cfg )
+        aAdapter.m_Cfg = cfg;
+}
+
+
+wxImage EDA_3D_VIEWER_FRAME::captureRaytracingScreenshot( BOARD_ADAPTER& aAdapter, TRACK_BALL& aCamera, const wxSize& aSize )
+{
+    BOARD_ADAPTER tempadapter;
+    tempadapter.SetBoard( GetBoard() );
+    tempadapter.m_Cfg = aAdapter.m_Cfg;
+    tempadapter.InitSettings( nullptr, nullptr );
+    tempadapter.Set3dCacheManager( aAdapter.Get3dCacheManager() );
+
+    RENDER_3D_RAYTRACE_RAM raytrace( tempadapter, aCamera );
+    raytrace.SetCurWindowSize( aSize );
+
+    while( raytrace.Redraw( false, nullptr, nullptr ) );
+
+    uint8_t* rgbaBuffer = raytrace.GetBuffer();
+    wxSize   realSize   = raytrace.GetRealBufferSize();
+
+    if( !rgbaBuffer )
+        return wxImage();
+
+    return convertRGBAToImage( rgbaBuffer, realSize );
+}
+
+
+wxImage EDA_3D_VIEWER_FRAME::convertRGBAToImage( uint8_t* aRGBABuffer, const wxSize& aRealSize )
+{
+    const unsigned int wxh = aRealSize.x * aRealSize.y;
+
+    unsigned char* rgbBuffer   = (unsigned char*) malloc( wxh * 3 );
+    unsigned char* alphaBuffer = (unsigned char*) malloc( wxh );
+
+    unsigned char* rgbaPtr  = aRGBABuffer;
+    unsigned char* rgbPtr   = rgbBuffer;
+    unsigned char* alphaPtr = alphaBuffer;
+
+    for( int y = 0; y < aRealSize.y; y++ )
+    {
+        for( int x = 0; x < aRealSize.x; x++ )
         {
-            wxBitmapDataObject* dobjBmp = new wxBitmapDataObject( bitmap );
+            rgbPtr[0]   = rgbaPtr[0];
+            rgbPtr[1]   = rgbaPtr[1];
+            rgbPtr[2]   = rgbaPtr[2];
+            alphaPtr[0] = rgbaPtr[3];
 
-            if( !wxTheClipboard->SetData( dobjBmp ) )
-                wxMessageBox( _( "Failed to copy image to clipboard" ) );
-
-            wxTheClipboard->Flush();    /* the data in clipboard will stay
-                                         * available after the application exits */
-            wxTheClipboard->Close();
+            rgbaPtr  += 4;
+            rgbPtr   += 3;
+            alphaPtr += 1;
         }
+    }
+
+    wxImage screenshotImage;
+    screenshotImage.Create( aRealSize );
+    screenshotImage.SetData( rgbBuffer );
+    screenshotImage.SetAlpha( alphaBuffer );
+    return screenshotImage.Mirror( false );
+}
+
+
+wxImage EDA_3D_VIEWER_FRAME::captureOpenGLScreenshot( BOARD_ADAPTER& aAdapter, TRACK_BALL& aCamera, const wxSize& aSize )
+{
+    EDA_3D_VIEWER_SETTINGS* cfg = aAdapter.m_Cfg;
+    ANTIALIASING_MODE aaMode = cfg ? static_cast<ANTIALIASING_MODE>( cfg->m_Render.opengl_AA_mode )
+                                   : ANTIALIASING_MODE::AA_NONE;
+
+    wxFrame temp( this, wxID_ANY, wxEmptyString, wxDefaultPosition, aSize, wxFRAME_NO_TASKBAR );
+    temp.Hide();
+    BOARD_ADAPTER tempadapter;
+    tempadapter.SetBoard( GetBoard() );
+    tempadapter.m_Cfg = aAdapter.m_Cfg;
+    tempadapter.InitSettings( nullptr, nullptr );
+    tempadapter.Set3dCacheManager( aAdapter.Get3dCacheManager() );
+
+    auto canvas = std::make_unique<EDA_3D_CANVAS>( &temp,
+                                               OGL_ATT_LIST::GetAttributesList( aaMode, true ),
+                                               tempadapter, aCamera,
+                                               aAdapter.Get3dCacheManager() );
+
+    canvas->SetSize( aSize );
+    configureCanvas( canvas, cfg );
+    wxWindowUpdateLocker noUpdates( this );
+
+    // Temporarily disable highlight during screenshot
+    EDA_3D_VIEWER_SETTINGS::RENDER_SETTINGS& renderCfg = aAdapter.m_Cfg->m_Render;
+    bool original_highlight = renderCfg.highlight_on_rollover;
+    bool original_navigator = renderCfg.show_navigator;
+    renderCfg.show_navigator = false;
+    renderCfg.highlight_on_rollover = false;
+
+    std::vector<unsigned char> buffer(aSize.x * aSize.y * 4); // RGBA format
+    canvas->RenderToFrameBuffer( buffer.data(), aSize.x, aSize.y );
+    wxImage result = convertRGBAToImage( buffer.data(), aSize );
+
+    // Restore highlight setting
+    renderCfg.highlight_on_rollover = original_highlight;
+    renderCfg.show_navigator = original_navigator;
+
+    return result;
+}
+
+
+void EDA_3D_VIEWER_FRAME::configureCanvas( std::unique_ptr<EDA_3D_CANVAS>& aCanvas, EDA_3D_VIEWER_SETTINGS* aCfg )
+{
+    if( aCfg )
+    {
+        aCanvas->SetAnimationEnabled( aCfg->m_Camera.animation_enabled );
+        aCanvas->SetMovingSpeedMultiplier( aCfg->m_Camera.moving_speed_multiplier );
+        aCanvas->SetProjectionMode( aCfg->m_Camera.projection_mode );
+    }
+
+    aCanvas->SetVcSettings( EDA_DRAW_PANEL_GAL::GetVcSettings() );
+}
+
+
+void EDA_3D_VIEWER_FRAME::saveOrCopyImage( const wxImage& aScreenshotImage, EDA_3D_VIEWER_EXPORT_FORMAT aFormat, const wxString& aFullFileName )
+{
+    if( aFormat == EDA_3D_VIEWER_EXPORT_FORMAT::CLIPBOARD )
+    {
+        copyImageToClipboard( aScreenshotImage );
     }
     else
     {
-        if( !screenshotImage.SaveFile( fullFileName,
-                                       fmt_is_jpeg ? wxBITMAP_TYPE_JPEG : wxBITMAP_TYPE_PNG ) )
-            wxMessageBox( _( "Can't save file" ) );
+        saveImageToFile( aScreenshotImage, aFormat, aFullFileName );
+    }
+}
 
-        screenshotImage.Destroy();
+
+void EDA_3D_VIEWER_FRAME::copyImageToClipboard( const wxImage& aScreenshotImage )
+{
+    wxBitmap bitmap( aScreenshotImage );
+    wxLogNull doNotLog;
+
+    if( wxTheClipboard->Open() )
+    {
+        wxBitmapDataObject* dobjBmp = new wxBitmapDataObject( bitmap );
+
+        if( !wxTheClipboard->SetData( dobjBmp ) )
+            wxMessageBox( _( "Failed to copy image to clipboard" ) );
+
+        wxTheClipboard->Flush();
+        wxTheClipboard->Close();
+    }
+}
+
+
+void EDA_3D_VIEWER_FRAME::saveImageToFile( const wxImage& aScreenshotImage, EDA_3D_VIEWER_EXPORT_FORMAT aFormat, const wxString& aFullFileName )
+{
+    bool fmt_is_jpeg = ( aFormat == EDA_3D_VIEWER_EXPORT_FORMAT::JPEG );
+
+    if( !aScreenshotImage.SaveFile( aFullFileName, fmt_is_jpeg ? wxBITMAP_TYPE_JPEG : wxBITMAP_TYPE_PNG ) )
+    {
+        wxMessageBox( _( "Can't save file" ) );
     }
 }
 

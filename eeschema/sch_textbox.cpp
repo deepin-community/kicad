@@ -36,12 +36,16 @@
 #include <dialogs/html_message_box.h>
 #include <project/project_file.h>
 #include <trigo.h>
+#include <geometry/geometry_utils.h>
 #include <sch_textbox.h>
 #include <tools/sch_navigate_tool.h>
+#include <markup_parser.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
-SCH_TEXTBOX::SCH_TEXTBOX( SCH_LAYER_ID aLayer, int aLineWidth, FILL_T aFillType,
-                          const wxString& aText, KICAD_T aType ) :
+SCH_TEXTBOX::SCH_TEXTBOX( SCH_LAYER_ID aLayer, int aLineWidth, FILL_T aFillType, const wxString& aText,
+                          KICAD_T aType ) :
         SCH_SHAPE( SHAPE_T::RECTANGLE, aLayer, aLineWidth, aFillType, aType ),
         EDA_TEXT( schIUScale, aText )
 {
@@ -79,6 +83,26 @@ int SCH_TEXTBOX::GetLegacyTextMargin() const
         return KiROUND( GetTextSize().y * 0.8 );
     else
         return KiROUND( GetStroke().GetWidth() / 2.0 ) + KiROUND( GetTextSize().y * 0.75 );
+}
+
+
+VECTOR2I SCH_TEXTBOX::GetMinSize() const
+{
+    if( GetText().IsEmpty() )
+        return VECTOR2I( 0, 0 );
+
+    BOX2I textBox = GetTextBox( nullptr );
+
+    int textHeight = std::abs( textBox.GetHeight() );
+
+    if( GetTextAngle().IsVertical() )
+    {
+        textHeight += GetMarginLeft() + GetMarginRight();
+        return VECTOR2I( textHeight, 0 );
+    }
+
+    textHeight += GetMarginTop() + GetMarginBottom();
+    return VECTOR2I( 0, textHeight );
 }
 
 
@@ -137,68 +161,36 @@ VECTOR2I SCH_TEXTBOX::GetDrawPos() const
     {
         switch( GetHorizJustify() )
         {
-        case GR_TEXT_H_ALIGN_LEFT:
-            pos.y = bbox.GetBottom() - m_marginBottom;
-            break;
-        case GR_TEXT_H_ALIGN_CENTER:
-            pos.y = ( bbox.GetTop() + bbox.GetBottom() ) / 2;
-            break;
-        case GR_TEXT_H_ALIGN_RIGHT:
-            pos.y = bbox.GetTop() + m_marginTop;
-            break;
-        case GR_TEXT_H_ALIGN_INDETERMINATE:
-            wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
-            break;
+        case GR_TEXT_H_ALIGN_LEFT:          pos.y = bbox.GetBottom() - m_marginBottom;                         break;
+        case GR_TEXT_H_ALIGN_CENTER:        pos.y = ( bbox.GetTop() + bbox.GetBottom() ) / 2;                  break;
+        case GR_TEXT_H_ALIGN_RIGHT:         pos.y = bbox.GetTop() + m_marginTop;                               break;
+        case GR_TEXT_H_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) ); break;
         }
 
         switch( GetVertJustify() )
         {
-        case GR_TEXT_V_ALIGN_TOP:
-            pos.x = bbox.GetLeft() + m_marginLeft;
-            break;
-        case GR_TEXT_V_ALIGN_CENTER:
-            pos.x = ( bbox.GetLeft() + bbox.GetRight() ) / 2;
-            break;
-        case GR_TEXT_V_ALIGN_BOTTOM:
-            pos.x = bbox.GetRight() - m_marginRight;
-            break;
-        case GR_TEXT_V_ALIGN_INDETERMINATE:
-            wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
-            break;
+        case GR_TEXT_V_ALIGN_TOP:           pos.x = bbox.GetLeft() + m_marginLeft;                             break;
+        case GR_TEXT_V_ALIGN_CENTER:        pos.x = ( bbox.GetLeft() + bbox.GetRight() ) / 2;                  break;
+        case GR_TEXT_V_ALIGN_BOTTOM:        pos.x = bbox.GetRight() - m_marginRight;                           break;
+        case GR_TEXT_V_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) ); break;
         }
     }
     else
     {
         switch( GetHorizJustify() )
         {
-        case GR_TEXT_H_ALIGN_LEFT:
-            pos.x = bbox.GetLeft() + m_marginLeft;
-            break;
-        case GR_TEXT_H_ALIGN_CENTER:
-            pos.x = ( bbox.GetLeft() + bbox.GetRight() ) / 2;
-            break;
-        case GR_TEXT_H_ALIGN_RIGHT:
-            pos.x = bbox.GetRight() - m_marginRight;
-            break;
-        case GR_TEXT_H_ALIGN_INDETERMINATE:
-            wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
-            break;
+        case GR_TEXT_H_ALIGN_LEFT:          pos.x = bbox.GetLeft() + m_marginLeft;                             break;
+        case GR_TEXT_H_ALIGN_CENTER:        pos.x = ( bbox.GetLeft() + bbox.GetRight() ) / 2;                  break;
+        case GR_TEXT_H_ALIGN_RIGHT:         pos.x = bbox.GetRight() - m_marginRight;                           break;
+        case GR_TEXT_H_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) ); break;
         }
 
         switch( GetVertJustify() )
         {
-        case GR_TEXT_V_ALIGN_TOP:
-            pos.y = bbox.GetTop() + m_marginTop;
-            break;
-        case GR_TEXT_V_ALIGN_CENTER:
-            pos.y = ( bbox.GetTop() + bbox.GetBottom() ) / 2;
-            break;
-        case GR_TEXT_V_ALIGN_BOTTOM:
-            pos.y = bbox.GetBottom() - m_marginBottom;
-            break;
-        case GR_TEXT_V_ALIGN_INDETERMINATE:
-            wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) );
-            break;
+        case GR_TEXT_V_ALIGN_TOP:           pos.y = bbox.GetTop() + m_marginTop;                               break;
+        case GR_TEXT_V_ALIGN_CENTER:        pos.y = ( bbox.GetTop() + bbox.GetBottom() ) / 2;                  break;
+        case GR_TEXT_V_ALIGN_BOTTOM:        pos.y = bbox.GetBottom() - m_marginBottom;                         break;
+        case GR_TEXT_V_ALIGN_INDETERMINATE: wxFAIL_MSG( wxT( "Indeterminate state legal only in dialogs." ) ); break;
         }
     }
 
@@ -206,13 +198,12 @@ VECTOR2I SCH_TEXTBOX::GetDrawPos() const
 }
 
 
-void SCH_TEXTBOX::SwapData( SCH_ITEM* aItem )
+void SCH_TEXTBOX::swapData( SCH_ITEM* aItem )
 {
-    SCH_SHAPE::SwapData( aItem );
+    SCH_SHAPE::swapData( aItem );
 
     SCH_TEXTBOX* item = static_cast<SCH_TEXTBOX*>( aItem );
 
-    std::swap( m_layer, item->m_layer );
     std::swap( m_marginLeft, item->m_marginLeft );
     std::swap( m_marginTop, item->m_marginTop );
     std::swap( m_marginRight, item->m_marginRight );
@@ -258,120 +249,43 @@ bool SCH_TEXTBOX::operator<( const SCH_ITEM& aItem ) const
 }
 
 
-KIFONT::FONT* SCH_TEXTBOX::getDrawFont() const
+KIFONT::FONT* SCH_TEXTBOX::GetDrawFont( const RENDER_SETTINGS* aSettings ) const
 {
     KIFONT::FONT* font = EDA_TEXT::GetFont();
 
     if( !font )
-        font = KIFONT::FONT::GetFont( GetDefaultFont(), IsBold(), IsItalic() );
+        font = KIFONT::FONT::GetFont( GetDefaultFont( aSettings ), IsBold(), IsItalic() );
 
     return font;
 }
 
 
-void SCH_TEXTBOX::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                         const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
-{
-    if( IsPrivate() )
-        return;
-
-    wxDC*      DC = aSettings->GetPrintDC();
-    int        penWidth = GetEffectivePenWidth( aSettings );
-    bool       blackAndWhiteMode = GetGRForceBlackPenState();
-    VECTOR2I   pt1 = GetStart();
-    VECTOR2I   pt2 = GetEnd();
-    COLOR4D    color = GetStroke().GetColor();
-    COLOR4D    bg = aSettings->GetBackgroundColor();
-    LINE_STYLE lineStyle = GetStroke().GetLineStyle();
-
-    if( bg == COLOR4D::UNSPECIFIED || GetGRForceBlackPenState() )
-        bg = COLOR4D::WHITE;
-
-    if( GetFillMode() == FILL_T::FILLED_WITH_COLOR && !blackAndWhiteMode && !aForceNoFill )
-        GRFilledRect( DC, pt1, pt2, 0, GetFillColor(), GetFillColor() );
-
-    if( penWidth > 0 )
-    {
-        penWidth = std::max( penWidth, aSettings->GetMinPenWidth() );
-
-        if( blackAndWhiteMode || color == COLOR4D::UNSPECIFIED )
-            color = aSettings->GetLayerColor( m_layer );
-
-        if( aDimmed )
-        {
-            color.Desaturate( );
-            color = color.Mix( bg, 0.5f );
-        }
-
-        if( lineStyle == LINE_STYLE::DEFAULT )
-            lineStyle = LINE_STYLE::SOLID;
-
-        if( lineStyle == LINE_STYLE::SOLID )
-        {
-            GRRect( DC, pt1, pt2, penWidth, color );
-        }
-        else
-        {
-            std::vector<SHAPE*> shapes = MakeEffectiveShapes( true );
-
-            for( SHAPE* shape : shapes )
-            {
-                STROKE_PARAMS::Stroke( shape, lineStyle, penWidth, aSettings,
-                        [&]( const VECTOR2I& a, const VECTOR2I& b )
-                        {
-                            VECTOR2I ptA = aSettings->TransformCoordinate( a ) + aOffset;
-                            VECTOR2I ptB = aSettings->TransformCoordinate( b ) + aOffset;
-                            GRLine( DC, ptA.x, ptA.y, ptB.x, ptB.y, penWidth, color );
-                        } );
-            }
-
-            for( SHAPE* shape : shapes )
-                delete shape;
-        }
-    }
-
-    color = GetTextColor();
-
-    if( blackAndWhiteMode || color == COLOR4D::UNSPECIFIED )
-        color = aSettings->GetLayerColor( m_layer );
-
-    if( aDimmed )
-    {
-        color.Desaturate( );
-        color = color.Mix( bg, 0.5f );
-    }
-
-    EDA_TEXT::Print( aSettings, aOffset, color );
-}
-
-
-wxString SCH_TEXTBOX::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
+wxString SCH_TEXTBOX::GetShownText( const RENDER_SETTINGS* aSettings, const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
                                     int aDepth ) const
 {
+    // Use local depth counter so each text element starts fresh
+    int depth = 0;
+
     SCH_SHEET* sheet = nullptr;
 
     if( aPath )
         sheet = aPath->Last();
 
-    std::function<bool( wxString* )> textResolver =
-            [&]( wxString* token ) -> bool
-            {
-                if( sheet )
-                {
-                    if( sheet->ResolveTextVar( aPath, token, aDepth + 1 ) )
-                        return true;
-                }
+    std::function<bool( wxString* )> textResolver = [&]( wxString* token ) -> bool
+    {
+        if( sheet )
+        {
+            if( sheet->ResolveTextVar( aPath, token, depth + 1 ) )
+                return true;
+        }
 
-                return false;
-            };
+        return false;
+    };
 
-    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
+    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, depth );
 
     if( HasTextVars() )
-    {
-        if( aDepth < ADVANCED_CFG::GetCfg().m_ResolveTextRecursionDepth )
-            text = ExpandTextVars( text, &textResolver );
-    }
+        text = ResolveTextVars( text, &textResolver, depth );
 
     VECTOR2I size = GetEnd() - GetStart();
     int      colWidth;
@@ -381,8 +295,12 @@ wxString SCH_TEXTBOX::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtr
     else
         colWidth = abs( size.x ) - ( GetMarginLeft() + GetMarginRight() );
 
-    getDrawFont()->LinebreakText( text, colWidth, GetTextSize(), GetTextThickness(), IsBold(),
-                                  IsItalic() );
+    GetDrawFont( aSettings )
+            ->LinebreakText( text, colWidth, GetTextSize(), GetEffectiveTextPenWidth(), IsBold(), IsItalic() );
+
+    // Convert escape markers back to literals for final display
+    text.Replace( wxT( "<<<ESC_DOLLAR:" ), wxT( "${" ) );
+    text.Replace( wxT( "<<<ESC_AT:" ), wxT( "@{" ) );
 
     return text;
 }
@@ -411,32 +329,39 @@ bool SCH_TEXTBOX::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) 
 }
 
 
-bool SCH_TEXTBOX::IsHypertext() const
+bool SCH_TEXTBOX::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
 {
-    if( HasHyperlink() )
-        return true;
-
-    return IsURL( GetShownText( false ) );
+    return KIGEOM::BoxHitTest( aPoly, GetBoundingBox(), aContained );
 }
 
 
-void SCH_TEXTBOX::DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const
+bool SCH_TEXTBOX::HasHypertext() const
 {
-    wxCHECK_MSG( IsHypertext(), /* void */,
-                 wxT( "Calling a hypertext menu on a SCH_TEXTBOX with no hyperlink?" ) );
+    return HasHyperlink() || containsURL();
+}
 
+
+bool SCH_TEXTBOX::HasHoveredHypertext() const
+{
+    return !m_activeUrl.IsEmpty();
+}
+
+
+void SCH_TEXTBOX::DoHypertextAction( EDA_DRAW_FRAME* aFrame, const VECTOR2I& aMousePos ) const
+{
     SCH_NAVIGATE_TOOL* navTool = aFrame->GetToolManager()->GetTool<SCH_NAVIGATE_TOOL>();
 
     if( HasHyperlink() )
         navTool->HypertextCommand( m_hyperlink );
-    else
-        navTool->HypertextCommand( GetShownText( false ) );
+    else if( !m_activeUrl.IsEmpty() )
+        navTool->HypertextCommand( m_activeUrl );
 }
 
 
 wxString SCH_TEXTBOX::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Text Box" ) );
+    return wxString::Format( _( "Text box '%s'" ),
+                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
 }
 
 
@@ -446,8 +371,8 @@ BITMAPS SCH_TEXTBOX::GetMenuImage() const
 }
 
 
-void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
-                        int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
+void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts, int aUnit, int aBodyStyle,
+                        const VECTOR2I& aOffset, bool aDimmed )
 {
     if( IsPrivate() )
         return;
@@ -463,7 +388,7 @@ void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS
     COLOR4D              color = GetStroke().GetColor();
     COLOR4D              bg = renderSettings->GetBackgroundColor();
 
-    KIFONT::FONT* font = getDrawFont();
+    KIFONT::FONT* font = GetDrawFont( renderSettings );
 
     color = GetTextColor();
 
@@ -473,9 +398,12 @@ void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS
     if( bg == COLOR4D::UNSPECIFIED || !aPlotter->GetColorMode() )
         bg = COLOR4D::WHITE;
 
+    if( color.m_text && Schematic() )
+        color = COLOR4D( ResolveText( *color.m_text, &Schematic()->CurrentSheet() ) );
+
     if( aDimmed )
     {
-        color.Desaturate( );
+        color.Desaturate();
         color = color.Mix( bg, 0.5f );
     }
 
@@ -487,7 +415,7 @@ void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS
     std::vector<VECTOR2I> positions;
     wxArrayString         strings_list;
 
-    wxStringSplit( GetShownText( sheet, true ), strings_list, '\n' );
+    wxStringSplit( GetShownText( renderSettings, sheet, true ), strings_list, '\n' );
     positions.reserve( strings_list.Count() );
 
     if( renderSettings->m_Transform != TRANSFORM() || aOffset != VECTOR2I() )
@@ -496,20 +424,19 @@ void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS
 
         if( renderSettings->m_Transform.y1 )
         {
-            temp.SetTextAngle( temp.GetTextAngle() == ANGLE_HORIZONTAL ? ANGLE_VERTICAL
-                                                                       : ANGLE_HORIZONTAL );
+            temp.SetTextAngle( temp.GetTextAngle() == ANGLE_HORIZONTAL ? ANGLE_VERTICAL : ANGLE_HORIZONTAL );
         }
 
         temp.SetStart( renderSettings->TransformCoordinate( m_start ) + aOffset );
         temp.SetEnd( renderSettings->TransformCoordinate( m_end ) + aOffset );
 
         attrs = temp.GetAttributes();
-        temp.GetLinePositions( positions, (int) strings_list.Count() );
+        temp.GetLinePositions( renderSettings, positions, (int) strings_list.Count() );
     }
     else
     {
         attrs = GetAttributes();
-        GetLinePositions( positions, (int) strings_list.Count() );
+        GetLinePositions( renderSettings, positions, (int) strings_list.Count() );
     }
 
     attrs.m_StrokeWidth = penWidth;
@@ -517,8 +444,7 @@ void SCH_TEXTBOX::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS
 
     for( unsigned ii = 0; ii < strings_list.Count(); ii++ )
     {
-        aPlotter->PlotText( positions[ii], color, strings_list.Item( ii ), attrs, font,
-                            GetFontMetrics() );
+        aPlotter->PlotText( positions[ii], color, strings_list.Item( ii ), attrs, font, GetFontMetrics() );
     }
 
     if( HasHyperlink() )
@@ -531,22 +457,22 @@ void SCH_TEXTBOX::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL
     // Don't use GetShownText() here; we want to show the user the variable references
     aList.emplace_back( _( "Text Box" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
 
+    SCH_ITEM::GetMsgPanelInfo( aFrame, aList );
+
     if( m_excludedFromSim )
         aList.emplace_back( _( "Exclude from" ), _( "Simulation" ) );
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
 
     wxString textStyle[] = { _( "Normal" ), _( "Italic" ), _( "Bold" ), _( "Bold Italic" ) };
-    int style = IsBold() && IsItalic() ? 3 : IsBold() ? 2 : IsItalic() ? 1 : 0;
+    int      style = IsBold() && IsItalic() ? 3 : IsBold() ? 2 : IsItalic() ? 1 : 0;
     aList.emplace_back( _( "Style" ), textStyle[style] );
 
     aList.emplace_back( _( "Text Size" ), aFrame->MessageTextFromValue( GetTextWidth() ) );
 
-    aList.emplace_back( _( "Box Width" ),
-                        aFrame->MessageTextFromValue( std::abs( GetEnd().x - GetStart().x ) ) );
+    aList.emplace_back( _( "Box Width" ), aFrame->MessageTextFromValue( std::abs( GetEnd().x - GetStart().x ) ) );
 
-    aList.emplace_back( _( "Box Height" ),
-                        aFrame->MessageTextFromValue( std::abs( GetEnd().y - GetStart().y ) ) );
+    aList.emplace_back( _( "Box Height" ), aFrame->MessageTextFromValue( std::abs( GetEnd().y - GetStart().y ) ) );
 
     m_stroke.GetMsgPanelInfo( aFrame, aList );
 }
@@ -641,7 +567,7 @@ int SCH_TEXTBOX::compare( const SCH_ITEM& aOther, int aCompareFlags ) const
         return IsItalic() - tmp->IsItalic();
 
     if( GetHorizJustify() != tmp->GetHorizJustify() )
-        return GetHorizJustify() - tmp->GetHorizJustify();
+        return (int) GetHorizJustify() - (int) tmp->GetHorizJustify();
 
     if( GetTextAngle().AsTenthsOfADegree() != tmp->GetTextAngle().AsTenthsOfADegree() )
         return GetTextAngle().AsTenthsOfADegree() - tmp->GetTextAngle().AsTenthsOfADegree();
@@ -677,6 +603,7 @@ static struct SCH_TEXTBOX_DESC
         propMgr.InheritsAfter( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ) );
 
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Shape" ) );
+        propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_SHAPE ), _HKI( "Corner Radius" ) );
 
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Width" ) );
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Height" ) );
@@ -684,27 +611,22 @@ static struct SCH_TEXTBOX_DESC
 
         const wxString marginProps = _( "Margins" );
 
-        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Margin Left" ),
-                    &SCH_TEXTBOX::SetMarginLeft, &SCH_TEXTBOX::GetMarginLeft,
-                    PROPERTY_DISPLAY::PT_SIZE ),
-                marginProps );
-        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Margin Top" ),
-                    &SCH_TEXTBOX::SetMarginTop, &SCH_TEXTBOX::GetMarginTop,
-                    PROPERTY_DISPLAY::PT_SIZE ),
-                marginProps );
-        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Margin Right" ),
-                    &SCH_TEXTBOX::SetMarginRight, &SCH_TEXTBOX::GetMarginRight,
-                    PROPERTY_DISPLAY::PT_SIZE ),
-                marginProps );
-        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Margin Bottom" ),
-                    &SCH_TEXTBOX::SetMarginBottom, &SCH_TEXTBOX::GetMarginBottom,
-                    PROPERTY_DISPLAY::PT_SIZE ),
-                 marginProps );
+        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Margin Left" ), &SCH_TEXTBOX::SetMarginLeft,
+                                                             &SCH_TEXTBOX::GetMarginLeft, PROPERTY_DISPLAY::PT_SIZE ),
+                             marginProps );
+        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Margin Top" ), &SCH_TEXTBOX::SetMarginTop,
+                                                             &SCH_TEXTBOX::GetMarginTop, PROPERTY_DISPLAY::PT_SIZE ),
+                             marginProps );
+        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Margin Right" ), &SCH_TEXTBOX::SetMarginRight,
+                                                             &SCH_TEXTBOX::GetMarginRight, PROPERTY_DISPLAY::PT_SIZE ),
+                             marginProps );
+        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Margin Bottom" ), &SCH_TEXTBOX::SetMarginBottom,
+                                                             &SCH_TEXTBOX::GetMarginBottom, PROPERTY_DISPLAY::PT_SIZE ),
+                             marginProps );
 
-        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Text Size" ),
-                    &SCH_TEXTBOX::SetSchTextSize, &SCH_TEXTBOX::GetSchTextSize,
-                    PROPERTY_DISPLAY::PT_SIZE ),
-                _HKI( "Text Properties" ) );
+        propMgr.AddProperty( new PROPERTY<SCH_TEXTBOX, int>( _HKI( "Text Size" ), &SCH_TEXTBOX::SetSchTextSize,
+                                                             &SCH_TEXTBOX::GetSchTextSize, PROPERTY_DISPLAY::PT_SIZE ),
+                             _HKI( "Text Properties" ) );
 
         propMgr.Mask( TYPE_HASH( SCH_TEXTBOX ), TYPE_HASH( EDA_TEXT ), _HKI( "Orientation" ) );
     }

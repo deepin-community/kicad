@@ -40,6 +40,8 @@
 #include <trigo.h>
 
 #include <wx/mstream.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 SCH_BITMAP::SCH_BITMAP( const VECTOR2I& pos ) :
@@ -83,10 +85,8 @@ EDA_ITEM* SCH_BITMAP::Clone() const
 }
 
 
-void SCH_BITMAP::SwapData( SCH_ITEM* aItem )
+void SCH_BITMAP::swapData( SCH_ITEM* aItem )
 {
-    SCH_ITEM::SwapFlags( aItem );
-
     wxCHECK_RET( aItem->Type() == SCH_BITMAP_T,
                  wxString::Format( wxT( "SCH_BITMAP object cannot swap data with %s object." ),
                                    aItem->GetClass() ) );
@@ -99,16 +99,6 @@ void SCH_BITMAP::SwapData( SCH_ITEM* aItem )
 const BOX2I SCH_BITMAP::GetBoundingBox() const
 {
     return m_referenceImage.GetBoundingBox();
-}
-
-
-void SCH_BITMAP::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                        const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
-{
-    VECTOR2I pos = GetPosition() + aOffset;
-
-    m_referenceImage.GetImage().DrawBitmap( aSettings->GetPrintDC(), pos,
-                                            aSettings->GetBackgroundColor() );
 }
 
 
@@ -171,14 +161,23 @@ bool SCH_BITMAP::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy ) c
 }
 
 
+bool SCH_BITMAP::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    return KIGEOM::BoxHitTest( aPoly, GetBoundingBox(), aContained );
+}
+
+
+
 void SCH_BITMAP::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                        int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
     if( aBackground )
     {
-        m_referenceImage.GetImage().PlotImage(
-                aPlotter, GetPosition(), aPlotter->RenderSettings()->GetLayerColor( GetLayer() ),
-                aPlotter->RenderSettings()->GetDefaultPenWidth() );
+        RENDER_SETTINGS* cfg = aPlotter->RenderSettings();
+
+        m_referenceImage.GetImage().PlotImage( aPlotter, GetPosition(),
+                                               cfg->GetLayerColor( GetLayer() ),
+                                               cfg->GetDefaultPenWidth() );
     }
 }
 
@@ -306,47 +305,40 @@ static struct SCH_BITMAP_DESC
         REGISTER_TYPE( SCH_BITMAP );
         propMgr.InheritsAfter( TYPE_HASH( SCH_BITMAP ), TYPE_HASH( SCH_ITEM ) );
 
-        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>( _HKI( "Position X" ), &SCH_BITMAP::SetX,
-                                                            &SCH_BITMAP::GetX,
-                                                            PROPERTY_DISPLAY::PT_COORD ) );
+        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>( _HKI( "Position X" ),
+                                     &SCH_BITMAP::SetX, &SCH_BITMAP::GetX,
+                                     PROPERTY_DISPLAY::PT_COORD ) );
 
 
-        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>( _HKI( "Position Y" ), &SCH_BITMAP::SetY,
-                                                            &SCH_BITMAP::GetY,
-                                                            PROPERTY_DISPLAY::PT_COORD ) );
+        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>( _HKI( "Position Y" ),
+                                     &SCH_BITMAP::SetY, &SCH_BITMAP::GetY,
+                                     PROPERTY_DISPLAY::PT_COORD ) );
 
         const wxString groupImage = _HKI( "Image Properties" );
 
         propMgr.AddProperty( new PROPERTY<SCH_BITMAP, double>( _HKI( "Scale" ),
-                                                               &SCH_BITMAP::SetImageScale,
-                                                               &SCH_BITMAP::GetImageScale ),
+                                     &SCH_BITMAP::SetImageScale, &SCH_BITMAP::GetImageScale ),
                              groupImage );
 
-        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>(
-                                     _HKI( "Transform Offset X" ),
+        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>( _HKI( "Transform Offset X" ),
                                      &SCH_BITMAP::SetTransformOriginOffsetX,
                                      &SCH_BITMAP::GetTransformOriginOffsetX,
                                      PROPERTY_DISPLAY::PT_COORD, ORIGIN_TRANSFORMS::ABS_X_COORD ),
                              groupImage );
 
-        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>(
-                                     _HKI( "Transform Offset Y" ),
+        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>( _HKI( "Transform Offset Y" ),
                                      &SCH_BITMAP::SetTransformOriginOffsetY,
                                      &SCH_BITMAP::GetTransformOriginOffsetY,
                                      PROPERTY_DISPLAY::PT_COORD, ORIGIN_TRANSFORMS::ABS_Y_COORD ),
                              groupImage );
 
-        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>(
-                                     _HKI( "Width" ),
-                                     &SCH_BITMAP::SetWidth,
-                                     &SCH_BITMAP::GetWidth,
+        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>( _HKI( "Width" ),
+                                     &SCH_BITMAP::SetWidth, &SCH_BITMAP::GetWidth,
                                      PROPERTY_DISPLAY::PT_COORD ),
                              groupImage );
 
-        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>(
-                                     _HKI( "Height" ),
-                                     &SCH_BITMAP::SetHeight,
-                                     &SCH_BITMAP::GetHeight,
+        propMgr.AddProperty( new PROPERTY<SCH_BITMAP, int>( _HKI( "Height" ),
+                                     &SCH_BITMAP::SetHeight, &SCH_BITMAP::GetHeight,
                                      PROPERTY_DISPLAY::PT_COORD ),
                              groupImage );
     }

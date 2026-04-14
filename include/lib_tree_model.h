@@ -26,6 +26,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <span>
 #include <wx/string.h>
 #include <eda_pattern_match.h>
 #include <lib_tree_item.h>
@@ -51,7 +52,6 @@
  * Quick summary of methods used to drive this class:
  *
  * - `UpdateScore()` - accumulate scores recursively given a new search token
- * - `ResetScore()` - reset scores recursively for a new search string
  * - `AssignIntrinsicRanks()` - calculate and cache the initial sort order
  * - `SortNodes()` - recursively sort the tree by score
  * - `Compare()` - compare two nodes; used by `SortNodes()`
@@ -85,17 +85,15 @@ public:
                               std::function<bool( LIB_TREE_NODE& aNode )>* aFilter ) = 0;
 
     /**
-     * Initialize scores recursively.
+     * Rebuild search terms from source search terms and shown fields.
      */
-    virtual void ResetScore();
-
-    virtual void ForceScore( int aScore ) { m_Score = aScore; }
+    void RebuildSearchTerms( const std::vector<wxString>& aShownColumns );
 
     /**
      * Store intrinsic ranks on all children of this node. See m_IntrinsicRank
      * member doc for more information.
      */
-    void AssignIntrinsicRanks( bool presorted = false );
+    void AssignIntrinsicRanks( const std::vector<wxString>& aShownColumns, bool presorted = false );
 
     /**
      * Sort child nodes quickly and recursively (IntrinsicRanks must have been set).
@@ -147,9 +145,13 @@ public:
     LIB_ID      m_LibId;       // LIB_ID determined by the parent library nickname and alias name.
     int         m_Unit;        // Actual unit, or zero
     bool        m_IsRoot;      // Indicates if the symbol is a root symbol instead of an alias.
+    bool        m_IsPower;     // Indicates if the symbol is a local or global power symbol
 
     bool        m_IsRecentlyUsedGroup;
     bool        m_IsAlreadyPlacedGroup;
+
+protected:
+    std::vector<SEARCH_TERM> m_sourceSearchTerms;
 };
 
 

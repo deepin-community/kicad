@@ -23,19 +23,21 @@
 
 #include <common.h>
 #include <board.h>
+#include <pcb_board_outline.h>
 #include <pcb_track.h>
 #include <geometry/shape_segment.h>
 #include <geometry/seg.h>
 #include <drc/drc_engine.h>
 #include <drc/drc_item.h>
 #include <drc/drc_rule.h>
-#include <drc/drc_test_provider_clearance_base.h>
+#include <drc/drc_test_provider.h>
 #include <drc/drc_rtree.h>
+#include <board_design_settings.h>
 
 /*
     Silk to silk clearance test. Check all silkscreen features against each other.
     Errors generated:
-    - DRCE_OVERLAPPING_SILK
+    - DRCE_SILK_CLEARANCE
 
 */
 
@@ -45,24 +47,13 @@ public:
     DRC_TEST_PROVIDER_SILK_CLEARANCE ():
         m_board( nullptr ),
         m_largestClearance( 0 )
-    {
-    }
+    {}
 
-    virtual ~DRC_TEST_PROVIDER_SILK_CLEARANCE()
-    {
-    }
+    virtual ~DRC_TEST_PROVIDER_SILK_CLEARANCE() = default;
 
     virtual bool Run() override;
 
-    virtual const wxString GetName() const override
-    {
-        return wxT( "silk_clearance" );
-    };
-
-    virtual const wxString GetDescription() const override
-    {
-        return wxT( "Tests for overlapping silkscreen features." );
-    }
+    virtual const wxString GetName() const override { return wxT( "silk_clearance" ); };
 
 private:
 
@@ -75,21 +66,25 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
 {
     const int progressDelta = 500;
 
-    if( m_drcEngine->IsErrorLimitExceeded( DRCE_OVERLAPPING_SILK ) )
+    m_board = m_drcEngine->GetBoard();
+
+    // If the soldermask min width is greater than 0 then we must use a healing algorithm to generate
+    // a whole-board soldermask poly, and then test against that.  However, that can't deal well with
+    // DRC exclusions (as any change anywhere on the board that affects the soldermask will null the
+    // associated exclusions), so we only use that when soldermask min width is > 0.
+    bool checkIndividualMaskItems = m_board->GetDesignSettings().m_SolderMaskMinWidth <= 0;
+
+    if( m_drcEngine->IsErrorLimitExceeded( DRCE_SILK_CLEARANCE )
+            && m_drcEngine->IsErrorLimitExceeded( DRCE_SILK_MASK_CLEARANCE) )
     {
-        reportAux( wxT( "Overlapping silk violations ignored.  Tests not run." ) );
         return true;    // continue with other tests
     }
-
-    m_board = m_drcEngine->GetBoard();
 
     DRC_CONSTRAINT worstClearanceConstraint;
     m_largestClearance = 0;
 
     if( m_drcEngine->QueryWorstConstraint( SILK_CLEARANCE_CONSTRAINT, worstClearanceConstraint ) )
         m_largestClearance = worstClearanceConstraint.m_Value.Min();
-
-    reportAux( wxT( "Worst clearance : %d nm" ), m_largestClearance );
 
     if( !reportPhase( _( "Checking silkscreen for overlapping items..." ) ) )
         return false;   // DRC cancelled
@@ -98,6 +93,8 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
     DRC_RTREE targetTree;
     int       ii = 0;
     int       items = 0;
+    LSET      silkLayers = LSET( { F_SilkS, B_SilkS } );
+    LSET      targetLayers = LSET::FrontMask() | LSET::BackMask() | LSET( { Edge_Cuts, Margin } );
 
     auto countItems =
             [&]( BOARD_ITEM* item ) -> bool
@@ -115,7 +112,7 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
                 for( PCB_LAYER_ID layer : { F_SilkS, B_SilkS } )
                 {
                     if( item->IsOnLayer( layer ) )
-                        silkTree.Insert( item, layer );
+                        silkTree.Insert( item, layer, 0, ATOMIC_TABLES );
                 }
 
                 return true;
@@ -127,27 +124,21 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
                 if( !reportProgress( ii++, items, progressDelta ) )
                     return false;
 
-                for( PCB_LAYER_ID layer : item->GetLayerSet().Seq() )
-                    targetTree.Insert( item, layer );
+                for( PCB_LAYER_ID layer : LSET( item->GetLayerSet() & targetLayers ) )
+                    targetTree.Insert( item, layer, 0, ATOMIC_TABLES );
 
                 return true;
             };
 
-    forEachGeometryItem( s_allBasicItems, LSET( { F_SilkS, B_SilkS } ), countItems );
+    forEachGeometryItem( s_allBasicItems, silkLayers, countItems );
+    forEachGeometryItem( s_allBasicItems, targetLayers, countItems );
 
-    forEachGeometryItem( s_allBasicItems,
-                         LSET::FrontMask() | LSET::BackMask() | LSET( { Edge_Cuts, Margin } ),
-                         countItems );
+    forEachGeometryItem( s_allBasicItems, silkLayers, addToSilkTree );
+    forEachGeometryItem( s_allBasicItems, targetLayers, addToTargetTree );
 
-    forEachGeometryItem( s_allBasicItems, LSET( { F_SilkS, B_SilkS } ), addToSilkTree );
-
-    forEachGeometryItem( s_allBasicItems,
-                         LSET::FrontMask() | LSET::BackMask() | LSET( { Edge_Cuts, Margin } ),
-                         addToTargetTree );
-
-    reportAux( wxT( "Testing %d silkscreen features against %d board items." ),
-               silkTree.size(),
-               targetTree.size() );
+    REPORT_AUX( wxString::Format( wxT( "Testing %d silkscreen features against %d board items." ),
+                                  silkTree.size(),
+                                  targetTree.size() ) );
 
     const std::vector<DRC_RTREE::LAYER_PAIR> layerPairs =
     {
@@ -182,8 +173,11 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
 
                 std::shared_ptr<SHAPE> hole;
 
-                if( m_drcEngine->IsErrorLimitExceeded( DRCE_OVERLAPPING_SILK ) )
+                if( m_drcEngine->IsErrorLimitExceeded( DRCE_SILK_CLEARANCE )
+                        && m_drcEngine->IsErrorLimitExceeded( DRCE_SILK_MASK_CLEARANCE ) )
+                {
                     return false;
+                }
 
                 if( isInvisibleText( refItem ) || isInvisibleText( testItem ) )
                     return true;
@@ -201,16 +195,32 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
                     }
                 }
 
+                if( PCB_BOARD_OUTLINE* boardOutline = m_board->BoardOutline() )
+                {
+                    if( !testItem->GetBoundingBox().Intersects( boardOutline->GetOutline().BBoxFromCaches() ) )
+                        return true;
+
+                    if( !testShape->Collide( &boardOutline->GetOutline() ) )
+                        return true;
+                }
+
+                int            errorCode = DRCE_SILK_CLEARANCE;
                 DRC_CONSTRAINT constraint = m_drcEngine->EvalRules( SILK_CLEARANCE_CONSTRAINT,
-                                                                    refItem, testItem,
-                                                                    aLayers.second );
+                                                                    refItem, testItem, aLayers.second );
+                int            minClearance = -1;
 
-                if( constraint.IsNull() || constraint.GetSeverity() == RPT_SEVERITY_IGNORE )
-                    return true;
+                if( !constraint.IsNull() && constraint.GetSeverity() != RPT_SEVERITY_IGNORE )
+                    minClearance = constraint.GetValue().Min();
 
-                int minClearance = constraint.GetValue().Min();
+                if( aLayers.second == F_Mask || aLayers.second == B_Mask )
+                {
+                    if( checkIndividualMaskItems )
+                        minClearance = std::max( minClearance, 0 );
 
-                if( minClearance < 0 )
+                    errorCode = DRCE_SILK_MASK_CLEARANCE;
+                }
+
+                if( minClearance < 0 || m_drcEngine->IsErrorLimitExceeded( errorCode ) )
                     return true;
 
                 int      actual;
@@ -237,23 +247,19 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
 
                 if( refShape->Collide( testShape, minClearance, &actual, &pos ) )
                 {
-                    std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_OVERLAPPING_SILK );
+                    std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( errorCode );
 
                     if( minClearance > 0 )
                     {
-                        wxString msg = formatMsg( _( "(%s clearance %s; actual %s)" ),
-                                                  constraint.GetParentRule()->m_Name,
-                                                  minClearance,
-                                                  actual );
-
-                        drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
+                        drcItem->SetErrorDetail( formatMsg( _( "(%s clearance %s; actual %s)" ),
+                                                            constraint.GetParentRule()->m_Name,
+                                                            minClearance,
+                                                            actual ) );
                     }
 
                     drcItem->SetItems( refItem, testItem );
                     drcItem->SetViolatingRule( constraint.GetParentRule() );
-
-                    reportViolation( drcItem, pos, aLayers.second );
-
+                    reportTwoShapeGeometry( drcItem, pos, refShape, testShape, aLayers.second, actual );
                     *aCollisionDetected = true;
                 }
 
@@ -264,8 +270,6 @@ bool DRC_TEST_PROVIDER_SILK_CLEARANCE::Run()
             {
                 return reportProgress( aCount, aSize, progressDelta );
             } );
-
-    reportRuleStatistics();
 
     return !m_drcEngine->IsCancelled();
 }

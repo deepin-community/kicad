@@ -55,7 +55,12 @@ void GRID_CELL_LAYER_RENDERER::Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC&
                                      const wxRect& aRect, int aRow, int aCol, bool isSelected )
 {
     int             value = aGrid.GetTable()->GetValueAsLong( aRow, aCol );
-    COLOR_SETTINGS* cs = nullptr;
+    COLOR_SETTINGS* cs = ::GetColorSettings( DEFAULT_THEME );
+
+    if( m_frame )
+        cs = m_frame->GetColorSettings();
+    else if( FOOTPRINT_EDITOR_SETTINGS* cfg = GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" ) )
+        cs = ::GetColorSettings( cfg->m_ColorTheme );
 
     wxRect rect = aRect;
     rect.Inflate( -1 );
@@ -63,27 +68,21 @@ void GRID_CELL_LAYER_RENDERER::Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC&
     // erase background
     wxGridCellRenderer::Draw( aGrid, aAttr, aDC, aRect, aRow, aCol, isSelected );
 
-    if( m_frame )
-    {
-        cs = m_frame->GetColorSettings();
-    }
-    else
-    {
-        SETTINGS_MANAGER&          mgr = Pgm().GetSettingsManager();
-        FOOTPRINT_EDITOR_SETTINGS* cfg = mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
-        cs = mgr.GetColorSettings( cfg->m_ColorTheme );
-    }
-
     // draw the swatch
+#ifdef __WXMAC__
+    int      size = 14;
+#else
     int      size = KiROUND( 14 * aDC.GetContentScaleFactor() );
-    wxBitmap bitmap( size, size );
+#endif
+    if( !m_bitmap.IsOk() || m_bitmap.GetWidth() != size || m_bitmap.GetHeight() != size )
+        m_bitmap = wxBitmap( size, size );
 
-    LAYER_PRESENTATION::DrawColorSwatch( bitmap,
+    LAYER_PRESENTATION::DrawColorSwatch( m_bitmap,
                                          cs->GetColor( ToLAYER_ID( LAYER_PCB_BACKGROUND ) ),
                                          cs->GetColor( ToLAYER_ID( value ) ) );
 
-    aDC.DrawBitmap( bitmap, rect.GetLeft() + 4,
-                    rect.GetTop() + ( rect.GetHeight() - bitmap.GetHeight() ) / 2, true );
+    aDC.DrawBitmap( m_bitmap, rect.GetLeft() + 4,
+                    rect.GetTop() + ( rect.GetHeight() - m_bitmap.GetHeight() ) / 2, true );
 
     // draw the text
     PCB_LAYER_ID layer = ToLAYER_ID( value );
@@ -94,7 +93,7 @@ void GRID_CELL_LAYER_RENDERER::Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC&
     else
         layerName = BOARD::GetStandardLayerName( layer );
 
-    rect.SetLeft( rect.GetLeft() + bitmap.GetWidth() + 8 );
+    rect.SetLeft( rect.GetLeft() + m_bitmap.GetWidth() + 8 );
     SetTextColoursAndFont( aGrid, aAttr, aDC, isSelected );
     aGrid.DrawTextRectangle( aDC, layerName, rect, wxALIGN_LEFT, wxALIGN_CENTRE );
 }
@@ -106,7 +105,7 @@ void GRID_CELL_LAYER_RENDERER::Draw( wxGrid& aGrid, wxGridCellAttr& aAttr, wxDC&
 // Note: this implementation is an adaptation of wxGridCellChoiceEditor
 
 
-GRID_CELL_LAYER_SELECTOR::GRID_CELL_LAYER_SELECTOR( PCB_BASE_FRAME* aFrame, LSET aMask,
+GRID_CELL_LAYER_SELECTOR::GRID_CELL_LAYER_SELECTOR( PCB_BASE_FRAME* aFrame, const LSET& aMask,
                                                     bool aShowNonActivated ) :
         m_frame( aFrame ),
         m_mask( aMask ),

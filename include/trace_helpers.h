@@ -122,7 +122,7 @@ extern KICOMMON_API const wxChar* const traceSchPlugin;
 extern KICOMMON_API const wxChar* const traceSchLegacyPlugin;
 
 /**
- * Flag to enable GEDA PCB plugin debug output.
+ * Flag to enable KiCad PCB plugin debug output.
  *
  * Use "KICAD_PCB_PLUGIN" to enable.
  */
@@ -200,6 +200,48 @@ extern KICOMMON_API const wxChar* const traceSymbolResolver;
 extern KICOMMON_API const wxChar* const traceSchSheetPaths;
 
 /**
+ * Flag to enable debug output of current sheet tracking in the schematic editor.
+ *
+ * Use "KICAD_SCH_CURRENT_SHEET" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceSchCurrentSheet;
+
+/**
+ * Flag to enable debug output of schematic field rendering and positioning.
+ *
+ * Use "KICAD_SCH_FIELD_RENDERING" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceSchFieldRendering;
+
+/**
+ * Flag to enable debug output of schematic painter operations.
+ *
+ * Use "KICAD_SCH_PAINTER" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceSchPainter;
+
+/**
+ * Flag to enable debug output of schematic symbol reference resolution.
+ *
+ * Use "KICAD_SCH_SYMBOL_REF" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceSchSymbolRef;
+
+/**
+ * Flag to enable debug output of schematic drag net collision detection.
+ *
+ * Use "KICAD_SCH_DRAG_NET_COLLISION" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceSchDragNetCollision;
+
+/**
+ * Flag to enable debug output for cross-probe flash operations.
+ *
+ * Use "CROSS_PROBE_FLASH" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceCrossProbeFlash;
+
+/**
  * Flag to enable debug output of environment variable operations.
  *
  * Use "KICAD_ENV_VARS" to enable.
@@ -247,6 +289,61 @@ extern KICOMMON_API const wxChar* const traceEagleIo;
  * Use "KICAD_EAGLE_IO" to enable.
  */
 extern KICOMMON_API const wxChar* const traceDesignBlocks;
+
+/*
+ * Flag to enable library field table debug tracing.
+ *
+ * Use "KICAD_LIB_FIELD_TABLE" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceLibFieldTable;
+
+/**
+ * Flag to enable PDF plotter debug tracing.
+ *
+ * Use "KICAD_PDF_PLOTTER" to enable.
+ */
+extern KICOMMON_API const wxChar* const tracePdfPlotter;
+
+/**
+ * Flag to enable snap/grid helper debug tracing.
+ *
+ * Use "KICAD_SNAP" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceSnap;
+
+/**
+ * Flag to enable debug output for stacked pins handling in symbol/pin code.
+ *
+ * Use "KICAD_STACKED_PINS" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceStackedPins;
+
+/**
+ * Flag to enable debug output for library file watch refreshes.
+ *
+ * Use "KICAD_LIB_WATCH" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceLibWatch;
+
+/**
+ * Flag to enable library table and library manager tracing.
+ * use "KICAD_LIBRARIES" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceLibraries;
+
+/**
+ * Flag to watch how schematic move tool actions are handled.
+ *
+ * Use "KICAD_SCH_MOVE" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceSchMove;
+
+/**
+ * Flag to enable tracing of circular symbol inheritance detection.
+ *
+ * Use "KICAD_SYMBOL_INHERITANCE" to enable.
+ */
+extern KICOMMON_API const wxChar* const traceSymbolInheritance;
 
 ///@}
 

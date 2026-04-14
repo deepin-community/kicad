@@ -36,6 +36,7 @@
 class EDA_TEXT;
 class PLOTTER;
 class PCB_TEXT;
+class PCB_BARCODE;
 class PAD;
 class PCB_SHAPE;
 class PCB_TABLE;
@@ -83,7 +84,7 @@ public:
     }
 
     // Basic functions to plot a board item
-    void SetLayerSet( LSET aLayerMask ) { m_layerMask = aLayerMask; }
+    void SetLayerSet( const LSET& aLayerMask ) { m_layerMask = aLayerMask; }
     void PlotFootprintGraphicItems( const FOOTPRINT* aFootprint );
     void PlotFootprintTextItems( const FOOTPRINT* aFootprint );
 
@@ -94,6 +95,7 @@ public:
                    const KIFONT::METRICS& aFontMetrics, bool aStrikeout = false );
     void PlotShape( const PCB_SHAPE* aShape );
     void PlotTableBorders( const PCB_TABLE* aTable );
+    void PlotBarCode( const PCB_BARCODE* aBarCode );
 
     /**
      * Plot a pad.
@@ -102,7 +104,7 @@ public:
      * although the plot mode is filled color and plot mode are needed by this function.
      */
     void PlotPad( const PAD* aPad, PCB_LAYER_ID aLayer, const COLOR4D& aColor,
-                  OUTLINE_MODE aPlotMode );
+                  bool aSketchMode );
 
     void PlotPadNumber( const PAD* aPad, const COLOR4D& aColor );
 
@@ -162,7 +164,7 @@ PLOTTER* StartPlotBoard( BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts, int aL
                          const wxString& aPageNumber = wxEmptyString,
                          const int aPageCount = 1);
 
-void setupPlotterNewPDFPage( PLOTTER* aPlotter, BOARD* aBoard, const PCB_PLOT_PARAMS* aPlotOpts,
+void setupPlotterNewPDFPage( PLOTTER* aPlotter, BOARD* aBoard, PCB_PLOT_PARAMS* aPlotOpts,
                              const wxString& aLayerName, const wxString& aSheetName,
                              const wxString& aSheetPath, const wxString& aPageNumber,
                              int aPageCount );
@@ -215,7 +217,7 @@ void PlotOneBoardLayer( BOARD* aBoard, PLOTTER* aPlotter, PCB_LAYER_ID aLayer,
  *    SetDrillMarksType( DrillMarksType aVal )
  *        aVal = no hole, small hole, actual hole size
  */
-void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
+void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, const LSET& aLayerMask,
                         const PCB_PLOT_PARAMS& aPlotOpt );
 
 /**
@@ -226,7 +228,7 @@ void PlotStandardLayer( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
  * @param aLayerMask is the mask to define the layers to plot.
  * @param aPlotOpt is the plot options. Has meaning for some formats only.
  */
-void PlotLayerOutlines( BOARD* aBoard, PLOTTER* aPlotter, LSET aLayerMask,
+void PlotLayerOutlines( BOARD* aBoard, PLOTTER* aPlotter, const LSET& aLayerMask,
                         const PCB_PLOT_PARAMS& aPlotOpt );
 
 /**

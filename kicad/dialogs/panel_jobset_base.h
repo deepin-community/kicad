@@ -13,7 +13,7 @@
 class STD_BITMAP_BUTTON;
 class WX_GRID;
 
-#include "dialogs/panel_notebook_base.h"
+#include "widgets/panel_notebook_base.h"
 #include "dialog_shim.h"
 #include <wx/colour.h>
 #include <wx/settings.h>
@@ -71,7 +71,7 @@ class PANEL_JOBSET_BASE : public PANEL_NOTEBOOK_BASE
 
 	public:
 
-		PANEL_JOBSET_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 600,400 ), long style = wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
+		PANEL_JOBSET_BASE( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxTAB_TRAVERSAL, const wxString& name = wxEmptyString );
 
 		~PANEL_JOBSET_BASE();
 
@@ -88,9 +88,11 @@ class PANEL_DESTINATION_BASE : public wxPanel
 		wxStaticBitmap* m_bitmapOutputType;
 		wxStaticText* m_textOutputType;
 		wxStaticBitmap* m_statusBitmap;
+		wxStaticText* m_pathInfo;
 		STD_BITMAP_BUTTON* m_buttonProperties;
 		STD_BITMAP_BUTTON* m_buttonDelete;
 		wxButton* m_buttonGenerate;
+		STD_BITMAP_BUTTON* m_buttonOpenOutput;
 
 		// Virtual event handlers, override them in your derived class
 		virtual void OnRightDown( wxMouseEvent& event ) { event.Skip(); }
@@ -98,6 +100,7 @@ class PANEL_DESTINATION_BASE : public wxPanel
 		virtual void OnProperties( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnDelete( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnGenerate( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnOpenOutput( wxCommandEvent& event ) { event.Skip(); }
 
 
 	public:

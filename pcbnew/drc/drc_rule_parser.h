@@ -32,7 +32,8 @@
 
 
 class BOARD_ITEM;
-
+class COMPONENT_CLASS_ASSIGNMENT_RULE;
+class REPORTER;
 
 #define DRC_RULE_FILE_VERSION      20200610
 
@@ -41,21 +42,32 @@ class DRC_RULES_PARSER : public DRC_RULES_LEXER
 {
 public:
     DRC_RULES_PARSER( const wxString& aSource, const wxString& aSourceDescr );
-    DRC_RULES_PARSER( FILE* aFile, const wxString& aFilename );
 
     void Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, REPORTER* aReporter );
+    
+    bool VerifyParseCondition( REPORTER* aReporter );
+
+    void ParseComponentClassAssignmentRules(
+            std::vector<std::shared_ptr<COMPONENT_CLASS_ASSIGNMENT_RULE>>& aRules,
+            REPORTER*                                                      aReporter );
 
 private:
     std::shared_ptr<DRC_RULE> parseDRC_RULE();
 
+    std::shared_ptr<COMPONENT_CLASS_ASSIGNMENT_RULE> parseComponentClassAssignment();
+
     void parseConstraint( DRC_RULE* aRule );
-    void parseValueWithUnits( const wxString& aExpr, int& aResult, bool aUnitless = false );
+    void parseValueWithUnits( int aOffset, const wxString& aExpr, int& aResult, EDA_UNITS& aUnits,
+                              bool aUnitless = false );
     LSET parseLayer( wxString* aSource );
     SEVERITY parseSeverity();
     void parseUnknown();
+    wxString parseExpression();
 
-    void reportError( const wxString& aMessage );
-    void reportDeprecation( const wxString& oldToken, const wxString newToken );
+    void reportError( const wxString& aMessage, int aOffset = 0 );
+    void reportDeprecation( const wxString& oldToken, const wxString& newToken );
+    bool checkUnresolvedTextVariable();
+    void expected( const wxString& expectedTokens );
 
 private:
     int       m_requiredVersion;

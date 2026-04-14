@@ -28,7 +28,7 @@ import json
 import cairosvg
 import logging
 import subprocess
-from typing import Tuple
+from typing import Tuple, Optional, Callable
 from pathlib import Path
 from PIL import Image, ImageChops, ImageFilter, ImageEnhance
 import numpy as np
@@ -42,7 +42,35 @@ def kicad_cli() -> str:
 
     return "kicad-cli"
 
-def run_and_capture( command: list ) -> Tuple[ str, str, int ]:
+
+def _get_kicad_major_version() -> int:
+    """Get the major version from kicad-cli so library env vars match the running binary."""
+    try:
+        proc = subprocess.run( [kicad_cli(), 'version', '--format', 'plain'],
+                               capture_output=True, text=True, timeout=10 )
+
+        if proc.returncode == 0 and proc.stdout.strip():
+            major = proc.stdout.strip().split( '.' )[0]
+            return int( major )
+    except Exception:
+        pass
+
+    logger.warning( "Could not determine kicad-cli version, defaulting to 10" )
+    return 10
+
+
+_kicad_major_version = None
+
+def _get_cached_kicad_major_version() -> int:
+    global _kicad_major_version
+
+    if _kicad_major_version is None:
+        _kicad_major_version = _get_kicad_major_version()
+
+    return _kicad_major_version
+
+
+def run_and_capture( command: list[str] ) -> Tuple[ str, str, int ]:
     logger.info("Executing command \"%s\"", " ".join( command ))
 
     env = {}
@@ -50,7 +78,7 @@ def run_and_capture( command: list ) -> Tuple[ str, str, int ]:
 
     if 'KICAD_CONFIG_HOME' not in env:
         if 'QA_DATA_ROOT' in env:
-            base_path = env.get('QA_DATA_ROOT')
+            base_path = Path( env.get('QA_DATA_ROOT') )
         else:
             cwd = Path.cwd()
             base_path = None
@@ -64,9 +92,10 @@ def run_and_capture( command: list ) -> Tuple[ str, str, int ]:
 
         if base_path is not None:
             logger.info("Using QA data base path '%s'", str(base_path))
+            ver = _get_cached_kicad_major_version()
             env['KICAD_CONFIG_HOME'] = str(base_path / 'config')
-            env['KICAD9_SYMBOL_DIR'] = str(base_path / 'libraries')
-            env['KICAD9_FOOTPRINT_DIR'] = str(base_path / 'libraries')
+            env[f'KICAD{ver}_SYMBOL_DIR'] = str(base_path / 'libraries')
+            env[f'KICAD{ver}_FOOTPRINT_DIR'] = str(base_path / 'libraries')
         else:
             logger.warning("Unexpected cwd '%s', tests will likely fail", cwd)
 
@@ -86,16 +115,17 @@ def run_and_capture( command: list ) -> Tuple[ str, str, int ]:
 
     return out, err, proc.returncode
 
-def textdiff_files( golden_filepath: str, new_filepath: str, skip: int = 0 ) -> bool:
-    status: bool = True
 
+def textdiff_files( golden_filepath: Path, new_filepath: Path, skip: int = 0 ) -> bool:
     with open( golden_filepath, 'r' ) as f:
         golden_lines = f.readlines()[skip:]
 
     with open( new_filepath, 'r' ) as f:
         new_lines = f.readlines()[skip:]
 
-    diff = difflib.unified_diff( golden_lines, new_lines, fromfile = golden_filepath, tofile = new_filepath )
+    diff = difflib.unified_diff(
+        golden_lines, new_lines, fromfile=str(golden_filepath), tofile=str(new_filepath)
+    )
     diff_text = ''.join(list(diff))
 
     if diff_text != "":
@@ -113,16 +143,18 @@ def image_is_blank( image_path: str ) -> bool:
     return sum == 0
 
 
-def images_are_equal( image1_path: str, image2_path: str ) -> bool:
+def images_are_equal( image1_path: str, image2_path: str, diff_handler: Optional[Callable[[str], None]] = None ) -> bool:
     # Note: if modifying this function - please add new tests for it in test_utils.py
 
     image1 = Image.open( image1_path )
     image2 = Image.open( image2_path )
 
     if image1.size != image2.size:
+        logger.error("Images sizes are different.")
         return False
 
     if image1.mode != image2.mode:
+        logger.error("Images modes are different.")
         return False
 
     diff = ImageChops.difference( image1, image2 )
@@ -158,6 +190,10 @@ def images_are_equal( image1_path: str, image2_path: str ) -> bool:
             imageEnhanced.paste( red,mask=eroded_result)
             imageEnhanced.save(diff_name)
             logger.error( "Images not equal. Diff stored at '%s'", diff_name )
+            if diff_handler is not None:
+                diff_handler( diff_name )
+                diff_handler( image1.filename )
+                diff_handler( image2.filename )
             imageEnhanced.close()
 
         # Cleanup
@@ -187,7 +223,8 @@ def get_png_paths( generated_path: str, source_path : str, suffix : str = "" ) -
     return str( generated_png_path ), str( source_png_path )
 
 
-def svgs_are_equivalent( svg_generated_path: str, svg_source_path: str, comparison_dpi: int ) -> bool:
+def svgs_are_equivalent( svg_generated_path: str, svg_source_path: str, comparison_dpi: int,
+                         diff_handler: Optional[Callable[[str], None]] = None ) -> bool:
     png_generated, png_source = get_png_paths( svg_generated_path, svg_source_path )
 
     cairosvg.svg2png( url=svg_generated_path,
@@ -198,12 +235,13 @@ def svgs_are_equivalent( svg_generated_path: str, svg_source_path: str, comparis
                       write_to=png_source,
                       dpi=comparison_dpi )
 
-    return images_are_equal( png_generated , png_source )
+    return images_are_equal( png_generated , png_source, diff_handler )
 
 
 def gerbers_are_equivalent( gerber_generated_path : str, gerber_source_path : str, comparison_dpi : int,
                             originInches :  Tuple[float, float],
-                            windowsizeInches :  Tuple[float, float] ) -> bool:
+                            windowsizeInches :  Tuple[float, float],
+                            diff_handler: Optional[Callable[[str], None]] = None ) -> bool:
 
     # Calculate tiles required
     noTilesRowsCols = np.array( [1,1] )
@@ -236,7 +274,7 @@ def gerbers_are_equivalent( gerber_generated_path : str, gerber_source_path : st
             gerberGeneratedIsBlank = gerberGeneratedIsBlank and image_is_blank( png_generated )
             gerberSourceIsBlank = gerberSourceIsBlank and image_is_blank( png_source )
 
-            if( not images_are_equal( png_generated, png_source ) ):
+            if( not images_are_equal( png_generated, png_source, diff_handler ) ):
                 gerbersAreEqual = False
 
     assert( not gerberGeneratedIsBlank )

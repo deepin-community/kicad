@@ -23,6 +23,7 @@
 #include <kiplatform/ui.h>
 
 #include <wx/cursor.h>
+#include <wx/dialog.h>
 #include <wx/nonownedwnd.h>
 #include <wx/window.h>
 #include <wx/msw/registry.h>
@@ -30,30 +31,9 @@
 
 bool KIPLATFORM::UI::IsDarkTheme()
 {
-    // NOTE: Disabled for now because we can't yet react to dark mode in Windows reasonably:
-    // Windows 10 dark mode does not change the values returned by wxSystemSettings::GetColour()
-    // so our window backgrounds, text colors, etc will stay in "light mode" until either wxWidgets
-    // implements something or we apply a custom theme ourselves.
-#ifdef NOTYET
-    const wxString lightModeKey = wxT( "AppsUseLightTheme" );
-
-    // Note: registry used because there is not yet an official API for this yet.
-    // This may stop working on future Windows versions
-    wxRegKey themeKey( wxRegKey::HKCU,
-                       wxT( "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize" ) );
-
-    if( !themeKey.Exists() )
-        return false;
-
-    if( !themeKey.HasValue( lightModeKey ) )
-        return false;
-
-    long val = 0;
-
-    if( !themeKey.QueryValue( lightModeKey, &val ) )
-        return false;
-
-    return ( val == 0 );
+#if wxCHECK_VERSION( 3, 3, 0 )
+    wxSystemAppearance appearance = wxSystemSettings::GetAppearance();
+    return appearance.IsDark();
 #else
     wxColour bg = wxSystemSettings::GetColour( wxSYS_COLOUR_WINDOW );
 
@@ -97,9 +77,21 @@ bool KIPLATFORM::UI::IsWindowActive( wxWindow* aWindow )
 }
 
 
+void KIPLATFORM::UI::EnsureVisible( wxWindow* aWindow )
+{
+    // Not needed on this platform
+}
+
+
 void KIPLATFORM::UI::ReparentModal( wxNonOwnedWindow* aWindow )
 {
     // Not needed on this platform
+}
+
+
+void KIPLATFORM::UI::ReparentWindow( wxNonOwnedWindow* aWindow, wxTopLevelWindow* aParent )
+{
+    // Not needed on this platform (used only on macOS for child window ordering)
 }
 
 
@@ -213,4 +205,15 @@ void KIPLATFORM::UI::InfiniteDragReleaseWindow()
 
 void KIPLATFORM::UI::SetFloatLevel( wxWindow* aWindow )
 {
+}
+
+void KIPLATFORM::UI::ReleaseChildWindow( wxNonOwnedWindow* aWindow )
+{
+    // Not needed on this platform
+}
+
+
+void KIPLATFORM::UI::AllowNetworkFileSystems( wxDialog* aDialog )
+{
+    // Not needed on Windows - file dialogs show network filesystems by default
 }

@@ -30,9 +30,11 @@
 #ifndef FOOTPRINT_WIZARD_FRAME_H_
 #define FOOTPRINT_WIZARD_FRAME_H_
 
+#include <memory>
 #include <wx/gdicmn.h>
 #include <footprint_wizard.h>
 #include <pcb_base_edit_frame.h>
+#include <nlohmann/json_fwd.hpp>
 
 class wxSashLayoutWindow;
 class wxSashEvent;
@@ -69,6 +71,19 @@ public:
 
     COLOR_SETTINGS* GetColorSettings( bool aForceRefresh = false ) const override;
 
+    void SelectCurrentWizard( wxCommandEvent& aDummy ); // Open the wizard selector dialog
+
+    void DefaultParameters();           // Reset the initial (default) values of the wizard prms
+    void SelectWizardPreviousPage();    // Select the previous parameter page for wizards having
+                                        // more than one parameter page
+    void SelectWizardNextPage();        // Select the next parameter page for wizards having
+                                        // more than one parameter page
+
+    /**
+     * Will let the caller exit from the wait loop, and get the built footprint.
+     */
+    void ExportSelectedFootprint( wxCommandEvent& aEvent );
+
 private:
 
     void                OnSize( wxSizeEvent& event ) override;
@@ -86,12 +101,6 @@ private:
      * footprint change.
      */
     void updateView();
-
-    /**
-     * Will let the caller exit from the wait loop, and get the built footprint.
-     *
-     */
-    void ExportSelectedFootprint( wxCommandEvent& aEvent );
 
     /**
      * Resize the child windows when dragging a sash window border.
@@ -140,16 +149,12 @@ private:
      */
     FOOTPRINT_WIZARD* GetMyWizard();
 
-    void Process_Special_Functions( wxCommandEvent& event );
-
     /**
      * Show all the details about the current wizard.
      */
     void DisplayWizardInfos();
 
     void doCloseWindow() override;
-    void ReCreateHToolbar() override;
-    void ReCreateVToolbar() override;
     void ClickOnPageList( wxCommandEvent& event );
 
     void LoadSettings( APP_SETTINGS_BASE* aCfg ) override;
@@ -162,10 +167,6 @@ private:
      * that can be changed by the schematic editor or the library editor.
      */
     void OnActivate( wxActivateEvent& event );
-
-    void SelectCurrentWizard( wxCommandEvent& event );
-
-    void DefaultParameters( wxCommandEvent& event );
 
     /**
      * Update the footprint python parameters values from the values in grid.
@@ -192,6 +193,7 @@ private:
     wxTextCtrl*     m_buildMessageBox;
 
     wxString        m_auiPerspective;       ///< Encoded string describing the AUI layout
+    std::unique_ptr<nlohmann::json> m_viewerAuiState;
 
     bool            m_wizardListShown;      ///< A show-once flag for the wizard list
 };

@@ -24,96 +24,127 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "dialog_footprint_properties_fp_editor.h"
+
+#include <wx/debug.h>
+#include <wx/tokenzr.h>
+
 #include <3d_rendering/opengl/3d_model.h>
 #include <3d_viewer/eda_3d_viewer_frame.h>
 #include <bitmaps.h>
 #include <board_commit.h>
 #include <board_design_settings.h>
 #include <confirm.h>
-#include <dialog_footprint_properties_fp_editor.h>
+
 #include <dialogs/dialog_text_entry.h>
 #include <dialogs/panel_preview_3d_model.h>
 #include <embedded_files.h>
 #include <filename_resolver.h>
 #include <footprint.h>
 #include <footprint_edit_frame.h>
+#include <pad.h>
 #include <footprint_editor_settings.h>
 #include <grid_layer_box_helpers.h>
+#include <layer_utils.h>
 #include <kiplatform/ui.h>
 #include <panel_embedded_files.h>
 #include <panel_fp_properties_3d_model.h>
 #include <pgm_base.h>
 #include <settings/settings_manager.h>
 #include <tool/tool_manager.h>
+#include <tools/pcb_actions.h>
 #include <tools/pcb_selection_tool.h>
 #include <validators.h>
 #include <widgets/grid_text_button_helpers.h>
 #include <widgets/std_bitmap_button.h>
 #include <widgets/text_ctrl_eval.h>
 #include <widgets/wx_grid.h>
+#include <zone.h>
 
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <project_pcb.h>
 #include <kidialog.h>
 
-PRIVATE_LAYERS_GRID_TABLE::PRIVATE_LAYERS_GRID_TABLE( PCB_BASE_FRAME* aFrame ) :
+
+class LAYERS_GRID_TABLE : public WX_GRID_TABLE_BASE, public std::vector<PCB_LAYER_ID>
+{
+public:
+    LAYERS_GRID_TABLE( PCB_BASE_FRAME* aFrame, const LSET& aForbiddenLayers );
+    ~LAYERS_GRID_TABLE();
+
+    int GetNumberRows() override { return (int) size(); }
+    int GetNumberCols() override { return 1; }
+
+    bool            CanGetValueAs( int aRow, int aCol, const wxString& aTypeName ) override;
+    bool            CanSetValueAs( int aRow, int aCol, const wxString& aTypeName ) override;
+    wxGridCellAttr* GetAttr( int aRow, int aCol, wxGridCellAttr::wxAttrKind aKind ) override;
+
+    wxString GetValue( int aRow, int aCol ) override;
+    long     GetValueAsLong( int aRow, int aCol ) override;
+
+    void SetValue( int aRow, int aCol, const wxString& aValue ) override;
+    void SetValueAsLong( int aRow, int aCol, long aValue ) override;
+
+private:
+    PCB_BASE_FRAME* m_frame;
+    wxGridCellAttr* m_layerColAttr;
+};
+
+
+LAYERS_GRID_TABLE::LAYERS_GRID_TABLE( PCB_BASE_FRAME* aFrame, const LSET& aForbiddenLayers ) :
         m_frame( aFrame )
 {
     m_layerColAttr = new wxGridCellAttr;
     m_layerColAttr->SetRenderer( new GRID_CELL_LAYER_RENDERER( m_frame ) );
 
-    LSET forbiddenLayers = LSET::AllCuMask() | LSET::AllTechMask();
-    forbiddenLayers.set( Edge_Cuts );
-    forbiddenLayers.set( Margin );
-    m_layerColAttr->SetEditor( new GRID_CELL_LAYER_SELECTOR( m_frame, forbiddenLayers, true ) );
+    m_layerColAttr->SetEditor( new GRID_CELL_LAYER_SELECTOR( m_frame, aForbiddenLayers, true ) );
 }
 
 
-PRIVATE_LAYERS_GRID_TABLE::~PRIVATE_LAYERS_GRID_TABLE()
+LAYERS_GRID_TABLE::~LAYERS_GRID_TABLE()
 {
     m_layerColAttr->DecRef();
 }
 
 
-bool PRIVATE_LAYERS_GRID_TABLE::CanGetValueAs( int aRow, int aCol, const wxString& aTypeName )
+bool LAYERS_GRID_TABLE::CanGetValueAs( int aRow, int aCol, const wxString& aTypeName )
 {
     return aTypeName == wxGRID_VALUE_NUMBER;
 }
 
 
-bool PRIVATE_LAYERS_GRID_TABLE::CanSetValueAs( int aRow, int aCol, const wxString& aTypeName )
+bool LAYERS_GRID_TABLE::CanSetValueAs( int aRow, int aCol, const wxString& aTypeName )
 {
     return aTypeName == wxGRID_VALUE_NUMBER;
 }
 
 
-wxGridCellAttr* PRIVATE_LAYERS_GRID_TABLE::GetAttr( int aRow, int aCol,
-                                                    wxGridCellAttr::wxAttrKind aKind  )
+wxGridCellAttr* LAYERS_GRID_TABLE::GetAttr( int aRow, int aCol, wxGridCellAttr::wxAttrKind aKind )
 {
     m_layerColAttr->IncRef();
     return enhanceAttr( m_layerColAttr, aRow, aCol, aKind );
 }
 
 
-wxString PRIVATE_LAYERS_GRID_TABLE::GetValue( int aRow, int aCol )
+wxString LAYERS_GRID_TABLE::GetValue( int aRow, int aCol )
 {
     return m_frame->GetBoard()->GetLayerName( this->at( (size_t) aRow ) );
 }
 
 
-long PRIVATE_LAYERS_GRID_TABLE::GetValueAsLong( int aRow, int aCol )
+long LAYERS_GRID_TABLE::GetValueAsLong( int aRow, int aCol )
 {
     return this->at( (size_t) aRow );
 }
 
 
-void PRIVATE_LAYERS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString &aValue )
+void LAYERS_GRID_TABLE::SetValue( int aRow, int aCol, const wxString& aValue )
 {
     wxFAIL_MSG( wxString::Format( wxT( "column %d doesn't hold a string value" ), aCol ) );
 }
 
 
-void PRIVATE_LAYERS_GRID_TABLE::SetValueAsLong( int aRow, int aCol, long aValue )
+void LAYERS_GRID_TABLE::SetValueAsLong( int aRow, int aCol, long aValue )
 {
     this->at( (size_t) aRow ) = ToLAYER_ID( (int) aValue );
 }
@@ -124,22 +155,15 @@ void PRIVATE_LAYERS_GRID_TABLE::SetValueAsLong( int aRow, int aCol, long aValue 
 NOTEBOOK_PAGES DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::m_page = NOTEBOOK_PAGES::PAGE_GENERAL;
 
 
-DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR(
-                                                                    FOOTPRINT_EDIT_FRAME* aParent,
-                                                                    FOOTPRINT* aFootprint ) :
+DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR( FOOTPRINT_EDIT_FRAME* aParent,
+                                                                              FOOTPRINT* aFootprint ) :
         DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR_BASE( aParent ),
         m_frame( aParent ),
         m_footprint( aFootprint ),
         m_initialized( false ),
         m_netClearance( aParent, m_NetClearanceLabel, m_NetClearanceCtrl, m_NetClearanceUnits ),
-        m_solderMask( aParent, m_SolderMaskMarginLabel, m_SolderMaskMarginCtrl,
-                      m_SolderMaskMarginUnits ),
-        m_solderPaste( aParent, m_SolderPasteMarginLabel, m_SolderPasteMarginCtrl,
-                       m_SolderPasteMarginUnits ),
-        m_solderPasteRatio( aParent, m_PasteMarginRatioLabel, m_PasteMarginRatioCtrl,
-                            m_PasteMarginRatioUnits ),
-        m_gridSize( 0, 0 ),
-        m_lastRequestedSize( 0, 0 )
+        m_solderMask( aParent, m_SolderMaskMarginLabel, m_SolderMaskMarginCtrl, m_SolderMaskMarginUnits ),
+        m_solderPaste( aParent, m_SolderPasteMarginLabel, m_SolderPasteMarginCtrl, m_SolderPasteMarginUnits )
 {
     SetEvtHandlerEnabled( false );
 
@@ -151,7 +175,19 @@ DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR(
     m_NoteBook->AddPage( m_embeddedFiles, _( "Embedded Files" ) );
 
     m_fields = new PCB_FIELDS_GRID_TABLE( m_frame, this, { m_embeddedFiles->GetLocalFiles() } );
-    m_privateLayers = new PRIVATE_LAYERS_GRID_TABLE( m_frame );
+
+    {
+        LSET forbiddenLayers = LSET::AllCuMask() | LSET::AllTechMask();
+        forbiddenLayers.set( Edge_Cuts );
+        forbiddenLayers.set( Margin );
+
+        m_privateLayers = new LAYERS_GRID_TABLE( m_frame, forbiddenLayers );
+    }
+
+    {
+        LSET forbiddenLayers = LSET::AllLayersMask() & ~LSET::UserDefinedLayersMask();
+        m_customUserLayers = new LAYERS_GRID_TABLE( m_frame, forbiddenLayers );
+    }
 
     m_delayedErrorMessage = wxEmptyString;
     m_delayedFocusCtrl = nullptr;
@@ -165,37 +201,50 @@ DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR(
     icon.CopyFromBitmap( KiBitmap( BITMAPS::icon_modedit ) );
     SetIcon( icon );
 
-    // Give a bit more room for combobox editors
-    m_itemsGrid->SetDefaultRowSize( m_itemsGrid->GetDefaultRowSize() + 4 );
-    m_privateLayersGrid->SetDefaultRowSize( m_privateLayersGrid->GetDefaultRowSize() + 4 );
-
     m_itemsGrid->SetTable( m_fields );
     m_privateLayersGrid->SetTable( m_privateLayers );
+    m_customUserLayersGrid->SetTable( m_customUserLayers );
 
     m_itemsGrid->PushEventHandler( new GRID_TRICKS( m_itemsGrid ) );
     m_privateLayersGrid->PushEventHandler( new GRID_TRICKS( m_privateLayersGrid,
                                                             [this]( wxCommandEvent& aEvent )
                                                             {
-                                                                OnAddLayer( aEvent );
+                                                                OnAddPrivateLayer( aEvent );
                                                             } ) );
-    m_padGroupsGrid->PushEventHandler( new GRID_TRICKS( m_padGroupsGrid,
-                                                        [this]( wxCommandEvent& aEvent )
-                                                        {
-                                                            OnAddPadGroup( aEvent );
-                                                        } ) );
+    m_nettieGroupsGrid->PushEventHandler( new GRID_TRICKS( m_nettieGroupsGrid,
+                                                           [this]( wxCommandEvent& aEvent )
+                                                           {
+                                                               OnAddNettieGroup( aEvent );
+                                                           } ) );
+    m_jumperGroupsGrid->PushEventHandler( new GRID_TRICKS( m_jumperGroupsGrid,
+                                                           [this]( wxCommandEvent& aEvent )
+                                                           {
+                                                               OnAddJumperGroup( aEvent );
+                                                           } ) );
+    m_customUserLayersGrid->PushEventHandler( new GRID_TRICKS( m_customUserLayersGrid,
+                                                               [this]( wxCommandEvent& aEvent )
+                                                               {
+                                                                   OnAddCustomLayer( aEvent );
+                                                               } ) );
+
+    m_itemsGrid->SetupColumnAutosizer( PFC_VALUE );
+    m_privateLayersGrid->SetupColumnAutosizer( 0 );
+    m_nettieGroupsGrid->SetupColumnAutosizer( 0 );
+    m_jumperGroupsGrid->SetupColumnAutosizer( 0 );
+    m_customUserLayersGrid->SetupColumnAutosizer( 0 );
 
     m_itemsGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
     m_privateLayersGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
-    m_padGroupsGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
+    m_nettieGroupsGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
+    m_jumperGroupsGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
+    m_customUserLayersGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
 
-    // Show/hide columns according to the user's preference
-    m_itemsGrid->ShowHideColumns( m_frame->GetSettings()->m_FootprintTextShownColumns );
+    m_itemsGrid->ShowHideColumns( "0 1 2 3 4 5 7" );
 
     m_FootprintNameCtrl->SetValidator( FOOTPRINT_NAME_VALIDATOR() );
 
     // Set font sizes
-    wxFont infoFont = KIUI::GetInfoFont( this );
-    infoFont.SetStyle( wxFONTSTYLE_ITALIC );
+    wxFont infoFont = KIUI::GetInfoFont( this ).Italic();
     m_staticTextInfoCopper->SetFont( infoFont );
     m_staticTextInfoPaste->SetFont( infoFont );
 
@@ -214,18 +263,29 @@ DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR(
         SetInitialFocus( m_NetClearanceCtrl );
     }
 
-    m_solderPaste.SetNegativeZero();
+    // Update label text and tooltip for combined offset + ratio field
+    m_SolderPasteMarginLabel->SetLabel( _( "Solder paste clearance:" ) );
+    m_SolderPasteMarginLabel->SetToolTip( _( "Local solder paste clearance for this footprint.\n"
+                                             "Enter an absolute value (e.g., -0.1mm), a percentage "
+                                             "(e.g., -5%), or both (e.g., -0.1mm - 5%).\n"
+                                             "If blank, the global value is used." ) );
 
-    m_solderPasteRatio.SetUnits( EDA_UNITS::PERCENT );
-    m_solderPasteRatio.SetNegativeZero();
+    // Hide the old ratio controls - they're no longer needed
+    m_PasteMarginRatioLabel->Show( false );
+    m_PasteMarginRatioCtrl->Show( false );
+    m_PasteMarginRatioUnits->Show( false );
 
     // Configure button logos
     m_bpAdd->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
     m_bpDelete->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
-    m_bpAddLayer->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
-    m_bpDeleteLayer->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
-    m_bpAddPadGroup->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
-    m_bpRemovePadGroup->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
+    m_bpAddPrivateLayer->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
+    m_bpDeletePrivateLayer->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
+    m_bpAddCustomLayer->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
+    m_bpDeleteCustomLayer->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
+    m_bpAddNettieGroup->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
+    m_bpRemoveNettieGroup->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
+    m_bpAddJumperGroup->SetBitmap( KiBitmapBundle( BITMAPS::small_plus ) );
+    m_bpRemoveJumperGroup->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
 
     SetupStandardButtons();
 
@@ -236,16 +296,17 @@ DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR(
 
 DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::~DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR()
 {
-    m_frame->GetSettings()->m_FootprintTextShownColumns = m_itemsGrid->GetShownColumnsAsString();
-
     // Prevents crash bug in wxGrid's d'tor
     m_itemsGrid->DestroyTable( m_fields );
     m_privateLayersGrid->DestroyTable( m_privateLayers );
+    m_customUserLayersGrid->DestroyTable( m_customUserLayers );
 
     // Delete the GRID_TRICKS.
     m_itemsGrid->PopEventHandler( true );
     m_privateLayersGrid->PopEventHandler( true );
-    m_padGroupsGrid->PopEventHandler( true );
+    m_nettieGroupsGrid->PopEventHandler( true );
+    m_jumperGroupsGrid->PopEventHandler( true );
+    m_customUserLayersGrid->PopEventHandler( true );
 
     m_page = static_cast<NOTEBOOK_PAGES>( m_NoteBook->GetSelection() );
 
@@ -279,11 +340,14 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataToWindow()
 
     // Footprint Fields
     for( PCB_FIELD* field : m_footprint->GetFields() )
+    {
+        wxCHECK2( field, continue );
+
         m_fields->push_back( *field );
+    }
 
     // Notify the grid
-    wxGridTableMessage tmsg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_APPENDED,
-                             m_fields->GetNumberRows() );
+    wxGridTableMessage tmsg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, m_fields->GetNumberRows() );
     m_itemsGrid->ProcessTableMessage( tmsg );
 
     if( m_footprint->GetAttributes() & FP_THROUGH_HOLE )
@@ -302,10 +366,44 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataToWindow()
                                            m_privateLayers->GetNumberRows() );
     m_privateLayersGrid->ProcessTableMessage( gridTableMessagesg );
 
+    switch( m_footprint->GetStackupMode() )
+    {
+    case FOOTPRINT_STACKUP::EXPAND_INNER_LAYERS:
+    {
+        m_cbCustomLayers->SetValue( false );
+
+        m_copperLayerCount->SetSelection( 0 );
+        break;
+    }
+    case FOOTPRINT_STACKUP::CUSTOM_LAYERS:
+    {
+        m_cbCustomLayers->SetValue( true );
+
+        const LSET& customFpLayers = m_footprint->GetStackupLayers();
+        const LSET  customUserLayers = customFpLayers & LSET::UserDefinedLayersMask();
+
+        for( PCB_LAYER_ID customUserLayer : customUserLayers )
+        {
+            m_customUserLayers->push_back( customUserLayer );
+        }
+
+        // Set the number of copper layers
+        m_copperLayerCount->SetSelection( ( customFpLayers & LSET::AllCuMask() ).count() / 2 - 1 );
+        break;
+    }
+    }
+    setCustomLayerCtrlEnablement();
+
+    // Notify the grid
+    {
+        wxGridTableMessage gridTableMessagesCustom( m_customUserLayers, wxGRIDTABLE_NOTIFY_ROWS_APPENDED,
+                                                    m_customUserLayers->GetNumberRows() );
+        m_customUserLayersGrid->ProcessTableMessage( gridTableMessagesCustom );
+    }
+
     m_boardOnly->SetValue( m_footprint->GetAttributes() & FP_BOARD_ONLY );
     m_excludeFromPosFiles->SetValue( m_footprint->GetAttributes() & FP_EXCLUDE_FROM_POS_FILES );
     m_excludeFromBOM->SetValue( m_footprint->GetAttributes() & FP_EXCLUDE_FROM_BOM );
-    m_noCourtyards->SetValue( m_footprint->GetAttributes() & FP_ALLOW_MISSING_COURTYARD );
     m_cbDNP->SetValue( m_footprint->GetAttributes() & FP_DNP );
 
     // Local Clearances
@@ -320,17 +418,11 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataToWindow()
     else
         m_solderMask.SetValue( wxEmptyString );
 
-    if( m_footprint->GetLocalSolderPasteMargin().has_value() )
-        m_solderPaste.SetValue( m_footprint->GetLocalSolderPasteMargin().value() );
-    else
-        m_solderPaste.SetValue( wxEmptyString );
+    m_solderPaste.SetOffsetValue( m_footprint->GetLocalSolderPasteMargin() );
+    m_solderPaste.SetRatioValue( m_footprint->GetLocalSolderPasteMarginRatio() );
 
-    if( m_footprint->GetLocalSolderPasteMarginRatio().has_value() )
-        m_solderPasteRatio.SetDoubleValue( m_footprint->GetLocalSolderPasteMarginRatio().value() * 100.0 );
-    else
-        m_solderPasteRatio.SetValue( wxEmptyString );
-
-    m_allowBridges->SetValue( m_footprint->GetAttributes() & FP_ALLOW_SOLDERMASK_BRIDGES );
+    m_noCourtyards->SetValue( m_footprint->AllowMissingCourtyard() );
+    m_allowBridges->SetValue( m_footprint->AllowSolderMaskBridges() );
 
     switch( m_footprint->GetLocalZoneConnection() )
     {
@@ -345,9 +437,27 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataToWindow()
     {
         if( !group.IsEmpty() )
         {
-            m_padGroupsGrid->AppendRows( 1 );
-            m_padGroupsGrid->SetCellValue( m_padGroupsGrid->GetNumberRows() - 1, 0, group );
+            m_nettieGroupsGrid->AppendRows( 1 );
+            m_nettieGroupsGrid->SetCellValue( m_nettieGroupsGrid->GetNumberRows() - 1, 0, group );
         }
+    }
+
+    m_cbDuplicatePadsAreJumpers->SetValue( m_footprint->GetDuplicatePadNumbersAreJumpers() );
+
+    for( const std::set<wxString>& group : m_footprint->JumperPadGroups() )
+    {
+        wxString groupTxt;
+
+        for( const wxString& pinNumber : group )
+        {
+            if( !groupTxt.IsEmpty() )
+                groupTxt << ", ";
+
+            groupTxt << pinNumber;
+        }
+
+        m_jumperGroupsGrid->AppendRows( 1 );
+        m_jumperGroupsGrid->SetCellValue( m_jumperGroupsGrid->GetNumberRows() - 1, 0, groupTxt );
     }
 
     // Items grid
@@ -362,7 +472,7 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataToWindow()
         {
             BOARD* board = m_footprint->GetBoard();
 
-            for( PCB_LAYER_ID layer : board->GetEnabledLayers().Seq() )
+            for( PCB_LAYER_ID layer : board->GetEnabledLayers() )
                 col_size = std::max( col_size, GetTextExtent( board->GetLayerName( layer ) ).x );
 
             // Swatch and gaps:
@@ -376,7 +486,6 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataToWindow()
     m_itemsGrid->SetRowLabelSize( 0 );
 
     Layout();
-    adjustGridColumns();
     m_initialized = true;
 
     return true;
@@ -401,9 +510,10 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::checkFootprintName( const wxString& 
     LIB_ID        fpID = m_footprint->GetFPID();
     wxString      libraryName = fpID.GetLibNickname();
     wxString      originalFPName = fpID.GetLibItemName();
-    FP_LIB_TABLE* tbl = PROJECT_PCB::PcbFootprintLibs( &m_frame->Prj() );
 
-    if( aFootprintName != originalFPName && tbl->FootprintExists( libraryName, aFootprintName ) )
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &m_frame->Prj() );
+
+    if( aFootprintName != originalFPName && adapter->FootprintExists( libraryName, aFootprintName ) )
     {
         wxString msg = wxString::Format( _( "Footprint '%s' already exists in library '%s'." ),
                                          aFootprintName, libraryName );
@@ -420,6 +530,57 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::checkFootprintName( const wxString& 
     }
 
     return true;
+}
+
+
+LSET DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::getCustomLayersFromControls() const
+{
+    LSET userLayers;
+    if( m_cbCustomLayers->GetValue() )
+    {
+        userLayers |= LSET::AllCuMask( ( m_copperLayerCount->GetSelection() + 1 ) * 2 );
+
+        for( PCB_LAYER_ID layer : *m_customUserLayers )
+        {
+            userLayers.set( layer );
+        }
+    }
+    else
+    {
+        userLayers |= LSET{ F_Cu, B_Cu };
+        userLayers |= LSET::InternalCuMask();
+        userLayers |= LSET::UserDefinedLayersMask( 4 );
+    }
+
+    return userLayers;
+}
+
+
+static LSET GetAllUsedFootprintLayers( const FOOTPRINT& aFootprint )
+{
+    LSET usedLayers{};
+    aFootprint.RunOnChildren(
+            [&]( BOARD_ITEM* aSubItem )
+            {
+                wxCHECK2( aSubItem, /*void*/ );
+
+                switch( aSubItem->Type() )
+                {
+                case PCB_ZONE_T:
+                {
+                    ZONE& zone = static_cast<ZONE&>( *aSubItem );
+                    usedLayers |= zone.GetLayerSet();
+                    break;
+                }
+                default:
+                {
+                    usedLayers.set( aSubItem->GetLayer() );
+                    break;
+                }
+                }
+            },
+            RECURSE_MODE::RECURSE );
+    return usedLayers;
 }
 
 
@@ -494,8 +655,7 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::Validate()
 
         if( field.GetTextThickness() > maxPenWidth )
         {
-            m_itemsGrid->SetCellValue( i, PFC_THICKNESS,
-                                       m_frame->StringFromValue( maxPenWidth, true ) );
+            m_itemsGrid->SetCellValue( i, PFC_THICKNESS, m_frame->StringFromValue( maxPenWidth, true ) );
 
             m_delayedFocusGrid = m_itemsGrid;
             m_delayedErrorMessage = _( "The text thickness is too large for the text size.\n"
@@ -516,6 +676,27 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::Validate()
             m_frame->SyncLibraryTree( true );
     }
 
+    // See if there is an object in the footprint that uses a layer that is not in that list
+    LSET usedLayers = GetAllUsedFootprintLayers( *m_footprint );
+
+    // Check that the user isn't trying to remove a layer that is used by the footprint
+    usedLayers &= ~getCustomLayersFromControls();
+    usedLayers &= ~LSET::AllTechMask();
+    usedLayers &= ~LSET::UserMask();
+
+    if( usedLayers.any() )
+    {
+        m_delayedErrorMessage =
+                wxString::Format( _( "You are trying to remove layers that are used by the footprint: %s.\n"
+                                     "Please remove the objects that use these layers first." ),
+                                  LAYER_UTILS::AccumulateNames( usedLayers, m_frame->GetBoard() ) );
+        m_delayedFocusGrid = m_customUserLayersGrid;
+        m_delayedFocusColumn = 0;
+        m_delayedFocusRow = 0;
+        m_delayedFocusPage = NOTEBOOK_PAGES::PAGE_LAYERS;
+        return false;
+    }
+
     return true;
 }
 
@@ -524,13 +705,16 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataFromWindow()
 {
     if( !m_itemsGrid->CommitPendingChanges()
             || !m_privateLayersGrid->CommitPendingChanges()
-            || !m_padGroupsGrid->CommitPendingChanges() )
+            || !m_nettieGroupsGrid->CommitPendingChanges()
+            || !m_jumperGroupsGrid->CommitPendingChanges()
+            || !m_customUserLayersGrid->CommitPendingChanges() )
     {
         return false;
     }
 
-    KIGFX::PCB_VIEW* view = m_frame->GetCanvas()->GetView();
-    BOARD_COMMIT     commit( m_frame );
+    KIGFX::PCB_VIEW*    view = m_frame->GetCanvas()->GetView();
+    PCB_SELECTION_TOOL* selectionTool = m_frame->GetToolManager()->GetTool<PCB_SELECTION_TOOL>();
+    BOARD_COMMIT        commit( m_frame );
     commit.Modify( m_footprint );
 
     // Must be done inside the commit to capture the undo state
@@ -544,17 +728,17 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataFromWindow()
     std::set<wxString> files_to_delete;
 
     // Get the new files from the footprint fields
-    for( PCB_FIELD& m_field : *m_fields)
+    for( const PCB_FIELD& field : *m_fields )
     {
-        const wxString& name = m_field.GetText();
-
-        if( name.StartsWith( FILEEXT::KiCadUriPrefix ) )
-            files.insert( name );
+        if( field.GetText().StartsWith( FILEEXT::KiCadUriPrefix ) )
+            files.insert( field.GetText() );
     }
 
     // Find any files referenced in the old fields that are not in the new fields
     for( PCB_FIELD* field : m_footprint->GetFields() )
     {
+        wxCHECK2( field, continue );
+
         if( field->GetText().StartsWith( FILEEXT::KiCadUriPrefix ) )
         {
             if( files.find( field->GetText() ) == files.end() )
@@ -576,32 +760,30 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataFromWindow()
     m_footprint->SetKeywords( m_KeywordCtrl->GetValue() );
 
     // Update fields
+    m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
 
-    std::vector<PCB_FIELD*> items_to_remove;
-    size_t                  i = 0;
-
-    for( PCB_FIELD* field : m_footprint->GetFields() )
+    while( !m_footprint->GetFields().empty() )
     {
-        // copy grid table entries till we run out, then delete any remaining texts
-        if( i < m_fields->size() )
-            *field = m_fields->at( i++ );
-        else
-            items_to_remove.push_back( field );
+        PCB_FIELD* existing = m_footprint->GetFields().front();
+        view->Remove( existing );
+        m_footprint->Remove( existing );
+        delete existing;
     }
 
-    // Remove text items:
-    PCB_SELECTION_TOOL* selTool = m_frame->GetToolManager()->GetTool<PCB_SELECTION_TOOL>();
-
-    for( PCB_TEXT* item : items_to_remove )
+    for( PCB_FIELD& field : *m_fields )
     {
-        selTool->RemoveItemFromSel( item );
-        view->Remove( item );
-        item->DeleteStructure();
-    }
+        PCB_FIELD* newField = field.CloneField();
+        m_footprint->Add( newField );
+        view->Add( newField );
 
-    // if there are still grid table entries, create new fields for them
-    while( i < m_fields->size() )
-        view->Add( m_footprint->AddField( m_fields->at( i++ ) ) );
+        if( newField->IsSelected() )
+        {
+            // The old copy was in the selection list, but this one is not.  Remove the
+            // out-of-sync selection flag so we can re-add the field to the selection.
+            newField->ClearSelected();
+            selectionTool->AddItemToSel( newField, true );
+        }
+    }
 
     LSET privateLayers;
 
@@ -609,6 +791,19 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataFromWindow()
         privateLayers.set( layer );
 
     m_footprint->SetPrivateLayers( privateLayers );
+
+    if( m_cbCustomLayers->GetValue() )
+    {
+        const LSET customLayers = getCustomLayersFromControls();
+
+        m_footprint->SetStackupMode( FOOTPRINT_STACKUP::CUSTOM_LAYERS );
+        m_footprint->SetStackupLayers( std::move( customLayers ) );
+    }
+    else
+    {
+        // Just use the default stackup mode
+        m_footprint->SetStackupMode( FOOTPRINT_STACKUP::EXPAND_INNER_LAYERS );
+    }
 
     int attributes = 0;
 
@@ -628,16 +823,13 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataFromWindow()
     if( m_excludeFromBOM->GetValue() )
         attributes |= FP_EXCLUDE_FROM_BOM;
 
-    if( m_noCourtyards->GetValue() )
-        attributes |= FP_ALLOW_MISSING_COURTYARD;
-
     if( m_cbDNP->GetValue() )
         attributes |= FP_DNP;
 
-    if( m_allowBridges->GetValue() )
-        attributes |= FP_ALLOW_SOLDERMASK_BRIDGES;
-
     m_footprint->SetAttributes( attributes );
+
+    m_footprint->SetAllowMissingCourtyard( m_noCourtyards->GetValue() );
+    m_footprint->SetAllowSolderMaskBridges( m_allowBridges->GetValue() );
 
     // Initialize mask clearances
     if( m_netClearance.IsNull() )
@@ -650,15 +842,8 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataFromWindow()
     else
         m_footprint->SetLocalSolderMaskMargin( m_solderMask.GetValue() );
 
-    if( m_solderPaste.IsNull() )
-        m_footprint->SetLocalSolderPasteMargin( {} );
-    else
-        m_footprint->SetLocalSolderPasteMargin( m_solderPaste.GetValue() );
-
-    if( m_solderPasteRatio.IsNull() )
-        m_footprint->SetLocalSolderPasteMarginRatio( {} );
-    else
-        m_footprint->SetLocalSolderPasteMarginRatio( m_solderPasteRatio.GetDoubleValue() / 100.0 );
+    m_footprint->SetLocalSolderPasteMargin( m_solderPaste.GetOffsetValue() );
+    m_footprint->SetLocalSolderPasteMarginRatio( m_solderPaste.GetRatioValue() );
 
     switch( m_ZoneConnectionChoice->GetSelection() )
     {
@@ -671,13 +856,49 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataFromWindow()
 
     m_footprint->ClearNetTiePadGroups();
 
-    for( int ii = 0; ii < m_padGroupsGrid->GetNumberRows(); ++ii )
+    for( int ii = 0; ii < m_nettieGroupsGrid->GetNumberRows(); ++ii )
     {
-        wxString group = m_padGroupsGrid->GetCellValue( ii, 0 );
+        wxString group = m_nettieGroupsGrid->GetCellValue( ii, 0 );
 
         if( !group.IsEmpty() )
             m_footprint->AddNetTiePadGroup( group );
     }
+
+    m_footprint->SetDuplicatePadNumbersAreJumpers( m_cbDuplicatePadsAreJumpers->GetValue() );
+
+    std::set<wxString> availablePads;
+
+    for( const PAD* pad : m_footprint->Pads() )
+        availablePads.insert( pad->GetNumber() );
+
+    std::vector<std::set<wxString>> newJumpers;
+
+    for( int ii = 0; ii < m_jumperGroupsGrid->GetNumberRows(); ++ii )
+    {
+        wxStringTokenizer tokenizer( m_jumperGroupsGrid->GetCellValue( ii, 0 ), ", \t\r\n", wxTOKEN_STRTOK );
+        std::set<wxString>& group = newJumpers.emplace_back();
+
+        while( tokenizer.HasMoreTokens() )
+        {
+            wxString token = tokenizer.GetNextToken();
+
+            if( token.IsEmpty() )
+                continue;
+
+            if( !availablePads.count( token ) )
+            {
+                wxString msg;
+                msg.Printf( _( "Pad '%s' in jumper pad group %d does not exist in this footprint." ),
+                             token, ii + 1 );
+                DisplayErrorMessage( this, msg );
+                return false;
+            }
+
+            group.insert( token );
+        }
+    }
+
+    m_footprint->JumperPadGroups() = std::move( newJumpers );
 
     // Copy the models from the panel to the footprint
     std::vector<FP_3DMODEL>& panelList = m_3dPanel->GetModelList();
@@ -693,216 +914,186 @@ bool DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::TransferDataFromWindow()
 
 void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnAddField( wxCommandEvent& event )
 {
-    if( !m_itemsGrid->CommitPendingChanges() )
-        return;
+    m_itemsGrid->OnAddRow(
+            [&]() -> std::pair<int, int>
+            {
+                const BOARD_DESIGN_SETTINGS& dsnSettings = m_frame->GetDesignSettings();
 
-    const BOARD_DESIGN_SETTINGS& dsnSettings = m_frame->GetDesignSettings();
+                PCB_FIELD newField( m_footprint, FIELD_T::USER, GetUserFieldName( m_fields->size(), DO_TRANSLATE ) );
 
-    PCB_FIELD newField( m_footprint, m_footprint->GetNextFieldId(),
-                        GetUserFieldName( m_fields->GetNumberRows(), DO_TRANSLATE ) );
+                // Set active layer if legal; otherwise copy layer from previous text item
+                if( LSET::AllTechMask().test( m_frame->GetActiveLayer() ) )
+                    newField.SetLayer( m_frame->GetActiveLayer() );
+                else
+                    newField.SetLayer( m_fields->at( m_fields->size() - 1 ).GetLayer() );
 
-    // Set active layer if legal; otherwise copy layer from previous text item
-    if( LSET::AllTechMask().test( m_frame->GetActiveLayer() ) )
-        newField.SetLayer( m_frame->GetActiveLayer() );
-    else
-        newField.SetLayer( m_fields->at( m_fields->size() - 1 ).GetLayer() );
+                newField.SetTextSize( dsnSettings.GetTextSize( newField.GetLayer() ) );
+                newField.SetTextThickness( dsnSettings.GetTextThickness( newField.GetLayer() ) );
+                newField.SetItalic( dsnSettings.GetTextItalic( newField.GetLayer() ) );
 
-    newField.SetTextSize( dsnSettings.GetTextSize( newField.GetLayer() ) );
-    newField.SetTextThickness( dsnSettings.GetTextThickness( newField.GetLayer() ) );
-    newField.SetItalic( dsnSettings.GetTextItalic( newField.GetLayer() ) );
+                m_fields->push_back( newField );
 
-    m_fields->push_back( newField );
+                // notify the grid
+                wxGridTableMessage msg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, 1 );
+                m_itemsGrid->ProcessTableMessage( msg );
+                OnModify();
 
-    // notify the grid
-    wxGridTableMessage msg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, 1 );
-    m_itemsGrid->ProcessTableMessage( msg );
-
-    m_itemsGrid->SetFocus();
-    m_itemsGrid->MakeCellVisible( (int) m_fields->size() - 1, 0 );
-    m_itemsGrid->SetGridCursor( (int) m_fields->size() - 1, 0 );
-
-    m_itemsGrid->EnableCellEditControl( true );
-    m_itemsGrid->ShowCellEditControl();
-
-    OnModify();
+                return { m_fields->size() - 1, PFC_NAME };
+            } );
 }
 
 
 void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnDeleteField( wxCommandEvent& event )
 {
-    if( !m_itemsGrid->CommitPendingChanges() )
-        return;
+    m_itemsGrid->OnDeleteRows(
+            [&]( int row )
+            {
+                if( row < m_fields->GetMandatoryRowCount() )
+                {
+                    DisplayError( this, wxString::Format( _( "The first %d fields are mandatory." ),
+                                                          m_fields->GetMandatoryRowCount() ) );
+                    return false;
+                }
 
-    wxArrayInt selectedRows = m_itemsGrid->GetSelectedRows();
+                return true;
+            },
+            [&]( int row )
+            {
+                m_fields->erase( m_fields->begin() + row );
 
-    if( selectedRows.empty() && m_itemsGrid->GetGridCursorRow() >= 0 )
-        selectedRows.push_back( m_itemsGrid->GetGridCursorRow() );
-
-    if( selectedRows.empty() )
-        return;
-
-    for( int row : selectedRows )
-    {
-        if( row < m_fields->GetMandatoryRowCount() )
-        {
-            DisplayError( this, wxString::Format( _( "The first %d fields are mandatory." ),
-                                                  m_fields->GetMandatoryRowCount() ) );
-            return;
-        }
-    }
-
-    m_itemsGrid->CommitPendingChanges( true /* quiet mode */ );
-    m_itemsGrid->ClearSelection();
-
-    // Reverse sort so deleting a row doesn't change the indexes of the other rows.
-    selectedRows.Sort( []( int* first, int* second )
-                       {
-                           return *second - *first;
-                       } );
-
-    for( int row : selectedRows )
-    {
-        m_fields->erase( m_fields->begin() + row );
-
-        // notify the grid
-        wxGridTableMessage msg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_DELETED, row, 1 );
-        m_itemsGrid->ProcessTableMessage( msg );
-
-        if( m_itemsGrid->GetNumberRows() > 0 )
-        {
-            m_itemsGrid->MakeCellVisible( std::max( 0, row-1 ), m_itemsGrid->GetGridCursorCol() );
-            m_itemsGrid->SetGridCursor( std::max( 0, row-1 ), m_itemsGrid->GetGridCursorCol() );
-        }
-    }
+                // notify the grid
+                wxGridTableMessage msg( m_fields, wxGRIDTABLE_NOTIFY_ROWS_DELETED, row, 1 );
+                m_itemsGrid->ProcessTableMessage( msg );
+            } );
 
     OnModify();
 }
 
 
-void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnAddLayer( wxCommandEvent& event )
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::onLayerGridRowDelete( WX_GRID& aGrid, LAYERS_GRID_TABLE& aLayerTable,
+                                                                  int aRow )
 {
-    if( !m_privateLayersGrid->CommitPendingChanges() )
-        return;
+    aLayerTable.erase( aLayerTable.begin() + aRow );
 
+    // notify the grid
+    wxGridTableMessage msg( &aLayerTable, wxGRIDTABLE_NOTIFY_ROWS_DELETED, aRow, 1 );
+    aGrid.ProcessTableMessage( msg );
+
+    OnModify();
+}
+
+
+std::pair<int, int> DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::onLayerGridRowAddUserLayer( WX_GRID&           aGrid,
+                                                                                       LAYERS_GRID_TABLE& aGridTable )
+{
     PCB_LAYER_ID nextLayer = User_1;
 
-    while( alg::contains( *m_privateLayers, nextLayer ) && nextLayer < User_45 )
-        nextLayer = ToLAYER_ID( nextLayer + 1 );
+    while( alg::contains( aGridTable, nextLayer ) && nextLayer < User_45 )
+        nextLayer = ToLAYER_ID( nextLayer + 2 );
 
-    m_privateLayers->push_back( nextLayer );
-
-    // notify the grid
-    wxGridTableMessage msg( m_privateLayers, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, 1 );
-    m_privateLayersGrid->ProcessTableMessage( msg );
-
-    m_privateLayersGrid->SetFocus();
-    m_privateLayersGrid->MakeCellVisible( (int) m_privateLayers->size() - 1, 0 );
-    m_privateLayersGrid->SetGridCursor( (int) m_privateLayers->size() - 1, 0 );
-
-    OnModify();
-}
-
-
-void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnDeleteLayer( wxCommandEvent& event )
-{
-    if( !m_privateLayersGrid->CommitPendingChanges() )
-        return;
-
-    int curRow = m_privateLayersGrid->GetGridCursorRow();
-
-    if( curRow < 0 )
-        return;
-
-    m_privateLayers->erase( m_privateLayers->begin() + curRow );
+    aGridTable.push_back( nextLayer );
 
     // notify the grid
-    wxGridTableMessage msg( m_privateLayers, wxGRIDTABLE_NOTIFY_ROWS_DELETED, curRow, 1 );
-    m_privateLayersGrid->ProcessTableMessage( msg );
-
-    if( m_privateLayersGrid->GetNumberRows() > 0 )
-    {
-        m_privateLayersGrid->MakeCellVisible( std::max( 0, curRow-1 ),
-                                              m_privateLayersGrid->GetGridCursorCol() );
-        m_privateLayersGrid->SetGridCursor( std::max( 0, curRow-1 ),
-                                            m_privateLayersGrid->GetGridCursorCol() );
-    }
-
+    wxGridTableMessage msg( &aGridTable, wxGRIDTABLE_NOTIFY_ROWS_APPENDED, 1 );
+    aGrid.ProcessTableMessage( msg );
     OnModify();
+
+    return { aGridTable.size() - 1, -1 };
 }
 
 
-void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnAddPadGroup( wxCommandEvent& event )
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnAddPrivateLayer( wxCommandEvent& event )
 {
-    if( !m_padGroupsGrid->CommitPendingChanges() )
-        return;
-
-    m_padGroupsGrid->AppendRows( 1 );
-
-    m_padGroupsGrid->SetFocus();
-    m_padGroupsGrid->MakeCellVisible( m_padGroupsGrid->GetNumberRows() - 1, 0 );
-    m_padGroupsGrid->SetGridCursor( m_padGroupsGrid->GetNumberRows() - 1, 0 );
-
-    m_padGroupsGrid->EnableCellEditControl( true );
-    m_padGroupsGrid->ShowCellEditControl();
-
-    OnModify();
+    m_privateLayersGrid->OnAddRow(
+            [&]()
+            {
+                return onLayerGridRowAddUserLayer( *m_privateLayersGrid, *m_privateLayers );
+            } );
 }
 
 
-void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnRemovePadGroup( wxCommandEvent& event )
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnDeletePrivateLayer( wxCommandEvent& event )
 {
-    if( !m_padGroupsGrid->CommitPendingChanges() )
-        return;
-
-    wxArrayInt selectedRows = m_padGroupsGrid->GetSelectedRows();
-    int        curRow = m_padGroupsGrid->GetGridCursorRow();
-
-    if( selectedRows.empty() && curRow >= 0 && curRow < m_padGroupsGrid->GetNumberRows() )
-        selectedRows.Add( curRow );
-
-    for( int ii = (int) selectedRows.Count() - 1; ii >= 0; --ii )
-    {
-        int row = selectedRows.Item( ii );
-        m_padGroupsGrid->DeleteRows( row, 1 );
-        curRow = std::min( curRow, row );
-    }
-
-    curRow = std::max( 0, curRow - 1 );
-    m_padGroupsGrid->MakeCellVisible( curRow, m_padGroupsGrid->GetGridCursorCol() );
-    m_padGroupsGrid->SetGridCursor( curRow, m_padGroupsGrid->GetGridCursorCol() );
-
-    OnModify();
+    m_privateLayersGrid->OnDeleteRows(
+            [&]( int row )
+            {
+                onLayerGridRowDelete( *m_privateLayersGrid, *m_privateLayers, row );
+            } );
 }
 
 
-void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::adjustGridColumns()
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnUseCustomLayers( wxCommandEvent& event )
 {
-    // Account for scroll bars
-    int itemsWidth = KIPLATFORM::UI::GetUnobscuredSize( m_itemsGrid ).x;
+    setCustomLayerCtrlEnablement();
+}
 
-    itemsWidth -= m_itemsGrid->GetRowLabelSize();
 
-    for( int i = 0; i < m_itemsGrid->GetNumberCols(); i++ )
-    {
-        if( i == 1 )
-            continue;
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnAddCustomLayer( wxCommandEvent& event )
+{
+    m_customUserLayersGrid->OnAddRow(
+            [&]()
+            {
+                return onLayerGridRowAddUserLayer( *m_customUserLayersGrid, *m_customUserLayers );
+            } );
+}
 
-        itemsWidth -= m_itemsGrid->GetColSize( i );
-    }
 
-    m_itemsGrid->SetColSize(
-            1, std::max( itemsWidth, m_itemsGrid->GetVisibleWidth( 0, true, false ) ) );
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnDeleteCustomLayer( wxCommandEvent& event )
+{
+    m_customUserLayersGrid->OnDeleteRows(
+            [&]( int row )
+            {
+                onLayerGridRowDelete( *m_customUserLayersGrid, *m_customUserLayers, row );
+            } );
+}
 
-    // Update the width private layers grid
-    m_privateLayersGrid->SetColSize( 0, std::max( m_privateLayersGrid->GetClientSize().x,
-                                                  m_privateLayersGrid->GetVisibleWidth( 0 ) ) );
 
-    // Update the width net tie pad groups grid
-    m_padGroupsGrid->SetColSize( 0, std::max( m_padGroupsGrid->GetClientSize().x,
-                                              m_padGroupsGrid->GetVisibleWidth( 0 ) ) );
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnAddNettieGroup( wxCommandEvent& event )
+{
+    onAddGroup( m_nettieGroupsGrid );
+}
 
-    // Update the width of the 3D panel
-    m_3dPanel->AdjustGridColumnWidths();
+
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnRemoveNettieGroup( wxCommandEvent& event )
+{
+    onRemoveGroup( m_nettieGroupsGrid );
+}
+
+
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnAddJumperGroup( wxCommandEvent& event )
+{
+    onAddGroup( m_jumperGroupsGrid );
+}
+
+
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnRemoveJumperGroup( wxCommandEvent& event )
+{
+    onRemoveGroup( m_jumperGroupsGrid );
+}
+
+
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::onAddGroup( WX_GRID* aGrid )
+{
+    aGrid->OnAddRow(
+            [&]() -> std::pair<int, int>
+            {
+                aGrid->AppendRows( 1 );
+                OnModify();
+
+                return { aGrid->GetNumberRows() - 1, 0 };
+            } );
+}
+
+
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::onRemoveGroup( WX_GRID* aGrid )
+{
+    aGrid->OnDeleteRows(
+            [&]( int row )
+            {
+                aGrid->DeleteRows( row, 1 );
+            } );
+
+    OnModify();
 }
 
 
@@ -959,36 +1150,14 @@ void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnUpdateUI( wxUpdateUIEvent& event )
 }
 
 
-void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnGridSize( wxSizeEvent& aEvent )
+void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::setCustomLayerCtrlEnablement()
 {
-    wxSize new_size = aEvent.GetSize();
+    bool enableCustomCtrls = m_cbCustomLayers->GetValue();
 
-    if( ( !m_itemsGrid->IsCellEditControlShown() || m_lastRequestedSize != new_size )
-            && m_gridSize != new_size )
-    {
-        m_gridSize = new_size;
-
-        // A trick to fix a cosmetic issue: when, in m_itemsGrid, a layer selector widget has
-        // the focus (is activated in column 6) when resizing the grid, the widget is not moved.
-        // So just change the widget having the focus in this case
-        if( m_NoteBook->GetSelection() == 0 && !m_itemsGrid->HasFocus() )
-        {
-            int col = m_itemsGrid->GetGridCursorCol();
-
-            if( col == 6 )  // a layer selector widget can be activated
-                 m_itemsGrid->SetFocus();
-        }
-
-        adjustGridColumns();
-    }
-
-    // We store this value to check whether the dialog is changing size.  This might indicate
-    // that the user is scaling the dialog with an editor shown.  Some editors do not close
-    // (at least on GTK) when the user drags a dialog corner
-    m_lastRequestedSize = new_size;
-
-    // Always propagate for a grid repaint (needed if the height changes, as well as width)
-    aEvent.Skip();
+    m_copperLayerCount->Enable( enableCustomCtrls );
+    m_customUserLayersGrid->Enable( enableCustomCtrls );
+    m_bpAddCustomLayer->Enable( enableCustomCtrls );
+    m_bpDeleteCustomLayer->Enable( enableCustomCtrls );
 }
 
 
@@ -998,6 +1167,9 @@ void DIALOG_FOOTPRINT_PROPERTIES_FP_EDITOR::OnPageChanging( wxNotebookEvent& aEv
         aEvent.Veto();
 
     if( !m_privateLayersGrid->CommitPendingChanges() )
+        aEvent.Veto();
+
+    if( !m_customUserLayersGrid->CommitPendingChanges() )
         aEvent.Veto();
 }
 

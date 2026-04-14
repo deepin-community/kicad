@@ -82,6 +82,11 @@ public:
         return wxT( "SCH_SHEET_PIN" );
     }
 
+    wxString GetFriendlyName() const override
+    {
+        return _( "Sheet Pin" );
+    }
+
     bool operator ==( const SCH_SHEET_PIN* aPin ) const;
     bool operator!=( const SCH_SHEET_PIN* aRhs ) const { return !( this == aRhs ); }
 
@@ -105,9 +110,6 @@ public:
      */
     bool IsMovableFromAnchorPoint() const override { return true; }
 
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
-
     /**
      * Calculate the graphic shape (a polygon) associated to the text.
      *
@@ -116,8 +118,6 @@ public:
      */
     void CreateGraphicShape( const RENDER_SETTINGS* aSettings, std::vector<VECTOR2I>& aPoints,
                              const VECTOR2I& aPos ) const override;
-
-    void SwapData( SCH_ITEM* aItem ) override;
 
     int GetPenWidth() const override;
 
@@ -143,7 +143,7 @@ public:
      * Adjust label position to edge based on proximity to vertical or horizontal edge
      * of the parent sheet.
      */
-    void ConstrainOnEdge( VECTOR2I aPos, bool aAllowEdgeSwitch );
+    void ConstrainOnEdge( const VECTOR2I& aPos, bool aAllowEdgeSwitch );
 
     /**
      * Get the parent sheet object of this sheet pin.
@@ -208,6 +208,9 @@ public:
     double Similarity( const SCH_ITEM& aOther ) const override;
 
     bool operator==( const SCH_ITEM& aOther ) const override;
+
+protected:
+    void swapData( SCH_ITEM* aItem ) override;
 
 private:
     int m_number;       ///< Label number use for saving sheet label to file.

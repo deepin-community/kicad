@@ -121,6 +121,7 @@ set( BMAPS_SMALL
     pintype_openemit
     pintype_nic
     pintype_noconnect
+    small_bottom
     small_down
     small_edit
     small_folder
@@ -129,6 +130,7 @@ set( BMAPS_SMALL
     small_plus
     small_refresh
     small_sort_desc
+    small_top
     small_trash
     small_up
     small_warning
@@ -143,6 +145,8 @@ set( BMAPS_SMALL
     text_valign_top
     text_valign_center
     text_valign_bottom
+    text_visibility
+    text_visibility_off
     text_bold
     text_italic
     text_mirrored
@@ -159,6 +163,7 @@ set( BMAPS_MID
     about
     add_aligned_dimension
     add_arc
+    add_barcode
     add_bezier
     add_board
     add_bus2bus
@@ -186,6 +191,7 @@ set( BMAPS_MID
     add_line
     add_orthogonal_dimension
     add_pcb_target
+    add_point
     add_power
     add_radial_dimension
     add_rectangle
@@ -237,6 +243,8 @@ set( BMAPS_MID
     convert
     copy
     copy_pad_settings
+    cursor_fullscreen
+    cursor_fullscreen45
     cursor_shape
     cursor
     custom_pad_to_primitives
@@ -290,6 +298,7 @@ set( BMAPS_MID
     fabrication
     file_bom
     file_cir
+    file_csv
     file_drl
     file_dsn
     file_gbr
@@ -359,6 +368,7 @@ set( BMAPS_MID
     jobset
     jobset_open
     language
+    lasso
     layers_manager
     leave_sheet
     left
@@ -706,6 +716,48 @@ set( BMAPS_256
     tune_diff_pair_skew_legend
     )
 
+# Constraint bitmaps with light/dark theme variants (for DRC rule editor panels)
+# These are in sources/light/constraints/ and sources/dark/constraints/
+set( BMAPS_CONSTRAINTS
+    absolute-length-2
+    allowed-orientation
+    basic-clearance
+    board-outline-clearance
+    clearance
+    courtyard-clearance
+    copper_to_edge_clearance
+    copper-to-hole-clearance
+    creepage-distance
+    hole-size
+    hole-to-hole-clearance
+    hole-to-hole-distance
+    length
+    matched-length-diff-pair
+    matched-length-diff-pair-v2
+    maximum-allowed-deviation
+    maximum-via-count
+    minimum-angular-ring
+    minimum-annular-width
+    minimum-clearance
+    minimum-connection-width
+    silk-to-silk-clearance
+    minimum-soldermask-sliver
+    minimum-text-height-and-thickness
+    minimum_thermal_relief_spoke_count
+    minimum-drill-size
+    minimum-track-width
+    minimum-via-diameter
+    permitted-layers
+    routing-diff-pair
+    routing-width
+    silk_clearance
+    silk-to-soldermask-clearance
+    soldermask-expansion
+    solderpaste-expansion
+    via-style
+    vias-under-smd
+    )
+
 # Images in this section are generated at whatever resolution is set in the source SVG file
 # Use Inkscape Document Properties > Custom Size to set (make sure units are pixels)
 # These are used for images in the UI that are not-square or very large (infographics, etc)
@@ -720,6 +772,7 @@ set( BMAPS_OTHER
     color_code_tolerance
     color_code_value
     color_code_value_and_name
+    coupled_stripline
     creepage_clearance
     cpw
     cpw_back
@@ -788,7 +841,10 @@ function( svg2png inputFile outFile pngWidth pngHeight )
         # COMMAND ${Inkscape_EXECUTABLE} --without-gui --export-area-snap -f ${inputFile} --export-png ${outFile} -w ${pngWidth} -h ${pngHeight} > ${logfile}
 
         # this Inkscape command line is for Inkscape >= 1.0
-        COMMAND ${Inkscape_EXECUTABLE} --export-area-snap --export-type=png ${inputFile}
+        # Clear DBUS_SESSION_BUS_ADDRESS to prevent Gio::DBus::Error crashes
+        # when multiple inkscape instances run in parallel during the build.
+        COMMAND ${CMAKE_COMMAND} -E env DBUS_SESSION_BUS_ADDRESS=
+                ${Inkscape_EXECUTABLE} --export-area-snap --export-type=png ${inputFile}
                 --export-filename ${outFile} ${sizeArgs} > ${logfile}
 
         DEPENDS ${inputFile}
@@ -872,6 +928,64 @@ function( bitmap_dir pngWidth pngHeight bmapList )
 
             set( bitmapInfo
             "    aBitmapInfoCache[BITMAPS::${bmn}].emplace_back( BITMAPS::${bmn}, wxT( \"${pngFile}\" ), ${pngHeight}, wxT( \"${theme}\" ) );\n"
+            )
+
+            set( BITMAP_INFO_LIST "${BITMAP_INFO_LIST}${bitmapInfo}" )
+            list( APPEND ALL_PNGS ${pngPath} )
+        endforeach()
+    endforeach()
+
+    set( ALL_PNGS ${ALL_PNGS} PARENT_SCOPE )
+    set( BITMAP_INFO_LIST ${BITMAP_INFO_LIST} PARENT_SCOPE )
+
+endfunction()
+
+
+# Function bitmap_dir_constraints
+# Like bitmap_dir but looks for SVGs in sources/${theme}/constraints/ subdirectory.
+# Used for DRC rule editor constraint overlay panel images that need light/dark variants.
+# Transforms hyphens to underscores in output names to match BITMAPS enum naming convention.
+function( bitmap_dir_constraints pngWidth pngHeight bmapList )
+
+    set( pngDir "${CMAKE_CURRENT_SOURCE_DIR}/png" )
+
+    file( MAKE_DIRECTORY ${pngDir} )
+    file( MAKE_DIRECTORY ${TMP_DIR} )
+
+    foreach( theme ${THEMES} )
+
+        if( NOT ${theme} STREQUAL "light" )
+            set( themeTag "_${theme}" )
+        else()
+            set( themeTag "" )
+        endif()
+
+        if( ${pngHeight} EQUAL -1 )
+            set( heightTag "" )
+        else()
+            set( heightTag "_${pngHeight}" )
+        endif()
+
+        foreach( bmn ${bmapList} )
+
+            # Transform hyphens to underscores for the output name to match BITMAPS enum
+            string( REPLACE "-" "_" bmnNormalized "${bmn}" )
+
+            set( svgFile "${CMAKE_CURRENT_SOURCE_DIR}/sources/${theme}/constraints/${bmn}.svg" )
+            set( pngFile "constraint_${bmnNormalized}${themeTag}${heightTag}.png" )
+            set( pngPath "${pngDir}/${pngFile}" )
+            set( tmpFile "${TMP_DIR}/${pngFile}" )
+
+            if( NOT EXISTS ${svgFile} )
+                message( "Warning: Source SVG ${svgFile} does not exist!" )
+                continue()
+            endif()
+
+            svg2png( ${svgFile} ${tmpFile} ${pngWidth} ${pngHeight} )
+            png2png( ${tmpFile} ${pngPath} )
+
+            set( bitmapInfo
+            "    aBitmapInfoCache[BITMAPS::constraint_${bmnNormalized}].emplace_back( BITMAPS::constraint_${bmnNormalized}, wxT( \"${pngFile}\" ), ${pngHeight}, wxT( \"${theme}\" ) );\n"
             )
 
             set( BITMAP_INFO_LIST "${BITMAP_INFO_LIST}${bitmapInfo}" )
@@ -1010,6 +1124,9 @@ if( MAINTAIN_PNGS )
     bitmap_dir( 500 220 "${BMAPS_TUNING_SKEW}" )
 
     bitmap_dir( -1 -1 "${BMAPS_OTHER}" )
+
+    # Constraint bitmaps with light/dark theme variants (DRC rule editor panels)
+    bitmap_dir_constraints( -1 -1 "${BMAPS_CONSTRAINTS}" )
 
     configure_file( ${BITMAP_INFO_TEMPLATE} ${BITMAP_INFO_FILE}  NEWLINE_STYLE UNIX )
 

@@ -35,12 +35,13 @@
 #include <action_plugin.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <settings/common_settings.h>
 #include <pcb_marker.h>
 #include <cstdlib>
 #include <drawing_sheet/ds_data_model.h>
 #include <drc/drc_engine.h>
 #include <drc/drc_item.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <core/ignore.h>
 #include <pcb_io/pcb_io_mgr.h>
 #include <string_utils.h>
@@ -48,6 +49,7 @@
 #include <macros.h>
 #include <pcbnew_scripting_helpers.h>
 #include <pgm_base.h>
+#include <settings/common_settings.h>
 #include <project.h>
 #include <project_pcb.h>
 #include <project/net_settings.h>
@@ -56,10 +58,11 @@
 #include <specctra.h>
 #include <project/project_local_settings.h>
 #include <wildcards_and_files_ext.h>
-#include <locale_io.h>
 #include <wx/app.h>
 #include <wx/crt.h>
 #include <wx/image.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 static PCB_EDIT_FRAME* s_PcbEditFrame = nullptr;
 static SETTINGS_MANAGER* s_SettingsManager = nullptr;
@@ -117,7 +120,7 @@ SETTINGS_MANAGER* GetSettingsManager()
         {
             // Ensure wx system settings stuff is available
             ignore_unused( wxTheApp );
-            s_SettingsManager = new SETTINGS_MANAGER( true );
+            s_SettingsManager = new SETTINGS_MANAGER();
         }
     }
 
@@ -127,10 +130,6 @@ SETTINGS_MANAGER* GetSettingsManager()
 
 PROJECT* GetDefaultProject()
 {
-    // For some reasons, LoadProject() needs a C locale, so ensure we have the right locale
-    // This is mainly when running QA Python tests
-    LOCALE_IO dummy;
-
     PROJECT* project = GetSettingsManager()->GetProject( "" );
 
     if( !project )
@@ -160,23 +159,20 @@ BOARD* LoadBoard( const wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, boo
     // By default only the BMP handler is available.
     wxInitAllImageHandlers();
 
+    SETTINGS_MANAGER& settingsManager = PgmOrNull() ? Pgm().GetSettingsManager() : *GetSettingsManager();
 
-    // Ensure the "C" locale is temporary set, before reading any file
-    // It also avoid wxWidget alerts about locale issues, later, when using Python 3
-    LOCALE_IO dummy;
-
-    PROJECT* project = GetSettingsManager()->GetProject( projectPath );
+    PROJECT* project = settingsManager.GetProject( projectPath );
 
     if( !project )
     {
         if( wxFileExists( projectPath ) )
         {
             // cli
-            GetSettingsManager()->LoadProject( projectPath, aSetActive );
-            project = GetSettingsManager()->GetProject( projectPath );
+            settingsManager.LoadProject( projectPath, aSetActive );
+            project = settingsManager.GetProject( projectPath );
         }
     }
-    else if( s_PcbEditFrame && project == &GetSettingsManager()->Prj() )
+    else if( s_PcbEditFrame && project == &settingsManager.Prj() )
     {
         // Project is already loaded?  Then so is the board
         return s_PcbEditFrame->GetBoard();
@@ -227,7 +223,7 @@ BOARD* LoadBoard( const wxString& aFileName, PCB_IO_MGR::PCB_FILE_T aFormat, boo
         layerEnum.Choices().Clear();
         layerEnum.Undefined( UNDEFINED_LAYER );
 
-        for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
+        for( PCB_LAYER_ID layer : LSET::AllLayersMask() )
         {
             // Canonical name
             layerEnum.Map( layer, LSET::Name( layer ) );
@@ -281,10 +277,6 @@ BOARD* NewBoard( wxString& aFileName )
 
     wxString projectPath = proFn.GetFullPath();
 
-    // Ensure the "C" locale is temporary set, before reading any file
-    // It also avoids wxWidgets alerts about locale issues, later, when using Python 3
-    LOCALE_IO dummy;
-
     GetSettingsManager()->LoadProject( projectPath, false );
     PROJECT* project = GetSettingsManager()->GetProject( projectPath );
 
@@ -319,10 +311,6 @@ bool SaveBoard( wxString& aFileName, BOARD* aBoard, PCB_IO_MGR::PCB_FILE_T aForm
     aBoard->BuildConnectivity();
     aBoard->SynchronizeNetsAndNetClasses( false );
 
-    // Ensure the "C" locale is temporary set, before saving any file
-    // It also avoid wxWidget alerts about locale issues, later, when using Python 3
-    LOCALE_IO dummy;
-
     try
     {
         PCB_IO_MGR::Save( aFormat, aFileName, aBoard, nullptr );
@@ -351,7 +339,7 @@ bool SaveBoard( wxString& aFileName, BOARD* aBoard, bool aSkipSettings )
 }
 
 
-FP_LIB_TABLE* GetFootprintLibraryTable()
+FOOTPRINT_LIBRARY_ADAPTER* getFootprintAdapter()
 {
     BOARD* board = GetBoard();
 
@@ -363,7 +351,7 @@ FP_LIB_TABLE* GetFootprintLibraryTable()
     if( !project )
         return nullptr;
 
-    return PROJECT_PCB::PcbFootprintLibs( project );
+    return PROJECT_PCB::FootprintLibAdapter( project );
 }
 
 
@@ -371,12 +359,12 @@ wxArrayString GetFootprintLibraries()
 {
     wxArrayString footprintLibraryNames;
 
-    FP_LIB_TABLE* tbl = GetFootprintLibraryTable();
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = getFootprintAdapter();
 
-    if( !tbl )
+    if( !adapter )
         return footprintLibraryNames;
 
-    for( const wxString& name : tbl->GetLogicalLibs() )
+    for( const wxString& name : adapter->GetLibraryNames() )
         footprintLibraryNames.Add( name );
 
     return footprintLibraryNames;
@@ -387,12 +375,13 @@ wxArrayString GetFootprints( const wxString& aNickName )
 {
     wxArrayString footprintNames;
 
-    FP_LIB_TABLE* tbl = GetFootprintLibraryTable();
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = getFootprintAdapter();
 
-    if( !tbl )
+    if( !adapter )
         return footprintNames;
 
-    tbl->FootprintEnumerate( footprintNames, aNickName, true );
+    std::vector<wxString> names = adapter->GetFootprintNames( aNickName, true );
+    footprintNames.assign( names.begin(), names.end() );
 
     return footprintNames;
 }
@@ -522,7 +511,8 @@ std::deque<BOARD_ITEM*> GetCurrentSelection()
         std::for_each( selection.begin(), selection.end(),
                        [&items]( EDA_ITEM* item )
                        {
-                           items.push_back( static_cast<BOARD_ITEM*>( item ) );
+                           if( item->IsBOARD_ITEM() )
+                               items.push_back( static_cast<BOARD_ITEM*>( item ) );
                        } );
     }
 
@@ -572,12 +562,6 @@ bool WriteDRCReport( BOARD* aBoard, const wxString& aFileName, EDA_UNITS aUnits,
 
     wxCHECK( prj, false );
 
-    // Load the global fp-lib-table otherwise we can't check the libs parity
-    wxFileName  fn_flp = FP_LIB_TABLE::GetGlobalTableFileName();
-
-    if( fn_flp.FileExists() )
-        GFootprintTable.Load( fn_flp.GetFullPath() );
-
     wxString drcRulesPath = prj->AbsolutePath( fn.GetFullName() );
 
     // Rebuild The Instance of ENUM_MAP<PCB_LAYER_ID> (layer names list), because the DRC
@@ -586,7 +570,7 @@ bool WriteDRCReport( BOARD* aBoard, const wxString& aFileName, EDA_UNITS aUnits,
     layerEnum.Choices().Clear();
     layerEnum.Undefined( UNDEFINED_LAYER );
 
-    for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
+    for( PCB_LAYER_ID layer : LSET::AllLayersMask() )
     {
         layerEnum.Map( layer, LSET::Name( layer ) );              // Add Canonical name
         layerEnum.Map( layer, aBoard->GetLayerName( layer ) );    // Add User name
@@ -609,14 +593,15 @@ bool WriteDRCReport( BOARD* aBoard, const wxString& aFileName, EDA_UNITS aUnits,
     engine->SetProgressReporter( nullptr );
 
     engine->SetViolationHandler(
-            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2D aPos, int aLayer,
-                 DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2D& aPos, int aLayer,
+                 const std::function<void( PCB_MARKER* )>& aPathGenerator )
             {
                 if( aItem->GetErrorCode() == DRCE_MISSING_FOOTPRINT
                     || aItem->GetErrorCode() == DRCE_DUPLICATE_FOOTPRINT
                     || aItem->GetErrorCode() == DRCE_EXTRA_FOOTPRINT
                     || aItem->GetErrorCode() == DRCE_NET_CONFLICT
                     || aItem->GetErrorCode() == DRCE_SCHEMATIC_PARITY
+                    || aItem->GetErrorCode() == DRCE_SCHEMATIC_FIELDS_PARITY
                     || aItem->GetErrorCode() == DRCE_FOOTPRINT_FILTERS )
                 {
                     footprints.push_back( aItem );

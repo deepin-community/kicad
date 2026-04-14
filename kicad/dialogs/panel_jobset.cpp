@@ -33,6 +33,7 @@
 #include <widgets/wx_progress_reporters.h>
 #include <kicad_manager_frame.h>
 #include <vector>
+#include <wx/dcclient.h>
 
 #include <wildcards_and_files_ext.h>
 #include <widgets/std_bitmap_button.h>
@@ -40,10 +41,13 @@
 #include <widgets/grid_text_button_helpers.h>
 #include <kiplatform/ui.h>
 #include <confirm.h>
+#include <launch_ext.h>
+#include <wx/filename.h>
 
 #include <jobs/job_special_execute.h>
 #include <jobs/job_special_copyfiles.h>
 #include <dialogs/dialog_executecommand_job_settings.h>
+#include <common.h>
 
 
 extern KICOMMON_API
@@ -53,8 +57,7 @@ std::map<JOBSET_DESTINATION_T, JOBSET_DESTINATION_T_INFO> JobsetDestinationTypeI
 class DIALOG_JOBSET_RUN_LOG : public DIALOG_JOBSET_RUN_LOG_BASE
 {
 public:
-    DIALOG_JOBSET_RUN_LOG( wxWindow* aParent, JOBSET* aJobsFile,
-                           JOBSET_DESTINATION* aDestination ) :
+    DIALOG_JOBSET_RUN_LOG( wxWindow* aParent, JOBSET* aJobsFile, JOBSET_DESTINATION* aDestination ) :
             DIALOG_JOBSET_RUN_LOG_BASE( aParent ),
             m_jobsFile( aJobsFile ),
             m_destination( aDestination ),
@@ -78,7 +81,8 @@ public:
         m_jobList->SetImageList( imageList, wxIMAGE_LIST_SMALL );
 
         int num = 1;
-        for( auto& job : aJobsFile->GetJobsForDestination( aDestination ) )
+
+        for( JOBSET_JOB& job : aJobsFile->GetJobsForDestination( aDestination ) )
         {
             int imageIdx = -1;
 
@@ -147,17 +151,9 @@ public:
             wxString jobId = jobs[itemIndex].m_id;
 
             if( m_destination->m_lastRunReporters.contains( jobId ) )
-            {
-                WX_STRING_REPORTER* reporter =
-                        static_cast<WX_STRING_REPORTER*>( m_destination->m_lastRunReporters[jobId] );
-
-                if( reporter )
-                    m_textCtrlOutput->SetValue( reporter->GetMessages() );
-            }
+                m_textCtrlOutput->SetValue( m_destination->m_lastRunReporters.at( jobId )->GetMessages() );
             else
-            {
                 m_textCtrlOutput->SetValue( _( "No output messages" ) );
-            }
         }
     }
 
@@ -183,6 +179,7 @@ public:
     {
         m_buttonProperties->SetBitmap( KiBitmapBundle( BITMAPS::config ) );
         m_buttonDelete->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
+        m_buttonOpenOutput->SetBitmap( KiBitmapBundle( BITMAPS::small_new_window ) );
 
 #if  _WIN32
         // BORDER_RAISED/SUNKEN look pretty on every platform but Windows
@@ -201,6 +198,8 @@ public:
             m_bitmapOutputType->SetBitmap( KiBitmapBundle( jobTypeInfo.bitmap ) );
         }
 
+        m_pathInfo->SetFont( KIUI::GetSmallInfoFont( this ) );
+        UpdatePathInfo( aDestination->GetPathInfo() );
         UpdateStatus();
     }
 
@@ -215,6 +214,7 @@ public:
         wxCHECK( destination, /*void*/ );
 
         destination->m_lastRunSuccess = std::nullopt;
+        destination->m_lastResolvedOutputPath = std::nullopt;
         m_statusBitmap->SetBitmap( wxNullBitmap );
     }
 
@@ -246,6 +246,14 @@ public:
         m_buttonGenerate->Enable( !m_jobsFile->GetJobsForDestination( destination ).empty() );
     }
 
+    void UpdatePathInfo( const wxString& aMsg )
+    {
+        wxClientDC dc( this );
+        int        width = GetSize().GetWidth();
+
+        m_pathInfo->SetLabel( wxControl::Ellipsize( aMsg, dc, wxELLIPSIZE_MIDDLE, width ) );
+    }
+
     virtual void OnGenerate( wxCommandEvent& event ) override
     {
         ClearStatus();
@@ -260,24 +268,52 @@ public:
                     wxFileName fn = project.GetProjectFullName();
                     wxSetWorkingDirectory( fn.GetPath() );
 
-                    JOBS_RUNNER jobRunner( &( m_frame->Kiway() ), m_jobsFile, &project );
+                    {
+                        JOBS_PROGRESS_REPORTER progressReporter( m_frame, _( "Running Jobs" ) );
+                        JOBS_RUNNER            jobRunner( &m_frame->Kiway(), m_jobsFile, &project,
+                                                          NULL_REPORTER::GetInstance(), &progressReporter );
 
-                    auto* progressReporter = new WX_PROGRESS_REPORTER( m_frame, _( "Running jobs" ),
-                                                                       1 );
+                        if( JOBSET_DESTINATION* destination = GetDestination() )
+                            jobRunner.RunJobsForDestination( destination );
 
-                    if( JOBSET_DESTINATION* destination = GetDestination() )
-                        jobRunner.RunJobsForDestination( destination );
-
-                    UpdateStatus();
-
-                    delete progressReporter;
+                        UpdateStatus();
+                    }
 
                     // Bring the Kicad manager frame back to the front
                     m_frame->Raise();
                 } );
     }
 
-    virtual void OnLastStatusClick( wxMouseEvent& aEvent ) override
+    void OnOpenOutput( wxCommandEvent& aEvent ) override
+    {
+        JOBSET_DESTINATION* destination = GetDestination();
+        wxCHECK( destination, /*void*/ );
+
+        wxString resolvedPath;
+
+        if( destination->m_lastResolvedOutputPath.has_value() )
+        {
+            resolvedPath = destination->m_lastResolvedOutputPath.value();
+        }
+        else
+        {
+            resolvedPath = ExpandTextVars( destination->GetPathInfo(), &m_frame->Prj() );
+            resolvedPath = ExpandEnvVarSubstitutions( resolvedPath, &m_frame->Prj() );
+
+            if( resolvedPath.StartsWith( "~" ) )
+                resolvedPath.Replace( "~", wxGetHomeDir(), false );
+        }
+
+        if( resolvedPath.IsEmpty() )
+            return;
+
+        wxString fullPath = wxFileName( resolvedPath ).GetFullPath();
+
+        if( !LaunchExternal( fullPath ) )
+            DisplayError( this, wxString::Format( _( "Failed to open '%s'." ), fullPath ) );
+    }
+
+    void OnLastStatusClick( wxMouseEvent& aEvent ) override
     {
         JOBSET_DESTINATION* destination = GetDestination();
         wxCHECK( destination, /*void*/ );
@@ -297,8 +333,10 @@ public:
 
         menu.AppendSeparator();
         menu.Append( wxID_VIEW_DETAILS, _( "View Last Run Log..." ) );
+        menu.Append( wxID_OPEN, _( "Open Output" ) );
 
         menu.Enable( wxID_VIEW_DETAILS, destination->m_lastRunSuccess.has_value() );
+        menu.Enable( wxID_OPEN, m_buttonOpenOutput->IsEnabled() );
 
         PopupMenu( &menu );
     }
@@ -313,8 +351,10 @@ public:
         if( dialog.ShowModal() == wxID_OK )
         {
             m_textOutputType->SetLabel( destination->GetDescription() );
+            UpdatePathInfo( destination->GetPathInfo() );
             m_jobsFile->SetDirty();
             m_panelParent->UpdateTitle();
+            ClearStatus();
         }
     }
 
@@ -360,9 +400,15 @@ private:
             }
                 break;
 
-            default:
-                wxFAIL_MSG( wxT( "Unknown ID in context menu event" ) );
-        }
+                case wxID_OPEN:
+                {
+                    wxCommandEvent dummy;
+                    OnOpenOutput( dummy );
+                }
+                break;
+
+                default: wxFAIL_MSG( wxT( "Unknown ID in context menu event" ) );
+                }
     }
 
 private:
@@ -375,7 +421,8 @@ private:
 
 JOBS_GRID_TRICKS::JOBS_GRID_TRICKS( PANEL_JOBSET* aParent, WX_GRID* aGrid ) :
         GRID_TRICKS( aGrid ),
-        m_parent( aParent )
+        m_parent( aParent ),
+        m_doubleClickRow( -1 )
 {
     m_enableSingleClickEdit = false;
     m_multiCellEditEnabled = false;
@@ -389,12 +436,9 @@ void JOBS_GRID_TRICKS::showPopupMenu( wxMenu& menu, wxGridEvent& aEvent )
     menu.Append( JOB_DESCRIPTION, _( "Edit Job Description" ) );
     menu.Append( JOB_PROPERTIES, _( "Edit Job Settings..." ) );
     menu.AppendSeparator();
-    menu.Append( GRIDTRICKS_ID_COPY, _( "Copy" ) + "\tCtrl+C",
-                 _( "Copy selected cells to clipboard" ) );
-    menu.Append( GRIDTRICKS_ID_DELETE, _( "Delete" ) + "\tDel",
-                 _( "Delete selected jobs" ) );
-    menu.Append( GRIDTRICKS_ID_SELECT, _( "Select All" ) + "\tCtrl+A",
-                 _( "Select all jobs" ) );
+    menu.Append( GRIDTRICKS_ID_COPY, _( "Copy" ) + "\tCtrl+C", _( "Copy selected cells to clipboard" ) );
+    menu.Append( GRIDTRICKS_ID_DELETE, _( "Delete" ) + "\tDel", _( "Delete selected jobs" ) );
+    menu.Append( GRIDTRICKS_ID_SELECT, _( "Select All" ) + "\tCtrl+A", _( "Select all jobs" ) );
 
     menu.Enable( JOB_DESCRIPTION, selectedRows.size() == 1 );
     menu.Enable( JOB_PROPERTIES, selectedRows.size() == 1 );
@@ -475,7 +519,6 @@ PANEL_JOBSET::PANEL_JOBSET( wxAuiNotebook* aParent, KICAD_MANAGER_FRAME* aFrame,
 {
     m_jobsGrid->PushEventHandler( new JOBS_GRID_TRICKS( this, m_jobsGrid ) );
 
-    m_jobsGrid->SetDefaultRowSize( m_jobsGrid->GetDefaultRowSize() + 4 );
     m_jobsGrid->OverrideMinSize( 0.6, 0.3 );
     m_jobsGrid->SetSelectionMode( wxGrid::wxGridSelectRows );
 
@@ -518,9 +561,7 @@ void PANEL_JOBSET::RemoveDestination( PANEL_DESTINATION* aPanel )
 
 void PANEL_JOBSET::rebuildJobList()
 {
-    if( m_jobsGrid->GetNumberRows() )
-        m_jobsGrid->DeleteRows( 0, m_jobsGrid->GetNumberRows() );
-
+    m_jobsGrid->ClearRows();
     m_jobsGrid->AppendRows( (int) m_jobsFile->GetJobs().size() );
 
     int num = 1;
@@ -566,7 +607,9 @@ void PANEL_JOBSET::UpdateTitle()
         tabName = wxS( "*" ) + tabName;
 
     int pageIdx = m_parentBook->FindPage( this );
-    m_parentBook->SetPageText( pageIdx, tabName );
+
+    if( pageIdx >= 0 )
+        m_parentBook->SetPageText( pageIdx, tabName );
 }
 
 
@@ -632,13 +675,13 @@ bool PANEL_JOBSET::OpenJobOptionsForListItem( size_t aItemIndex )
 
             DIALOG_EXECUTECOMMAND_JOB_SETTINGS dialog( m_frame, specialJob );
 
-            if( dialog.ShowModal() == wxID_OK )
+            // QuasiModal for Scintilla autocomplete
+            if( dialog.ShowQuasiModal() == wxID_OK )
                 success = true;
         }
         else if( job.m_job->GetType() == "special_copyfiles" )
         {
-            JOB_SPECIAL_COPYFILES* specialJob =
-                    static_cast<JOB_SPECIAL_COPYFILES*>( job.m_job.get() );
+            JOB_SPECIAL_COPYFILES* specialJob = static_cast<JOB_SPECIAL_COPYFILES*>( job.m_job.get() );
             DIALOG_COPYFILES_JOB_SETTINGS dialog( m_frame, specialJob );
 
             if( dialog.ShowModal() == wxID_OK )
@@ -693,6 +736,9 @@ void PANEL_JOBSET::OnAddJobClick( wxCommandEvent& aEvent )
 
     for( const std::pair<const wxString, JOB_REGISTRY_ENTRY>& entry : jobMap )
     {
+        if( entry.second.deprecated )
+            continue;
+
         wxArrayString item;
         item.Add( wxGetTranslation( entry.second.title ) );
         items.emplace_back( item );
@@ -711,6 +757,9 @@ void PANEL_JOBSET::OnAddJobClick( wxCommandEvent& aEvent )
         {
             for( const std::pair<const wxString, JOB_REGISTRY_ENTRY>& entry : jobMap )
             {
+                if( entry.second.deprecated )
+                    continue;
+
                 if( wxGetTranslation( entry.second.title ) == selectedString )
                 {
                     jobKey = entry.first;
@@ -746,32 +795,12 @@ void PANEL_JOBSET::OnAddJobClick( wxCommandEvent& aEvent )
 
 void PANEL_JOBSET::OnJobButtonDelete( wxCommandEvent& aEvent )
 {
-    if( !m_jobsGrid->CommitPendingChanges() )
-        return;
-
-    wxArrayInt selectedRows = m_jobsGrid->GetSelectedRows();
-
-    if( selectedRows.empty() )
-        return;
-
-    m_jobsGrid->CommitPendingChanges( true /* quiet mode */ );
-    m_jobsGrid->ClearSelection();
-
-    // Reverse sort so deleting a row doesn't change the indexes of the other rows.
-    selectedRows.Sort( []( int* first, int* second ) { return *second - *first; } );
-
-    int select = selectedRows[0];
-
-    for( int row : selectedRows )
-        m_jobsFile->RemoveJob( row );
-
-    rebuildJobList();
-
-    if( m_jobsGrid->GetNumberRows() )
-    {
-        m_jobsGrid->MakeCellVisible( std::max( 0, select-1 ), m_jobsGrid->GetGridCursorCol() );
-        m_jobsGrid->SetGridCursor( std::max( 0, select-1 ), m_jobsGrid->GetGridCursorCol() );
-    }
+    m_jobsGrid->OnDeleteRows(
+            [&]( int row )
+            {
+                m_jobsFile->RemoveJob( row );
+                m_jobsGrid->DeleteRows( row, 1 );
+            } );
 }
 
 
@@ -832,7 +861,7 @@ bool PANEL_JOBSET::GetCanClose()
         if( !HandleUnsavedChanges( this, wxString::Format( msg, fileName.GetFullName() ),
                                    [&]() -> bool
                                    {
-                                       return m_jobsFile->SaveToFile(wxEmptyString, true);
+                                       return m_jobsFile->SaveToFile( wxEmptyString, true );
                                    } ) )
         {
             return false;
@@ -967,23 +996,22 @@ void PANEL_JOBSET::OnGenerateAllDestinationsClick( wxCommandEvent& event )
 	CallAfter(
 			[this]()
 			{
-				PROJECT&      project = m_frame->Kiway().Prj();
+				PROJECT& project = m_frame->Kiway().Prj();
 				EnsurePcbSchFramesOpen();
 
 				wxFileName fn = project.GetProjectFullName();
 				wxSetWorkingDirectory( fn.GetPath() );
 
-                JOBS_RUNNER jobRunner( &( m_frame->Kiway() ), m_jobsFile.get(), &project );
+                {
+                    JOBS_PROGRESS_REPORTER progressReporter( m_frame, _( "Running Jobs" ) );
+                    JOBS_RUNNER            jobRunner( &m_frame->Kiway(), m_jobsFile.get(), &project,
+                                                      NULL_REPORTER::GetInstance(), &progressReporter );
 
-				WX_PROGRESS_REPORTER* progressReporter =
-						new WX_PROGRESS_REPORTER( m_frame, _( "Running jobs" ), 1 );
+                    jobRunner.RunJobsAllDestinations();
 
-                jobRunner.RunJobsAllDestinations();
-
-                for( PANEL_DESTINATION* panel : GetDestinationPanels() )
-                    panel->UpdateStatus();
-
-				delete progressReporter;
+                    for( PANEL_DESTINATION* panel : GetDestinationPanels() )
+                        panel->UpdateStatus();
+                }
 
                 // Bring the Kicad manager frame back to the front
                 m_frame->Raise();
@@ -993,9 +1021,8 @@ void PANEL_JOBSET::OnGenerateAllDestinationsClick( wxCommandEvent& event )
 
 void PANEL_JOBSET::OnSizeGrid( wxSizeEvent& aEvent )
 {
-    m_jobsGrid->SetColSize( COL_DESCR, m_jobsGrid->GetSize().x
-                                               - m_jobsGrid->GetColSize( COL_SOURCE )
-                                               - m_jobsGrid->GetColSize( COL_NUMBER ) );
+    m_jobsGrid->SetColSize( COL_DESCR, m_jobsGrid->GetSize().x - m_jobsGrid->GetColSize( COL_SOURCE )
+                                                               - m_jobsGrid->GetColSize( COL_NUMBER ) );
 
     // Always propagate for a grid repaint (needed if the height changes, as well as width)
     aEvent.Skip();

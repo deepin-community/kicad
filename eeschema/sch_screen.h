@@ -54,6 +54,7 @@
 class BUS_ALIAS;
 class EDA_ITEM;
 class LIB_SYMBOL;
+class SCH_COMMIT;
 class SCH_PIN;
 class SCH_SYMBOL;
 class SCH_LINE;
@@ -61,10 +62,12 @@ class SCH_LABEL_BASE;
 class PLOTTER;
 class REPORTER;
 class SCH_IO_ALTIUM;
+class SCH_IO_PADS;
 class SCH_EDIT_FRAME;
 class SCH_SHEET_LIST;
 class SCH_IO_KICAD_SEXPR_PARSER;
 class SCH_IO_KICAD_SEXPR;
+class TEST_SCH_SCREEN_FIXTURE;
 
 enum SCH_LINE_TEST_T
 {
@@ -80,9 +83,16 @@ struct PICKED_SYMBOL
     int    Unit;
     int    Convert;
 
-    std::vector<std::pair<int, wxString>> Fields;
+    bool   KeepSymbol;
+    bool   PlaceAllUnits;
 
-    PICKED_SYMBOL() : Unit( 1 ), Convert( 1 )
+    std::vector<std::pair<FIELD_T, wxString>> Fields;
+
+    PICKED_SYMBOL() :
+            Unit( 1 ),
+            Convert( 1 ),
+            KeepSymbol( false ),
+            PlaceAllUnits( false )
     {
     }
 };
@@ -241,14 +251,6 @@ public:
     void UpdateLocalLibSymbolLinks();
 
     /**
-     * Print all the items in the screen to \a aDC.
-     *
-     * @note This function is useful only for schematic.  The library editor and library viewer
-     *       do not use a draw list and therefore draws nothing.
-     */
-    void Print( const SCH_RENDER_SETTINGS* aSettings );
-
-    /**
      * Plot all the schematic objects to \a aPlotter.
      *
      * @note This function is useful only for schematic. The library editor and library viewer
@@ -257,6 +259,16 @@ public:
      * @param[in] aPlotter The plotter object to plot to.
      */
     void Plot( PLOTTER* aPlotter, const SCH_PLOT_OPTS& aPlotOpts ) const;
+
+    /**
+     * Plot selected schematic objects to \a aPlotter.
+     *
+     * @param[in] aPlotter The plotter object to plot to.
+     * @param[in] aPlotOpts The plot options to use.
+     * @param[in] aItems The items to plot.
+     */
+    void Plot( PLOTTER* aPlotter, const SCH_PLOT_OPTS& aPlotOpts,
+               const std::vector<SCH_ITEM*>& aItems ) const;
 
     /**
      * Remove \a aItem from the schematic associated with this screen.
@@ -298,12 +310,13 @@ public:
                            std::function<void( SCH_ITEM* )>* aChangedHandler = nullptr ) const;
 
     /**
-     * Return all wires and junctions connected to \a aSegment which are not connected any
-     * symbol pin.
+     * Return all wires and junctions connected to \a aItem which are not connected any
+     * symbol pin or all graphical segments lines connected to \a aItem.
      *
-     * @param aSegment The segment to test for connections.
+     * @param aItem The item to test for connections.
+     * @return a set of all #SCH_ITEM objects connected to \a aItem.
      */
-    std::set<SCH_ITEM*> MarkConnections( SCH_LINE* aSegment, bool aSecondPass );
+    std::set<SCH_ITEM*> MarkConnections( SCH_ITEM* aItem, bool aSecondPass );
 
     /**
      * Clear the state flags of all the items in the screen.
@@ -502,25 +515,9 @@ public:
     void FixupEmbeddedData();
 
     /**
-     * Add a bus alias definition (and transfers ownership of the pointer).
+     * Add a bus alias definition.
      */
     void AddBusAlias( std::shared_ptr<BUS_ALIAS> aAlias );
-
-    /**
-     * Remove all bus alias definitions.
-     */
-    void ClearBusAliases()
-    {
-        m_aliases.clear();
-    }
-
-    /**
-     * Return a set of bus aliases defined in this screen.
-     */
-    auto& GetBusAliases() const
-    {
-        return m_aliases;
-    }
 
     const std::vector<SCH_SYMBOL_INSTANCE>& GetSymbolInstances() const
     {
@@ -553,6 +550,14 @@ public:
     bool AllSymbolDefaultInstancesNotSet();
 
     bool HasSymbolFieldNamesWithWhiteSpace() const;
+
+    /**
+     * Check if the schematic file is in the current project path.
+     *
+     * @retval true if the schematic file resides in the current project path or a sub-folder.
+     * @retval false if the schematic file does not reside within the current project path.
+     */
+    bool InProjectPath() const;
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override;
@@ -598,11 +603,48 @@ public:
      */
     std::set<wxString> GetSheetNames() const;
 
+    /**
+     * Check symbols for instance data from other projects.
+     *
+     * @retval true if the schematic contains symbols and/or sheets with instances from a
+     *         project other than the current project.
+     * @retval false if the schematic does not  contain symbols and/or sheets with instances
+     *         from a project other than the current project.
+     */
+    bool HasInstanceDataFromOtherProjects() const;
+
+    /**
+     * Consistency check of internal m_groups structure.
+     *
+     * @param repair if true, modify groups structure until it passes the sanity check.
+     * @return empty string on success.  Or error description if there's a problem.
+     */
+    wxString GroupsSanityCheck( bool repair = false );
+
+    /**
+     * @param repair if true, make one modification to groups structure that brings it
+     *        closer to passing the sanity check.
+     * @return empty string on success.  Or error description if there's a problem.
+     */
+    wxString GroupsSanityCheckInternal( bool repair );
+
+    std::set<wxString> GetVariantNames() const;
+
+    void DeleteVariant( const wxString& aVariantName, SCH_COMMIT* aCommit = nullptr );
+
+    void RenameVariant( const wxString& aOldName, const wxString& aNewName,
+                        SCH_COMMIT* aCommit = nullptr );
+
+    void CopyVariant( const wxString& aSourceVariant, const wxString& aNewVariant,
+                      SCH_COMMIT* aCommit = nullptr );
+
 private:
     friend SCH_EDIT_FRAME;     // Only to populate m_symbolInstances.
     friend SCH_IO_KICAD_SEXPR_PARSER;   // Only to load instance information from schematic file.
     friend SCH_IO_KICAD_SEXPR;   // Only to save the loaded instance information to schematic file.
     friend SCH_IO_ALTIUM;
+    friend SCH_IO_PADS;
+    friend TEST_SCH_SCREEN_FIXTURE;
 
     bool doIsJunction( const VECTOR2I& aPosition, bool aBreakCrossings,
                        bool* aHasExplicitJunctionDot, bool* aHasBusEntry ) const;
@@ -624,20 +666,9 @@ private:
      */
     size_t getLibSymbolNameMatches( const SCH_SYMBOL& aSymbol, std::vector<wxString>& aMatches );
 
-
-    /**
-     * Compare two #BUS_ALIAS objects by name.  For sorting in the set.
-     */
-    struct BusAliasCmp
-    {
-        bool operator()( const std::shared_ptr<BUS_ALIAS>& a,
-                         const std::shared_ptr<BUS_ALIAS>& b ) const
-        {
-            return a->GetName() < b->GetName();
-        }
-    };
-
 public:
+    bool IsZoomInitialized() const { return m_zoomInitialized; }
+
     /**
      * last value for the zoom level, useful in Eeschema when changing the current displayed
      * sheet to reuse the same zoom level when back to the sheet using this screen
@@ -674,9 +705,6 @@ private:
 
     /// Flag to indicate the file associated with this screen has been created.
     bool        m_fileExists;
-
-    /// List of bus aliases stored in this screen.
-    std::set< std::shared_ptr< BUS_ALIAS >, BusAliasCmp > m_aliases;
 
     /// Library symbols required for this schematic.
     std::map<wxString, LIB_SYMBOL*> m_libSymbols;
@@ -847,6 +875,16 @@ public:
                                       const SCH_SHEET_LIST& aValidSheetPaths );
 
     bool HasSymbolFieldNamesWithWhiteSpace() const;
+
+    std::set<wxString> GetVariantNames() const;
+
+    void DeleteVariant( const wxString& aVariantName, SCH_COMMIT* aCommit = nullptr );
+
+    void RenameVariant( const wxString& aOldName, const wxString& aNewName,
+                        SCH_COMMIT* aCommit = nullptr );
+
+    void CopyVariant( const wxString& aSourceVariant, const wxString& aNewVariant,
+                      SCH_COMMIT* aCommit = nullptr );
 
 private:
     void addScreenToList( SCH_SCREEN* aScreen, SCH_SHEET* aSheet );

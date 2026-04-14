@@ -17,13 +17,12 @@ the things that need to happen from POV of Debian.
 Vendored package       License      Debian equivalent      Upstream resource
 ----------------------------------------------------------------------------
 3dxware_sdk            unknwon                None
-argparse               BSL-1.0                None                   https://github.com/p-ranav/argparse
-clipper                BSL-1.0                libpolyclipping-dev    https://sourceforge.net/projects/polyclipping/
+argparse               BSL-1.0                libargparse-dev        https://github.com/p-ranav/argparse
 clipper2               BSL-1.0                None                   http://www.angusj.com/clipper2/Docs/Overview.htm
 compoundfilereader     Expat                  None                   https://github.com/microsoft/compoundfilereader
 delaunator             Expat                  None                   https://github.com/abellgithub/delaunator-cpp
-dynamic_bitset         Expat                  None                   https://github.com/pinam45/dynamic_bitset
 dxflib_qcad            GPL-2.0+               libdxflib-dev          https://www.qcad.org/en/what-is-dxflib
+dynamic_bitset         Expat                  None                   https://github.com/pinam45/dynamic_bitset
 expected               CC0-1.0                None                   https://github.com/TartanLlama/expected
 fmt                    Expat with exception   libfmt-dev             https://fmt.dev/
 glew                   BSD-3-clause           libglew-dev            http://glew.sourceforge.net
@@ -34,9 +33,10 @@ json_schema_validator  Expat                  None                   https://git
 lemon                  public-domain          lemon                  https://www.sqlite.org/
 libcontext             BSL1.0                 None                   Kicad specific modification of the Boost library
 libpopcnt              BSD-2-clause           None                   https://github.com/kimwalisch/libpopcnt
+magic_enum             Expat                  libmagicenum-dev       https://github.com/Neargye/magic_enum
 markdown2html                                 libsoldout-utils ?     http://fossil.instinctive.eu/index.html ?
 nanodbc                Expat                  None                   https://github.com/nanodbc/nanodbc
-nanosvg                Zlib                   None                   https://github.com/memononen/nanosvg
+nanosvg                Zlib                   libnanosvg-dev         https://github.com/memononen/nanosvg
 nlohmann_json          Expat                  nlohmann-json3-dev     https://github.com/nlohmann/json
                        Expat                  None                   https://github.com/nlohmann/fifo_map
 other_math             GPL-2                  None                   ?

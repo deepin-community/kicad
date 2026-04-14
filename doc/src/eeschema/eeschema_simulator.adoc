@@ -3,55 +3,38 @@
 == Simulator ==
 
 KiCad provides an embedded electrical circuit simulator using
-http://ngspice.sourceforge.net[ngspice] as the simulation engine. ngspice is a SPICE simulator derived from the original widely used Berkeley SPICE program.
+http://ngspice.sourceforge.net[ngspice] as the simulation engine. ngspice is a
+SPICE simulator derived from the original widely used Berkeley SPICE program.
+KiCad's simulator can also run simulations using IBIS models of device pins.
 
-When working with the simulator, the `Simulation_SPICE` symbol library, installed with KiCad by default, may be useful. It contains common elements used for simulation such as
-voltage and current sources, DC and AC signal sources, a ground reference, ideal passive circuit elements such as resistors, inductors and capacitors, and numerous other generic semiconductor device models.
+The process of creating and running a simulation in KiCad has two main parts:
 
-While these elements enable a great variety of simulation work, users familiar with SPICE in other environments will be used to incorporating models of commercially-available semiconductors, integrated circuits and other devices as more complex SPICE models. Indeed, semiconductor manufacturers often freely supply these to help users simulate and develop circuits using their parts. Note that while KiCad does not include any commercial SPICE models in its distribution, you are free to use any models you may have, or have used with other circuit simulators, in KiCad's simulator.
+1. Drawing a simulation schematic in KiCad's Schematic Editor. Schematics for
+   simulations are similar to normal schematics (and can even be identical), but
+   they typically include simulation-specific devices, such as sources, and may
+   exclude devices that are irrelevant for simulation, such as connectors.
+   Creating a schematic simulation requires ensuring all symbols in the
+   schematic have appropriate models assigned. Finding or creating simulation
+   models, and then validating them, can be a significant portion of the
+   process. KiCad includes some simple simulation models for basic devices such
+   as sources, passive devices, and generic semiconductor devices, but beyond
+   those you will need to find or create your own models.
+2. Running the simulation using the simulator tool. This includes choosing the
+   type of analysis (transient, AC, etc.) and configuring its options. Multiple
+   different analyses can be performed. The simulator provides a plot window to
+   view and analyze simulation results.
+
+When drawing schematics for simulation, the `Simulation_SPICE` symbol library,
+installed with KiCad by default, may be useful. It contains common elements used
+for simulation such as voltage and current sources, generic semiconductor
+symbols, and other simulation-specific devices. The symbols in this library are
+described in detail <<sim-default-library-symbols,below>>.
+
+While these elements enable a great variety of simulation work, users familiar with SPICE in other environments will be used to incorporating models of commercially-available semiconductors, integrated circuits, and other devices as more complex SPICE models. Indeed, semiconductor manufacturers often freely supply these to help users simulate and develop circuits using their parts. Note that while KiCad does not include any commercial SPICE models in its distribution, you are free to use any models you may have, or have used with other circuit simulators, in KiCad's simulator.
 
 In general, if a model works with other SPICE simulators, it should work with the KiCad simulator, although some SPICE simulators implement extensions that are unsupported by ngspice. ngspice offers several compatibility modes to improve compatibility with other simulators.
 
 Finally, to quickly showcase the capabilities of the KiCad simulator, some demonstration projects are included in the KiCad distribution. They can be found in the `demos/simulation` directory.
-
-=== Value notation
-The simulator supports several notations for writing numerical values:
-
-* Plain notation : `10100`, `0.003`,
-* Scientific notation: `1.01e4`, `3e-3`,
-* Prefix notation: `10.1k`, `3m`.
-* RKM notation: `4k7`, `10R`.
-
-You can mix prefix and scientific notations. As such, `3e-4k` is a
-valid input and is equivalent to `0.3`. The list of valid prefixes is shown
-below. They are case sensitive.
-
-[width="50%",cols="1,1,1",]
-|====
-| Prefix | Name | Multiplier
-
-| a | atto | 10^-18^ 
-| f | femto | 10^-15^ 
-| p | pico | 10^-12^ 
-| n | nano | 10^-9^ 
-| u | micro | 10^-6^ 
-| m | milli | 10^-3^ 
-| k | kilo | 10^3^ 
-| M | mega | 10^6^ 
-| G | giga | 10^9^ 
-| T | tera | 10^12^ 
-| P | peta | 10^15^ 
-| E | exa | 10^15^ 
-|====
-
-[NOTE]
-<<sim-builtin,Raw SPICE Element>> models and <<sim-directives,directives>> are
-passed to ngspice directly, without KiCad reformatting the values for ngspice to
-consume. Ngspice uses a different, case-insensitive notation: 1 mega (10^6^) is
-denoted there as `1Meg`, while `1M` is 1 milli (10^-3^). Depending on the
-compatibility mode selected, ngspice may not support the same value notations as
-KiCad, so care should be taken when using raw SPICE elements and simulation
-directives.
 
 [[simulation-model-editor]]
 === Assigning models
@@ -153,10 +136,24 @@ passive models (R, L, C) and DC sources. If the field `Sim.Params` exists in the
 symbol, it will take priority over the `Value` field.
 
 [[sim-library]]
-==== Library models
+==== External models
 
-KiCad can also load SPICE models from external files, and this is typically how you will add a SPICE model of a specific commercially-available part (say, a 555 timer, or a TL071 operational amplifier, for example) to your simulation. These models must be in a standard SPICE format and must not be encrypted. Models such as these are readily available from numerous sources - manufacturer's web-sites being just one example.
+KiCad can also load SPICE models from external files. This is typically how you
+will add a SPICE model of a specific commercially-available part (for example, a
+555 timer or a TL071 operational amplifier) to your simulation. Models such as
+these are readily available from numerous sources, including manufacturers' web
+sites. These models must be in a standard SPICE format and must not be
+encrypted.
 
+An external model can be one of the following types:
+
+- A device model (`.model`). This is an intrinsic device (a passive, diode,
+  transistor, etc.) with a set of parameter values defining its behavior. The parameters for a device model are editable in the Simulation Model Editor GUI.
+- A subcircuit model (`.subckt`). This is a model that uses a collection of
+  other ngspice circuit elements to define its behavior. If a subcircuit model
+  contains parameters (in a `params:` sequence in its definition), the
+  parameters are editable in the Simulation Model Editor GUI.
+  
 To load a model from an external file, open the Simulation Model Editor dialog
 (**Symbol Properties** -> **Simulation Model...**) and select
 **SPICE model from file**.
@@ -172,8 +169,10 @@ The library filename is saved in the symbol's `Sim.Library` field.
 
 **Model** is the name of the desired model in the model file. A model file may contain multiple models, and if so they will all be shown in the list. You can filter the list of models using the search box. The selected model is listed in the symbol's `Sim.Name` field.
 
-Parameters can be overridden (or additional parameters specified) using
-the **Parameters** tab. All parameters specified in the selected model or the
+Parameters can be overridden (or additional parameters specified) using the
+**Parameters** tab. For device models, all parameters for that type of device
+are editable. For subcircuit models, any parameters included in the subcircuit
+definition are editable. Any parameters that are overridden in the
 **Parameters** tab are stored in the symbol's `Sim.Params` field.
 
 The **Code** tab displays the generated SPICE model as it will be written to the
@@ -183,7 +182,7 @@ SPICE netlist for simulation.
 KiCad is not distributed with SPICE models for specific commercial devices. These models are usually available from device manufacturers or other internet sources.
 
 [[ibis-library]]
-==== Library models (IBIS)
+==== IBIS models
 
 IBIS (I/O Buffer Information Specification) files are an alternative to SPICE
 models for modeling the behavior of input/output buffers on digital parts. In
@@ -255,6 +254,48 @@ The left column displays the name and number of each symbol pin, i.e. the pin nu
 When you use a subcircuit model, the dialog displays the model's code under the
 pin assignments for use as a reference while assigning pins. A well-written model will often include a helpful reference section (as a set of comments) to inform the user how the model pins are mapped.
 
+=== Value notation
+
+The simulator supports several notations for writing numerical values in
+simulation model parameters, simulation analysis setup options, and SPICE
+directives:
+
+* Plain notation : `10100`, `0.003`,
+* Scientific notation: `1.01e4`, `3e-3`,
+* Prefix notation: `10.1k`, `3m`.
+* RKM notation: `4k7`, `10R`.
+
+You can mix prefix and scientific notations. As such, `3e-4k` is a
+valid input and is equivalent to `0.3`. The list of valid prefixes is shown
+below. They are case sensitive.
+
+[width="50%",cols="1,1,1",]
+|====
+| Prefix | Name | Multiplier
+
+| a | atto | 10^-18^
+| f | femto | 10^-15^
+| p | pico | 10^-12^
+| n | nano | 10^-9^
+| u | micro | 10^-6^
+| m | milli | 10^-3^
+| k | kilo | 10^3^
+| M | mega | 10^6^
+| G | giga | 10^9^
+| T | tera | 10^12^
+| P | peta | 10^15^
+| E | exa | 10^15^
+|====
+
+[NOTE]
+<<sim-builtin,Raw SPICE Element>> models and <<sim-directives,directives>> are
+passed to ngspice directly, without KiCad reformatting the values for ngspice to
+consume. ngspice uses a different, case-insensitive notation: 1 mega (10^6^) is
+denoted there as `1Meg`, while `1M` is 1 milli (10^-3^). Depending on the
+compatibility mode selected, ngspice may not support the same value notations as
+KiCad, so care should be taken when using raw SPICE elements and simulation
+directives.
+
 [[sim-directives]]
 === SPICE directives
 
@@ -267,9 +308,9 @@ simulation type. The list of supported directives in text fields is:
 
 It is not possible to place additional components using text fields.
 
-If a simulation command is included in schematic text, the simulator will use
-it as the simulation command when you open the simulator. However, you can
-override it in the Simulation Command dialog.
+If a simulation command is included in schematic text, the simulator will use it as the simulation command when you open the simulator.
+However, you can override it by choosing a different simulation type in the Simulation Command dialog.
+You can also specify simulation commands with raw SPICE commands by using the <<sim-custom,Custom analysis type>>.
 
 Refer to the https://ngspice.sourceforge.io/docs.html[ngspice documentation] for
 more details about SPICE directives.
@@ -278,70 +319,132 @@ more details about SPICE directives.
 
 Circuits for simulation are drawn in the Schematic Editor, but simulations are run in the Simulator window.
 
-==== User Interface
+After creating a schematic for simulation, the following steps are needed to run
+a simulation:
 
-To run a simulation, open the SPICE simulator dialog by clicking 
-**Inspect** -> **Simulator** in the schematics editor window or using the
-image:images/icons/simulator_24.png[simulator icon] button in the top toolbar.
+1. Open the simulator window by clicking **Inspect** -> **Simulator** in the
+   Schematic Editor or using the
+   image:images/icons/simulator_24.png[simulator icon] button in the top toolbar.
+2. Create at least one analysis by clicking **Simulation** ->
+   **New Analysis Tab...** (kbd:[Ctrl+N]) or using the
+   image:images/icons/sim_add_plot_24.png[] button. This lets you choose a type
+   of simulation and configure its options. These options are explained
+   <<simulation-types,below>>. Each analysis has its own tab, and multiple
+   analyses can be created. The options for an analysis can be adjusted after
+   it is created with **Simulation** -> **Edit Analysis Tab...** or by clicking
+   on the image:images/icons/sim_command_24.png[] button.
+3. Run the simulation by clicking **Simulation** -> **Run Simulation** (kbd:[R])
+   or by clicking the image:images/icons/sim_run_24.png[] button. This only runs
+   the simulation in the active analysis tab. You can stop a running simulation
+   at its current point by clicking the image:images/icons/sim_stop_24.png[]
+   button.
+4. Examine the <<sim-results,simulation results>>. Most analyses result in
+   plots; for these you will need to select the signals to be plotted. Other
+   analyses print their results in the output log window.
+
+NOTE: Once a simulation has been set up, the configuration can be saved in a
+      <<sim-workbooks,workbook>>.
+
+==== Simulator window
 
 image::images/sim_main_dialog.png[alt="Main simulation dialog"]
 
-The dialog is divided into several sections:
+The simulator window is divided into several sections:
 
 * The top of the window has a toolbar with buttons for commonly used actions.
 
-* The main part of the window graphically shows the simulation results. Signals
-  need to be selected from the list of available signals or probed before they are displayed in the plot.
+* The main part of the window graphically shows the simulation results. The
+  simulation needs to run and signals need to be selected from the list of
+  available signals or probed before they are displayed in the plot.
 
-* Below the plot panel, the output console shows logs from the ngspice simulation
-  engine.
+* Below the plot panel, the output log window shows logs from the ngspice simulation
+  engine. Some types of analyses print their results here.
 
-* The right side of the window displays a list of signals, a list of
-  active cursors, measurements, and a tuning tool for adjusting component values based on
-  simulation results.
+* The right side of the window displays a list of signals, a list of active
+  cursors, measurements, and a tuning tool for adjusting component values based
+  on simulation results.
 
-==== Workbooks
+[[simulation-types]]
+==== Simulation types
 
-Workbooks are files that store information about the simulation environment,
-including simulation setup parameters and the list of signals available for use.
-They can be used to store the setup for a set of analyses, which can then be
-reloaded and rerun at a later time. A workbook can include more than one simulation - for example, it may contain separate tabs for Transient (TRAN), Operating Point (OP), and Small Signal AC (AC) analyses which you added as you worked.
+Each simulation is a specific type of analysis. The following analysis types are
+available:
 
-You can save a workbook using **File** -> **Save Workbook** and load one using 
-**File** -> **Open Workbook**.
+* <<sim-op,**OP** -- DC Operating Point>>
+* <<sim-dc,**DC** -- DC Sweep Analysis>>
+* <<sim-ac,**AC** -- AC Small-signal Analysis>>
+* <<sim-tran,**TRAN** -- Transient Analysis>>
+* <<sim-pz,**PZ** -- Pole-zero Analysis>>
+* <<sim-noise,**NOISE** -- Noise Analysis>>
+* <<sim-sp,**SP** -- S-parameter Analysis>>
+* <<sim-fft,**FFT** -- Frequency-content Analysis>>
+* <<sim-custom,**Custom** -- Custom SPICE Analysis (raw SPICE command)>>
 
-NOTE: Workbooks store simulation setup information, but they do not store
-      simulation results. You can export simulation results to PNG (graphics) or
-      CSV (simulation data values) with **File** -> **Export Current Plot as PNG...** and
-      **File** -> **Export Current Plot as CSV...**. To recreate the results of simulations stored in a workbook, select the appropriate analysis tab in the Simulator window and run the simulation again (kbd:[R] or **Simulation** -> **Run Simulation**).
+Each analysis type and its options are explained below. You can configure an
+analysis when you create it (image:images/icons/sim_add_plot_24.png[] button) or
+by editing an existing analysis (image:images/icons/sim_command_24.png[]
+button). These analysis types are explained in more detail in the
+https://ngspice.sourceforge.io/docs.html[ngspice documentation].
 
-==== Running a Simulation
+NOTE: Another way to configure a simulation is to type
+      <<sim-directives,SPICE directives>> into text fields on schematics. Any
+      text field directives related to a simulation command are overridden by
+      the settings selected in the dialog. This means that once a simulation has
+      run, the dialog overrides the schematic directives until the simulator is
+      reopened.
 
-Before running a simulation, you need to select a simulation type and set the
-simulation parameters. This can be done using **Simulation** -> **Settings...**
-or the **Sim Command** button (image:images/icons/config_24.png[]) and then
-selecting one of the available analysis types:
+[[sim-op]]
+===== Operating point analysis (OP)
 
-* **OP** -- DC Operating Point
-* **DC** -- DC Sweep Analysis
-* **AC** -- AC Small-signal Analysis
-* **TRAN** -- Transient Analysis
-* **PZ** -- Pole-zero Analysis
-* **NOISE** -- Noise Analysis
-* **SP** -- S-parameter Analysis
-* **FFT** -- (Fourier Transform) Frequency-content Analysis
+image::images/sim_analysis_op.png[alt="OP analysis window", scaledwidth="80%"]
 
-These analysis types are explained in detail in the https://ngspice.sourceforge.io/docs.html[ngspice documentation].
+Calculates the DC operating point of the circuit. This analysis has no options.
 
-Another way to configure a simulation is to type <<sim-directives,SPICE directives>> into text fields on schematics. Any text field directives related to a simulation command are overridden by the settings selected in the dialog. This means that once a simulation has run, the dialog
-overrides the schematic directives until the simulator is reopened.
+Operating point analyses do not have any plotted results. Results are printed in
+the output log window. You can also display the node voltages and device
+currents calculated by this analysis as
+<<sim-operating-point-annotations,annotations>> in the schematic.
 
-Once the simulation command is set, a simulation can be started with
-**Simulation** -> **Start Simulation** (kbd:[Ctrl+R]) or the
-**Run/Stop Simulation** button
-(image:images/icons/sim_run_24.png[run simulation icon]).
+[[sim-dc]]
+===== DC sweep analysis (DC)
 
-===== AC analysis
+image::images/sim_analysis_dc.png[alt="DC analysis window", scaledwidth="80%"]
+
+Calculates the DC behavior of the circuit while sweeping one or two parameters.
+The following parameters can be swept:
+
+- value of an independent voltage source
+- value of an independent current source
+- value of a resistor
+- simulation temperature
+
+DC analyses have the following options, which are listed here with the
+corresponding ngspice parameter name:
+
+* **Sweep type**: the type of variable to sweep. This can be a voltage source, a
+  current source, a resistor, or the simulation temperature.
+* **Source**: the particular voltage source, current source, or resistor to
+  sweep (`srcnam`). The list is populated with each item in the schematic of the
+  relevant type. It is disabled for temperature sweeps.
+* **Starting value**: the starting value for the sweep (`vstart`).
+* **Final value**: the ending value for the sweep (`vstop`).
+* **Increment step**: the amount to increase the value at each step of the sweep
+  (`vincr`). Smaller increments result in more output points.
+
+If **Source 2** is enabled, the same options are available to simultaneously sweep a second source.
+When sweeping two sources, Source 1 is swept over its entire range for each value of Source 2.
+In other words, each value for Source 2 results in a separate curve,
+and each curve shows a full sweep of Source 1 with Source 2 held constant at a particular value.
+
+Clicking the **Swap sources** buttons swaps Source 1 with Source 2.
+
+The output is displayed as a plot.
+
+TIP: The <<sim-tuning,tuning tool>> is another way to see how component values affect circuit behavior.
+     Unlike DC sweeps, the tuning tool can be used with other types of simulations, like transient or AC analyses.
+
+[[sim-ac]]
+===== AC small-signal analysis (AC)
 
 image::images/sim_analysis_ac.png[alt="AC analysis window", scaledwidth="80%"]
 
@@ -351,137 +454,476 @@ stimulus. Performs a decade sweep of stimulus frequency.
 To run an AC analysis you must choose a number of points to measure per decade
 and the start and end frequencies for the decade sweep.
 
+AC analyses have the following options, which are listed here with the
+corresponding ngspice parameter name:
+
+* **Number of points per decade**: the number of points to calculate per decade
+  (`nd`).
+* **Start frequency**: the lower bound of the frequency range to analyze
+  (`fstart`).
+* **Stop frequency**: the upper bound of the frequency range to analyze
+  (`fstop`).
+
 The output is displayed as a Bode plot (output magnitude and phase vs. frequency).
 
-===== DC transfer analysis
-
-image::images/sim_analysis_dc.png[alt="DC analysis window", scaledwidth="80%"]
-
-Calculates the DC behavior of the circuit while sweeping one or two parameters: source values
-(voltage or current), resistor values, or the simulation temperature.
-
-To run a DC analysis, you must choose what type of sweep(s) to perform, which
-source(s), resistor(s), or temperature value(s) to sweep, and what the sweep range(s)
-and step(s) should be.
-
-The output is displayed as a plot.
-
-===== Operating point analysis
-
-Calculates the DC operating point of the circuit. This analysis has no options,
-and results are printed to the SPICE log and also displayed as labels giving the nodal voltages and currents at the operating point, added to the circuit schematic.
-
-===== Transient analysis
+[[sim-tran]]
+===== Transient analysis (TRAN)
 
 image::images/sim_analysis_tran.png[alt="Transient analysis window", scaledwidth="80%"]
 
 Calculates the time-varying behavior of the circuit.
 
-To run a transient analysis, you need to specify a suggested time step and a
-final simulation time. You can optionally specify a starting time to override
-the default of 0.
+Transient analyses have the following options, which are listed here with the
+corresponding ngspice parameter name:
+
+* **Time step**: a suggested time step (`tstep`).
+* **Final time**: the time at which the simulation will end (`tstop`).
+* **Initial time**: the time at which the simulation will start (`tstart`). If
+  not specified, this defaults to 0.
+* **Max time step**: the maximum time step (`tmax`). If not specified, this
+  defaults to the suggested time step or the total simulation duration divided
+  by 50, whichever is smaller.
+* **Use initial conditions**: if enabled, the simulator will not calculate the
+  quiescent operating point before starting the transient simulation. Instead,
+  the simulation will use the initial conditions specified in a `.ic` directive
+  and element `IC` parameters. This corresponds to ngspice's `uic` option.
 
 The output is displayed as a plot.
 
+[[sim-pz]]
+===== Pole-zero analysis (PZ)
+
+image::images/sim_analysis_pz.png[alt="Transient analysis window", scaledwidth="80%"]
+
+Calculates the poles and zeroes of the small-signal (AC) transfer function of
+the circuit.
+
+Pole-zero analyses have the following options, which are listed here with the
+corresponding ngspice parameter name:
+
+* **Transfer function**: selects between calculating the transfer function as
+  output voltage divided by input voltage or output voltage divided by input
+  current. These correspond to ngspice's `vol` and `cur` options, respectively.
+* **Input**: the input node (`node1`) and the reference node for the input
+  (`node2`).
+* **Output**: the output node (`node3`) and the reference node for the output
+  (`node4`).
+* **Find**: selects between calculating poles and zeroes, only poles, or only
+  zeroes. These correspond to ngspice's `pz`, `pol`, and `zer` options,
+  respectively.
+
+Operating point analyses do not have any plotted results. Results are printed in
+the output log window.
+
+[[sim-noise]]
+===== Noise analysis (NOISE)
+
+image::images/sim_analysis_noise.png[alt="Noise analysis window", scaledwidth="80%"]
+
+Calculates the noise generated by the devices in the circuit, both as output
+noise and input-referred noise. The noise spectrum (V/&radic;Hz or A/&radic;Hz)
+of the circuit can be plotted, and the total noise over the specified frequency
+range is reported. Optionally, the noise contributions of each device are
+reported individually.
+
+Noise analyses have the following options, which are listed here with the
+corresponding ngspice parameter name:
+
+* **Measured node**: the node at which output noise is measured (`output`).
+* **Reference node**: the reference node for measuring the output noise (`ref`).
+  The output noise is calculated as the noise at the measured node minus the
+  noise at the reference node. If it is not specified, the default is the ground
+  node.
+* **Noise source**: a source that is considered the circuit's input for the
+  purposes of calculating input-referred noise (`src`). The source must specify
+  an AC magnitude, i.e. the source must have an `ac` parameter.
+* **Number of points per decade**: the number of points to calculate per decade
+  (`pts`).
+* **Start frequency**: the lower bound of the frequency range to analyze
+  (`fstart`).
+* **Stop frequency**: the upper bound of the frequency range to analyze
+  (`fstop`).
+* **Save contributions from all noise generators**: if enabled, noise magnitudes
+  of individual noise generators are saved and reported. If disabled, only the
+  overall output and input-referred noise over the specified frequency range are
+  reported.
+
+The output and input-referred noise spectra can be plotted. Total noise values
+for the specified frequency range are printed in the output log window.
+
+[[sim-sp]]
+===== S-parameter analysis (SP)
+
+image::images/sim_analysis_sp.png[alt="S-parameter analysis window", scaledwidth="80%"]
+
+Calculates the scattering parameters, admittance matrix, and impedance matrix
+for the circuit. Optionally calculates the noise current correlation matrix.
+Note that this analysis requires at least two voltage sources configured as RF
+ports as described in the ngspice manual.
+
+S-parameter analyses have the following options, which are listed here with the
+corresponding ngspice parameter name:
+
+* **Number of points per decade**: the number of points to calculate per decade
+  (`nd`).
+* **Start frequency**: the lower bound of the frequency range to analyze
+  (`fstart`).
+* **Stop frequency**: the upper bound of the frequency range to analyze
+  (`fstop`).
+* **Compute noise current correlation matrix**: if enabled, the noise current
+  correlation matrix is also calculated. This corresponds to ngspice's `donoise`
+  option.
+
+The output is displayed as a plot.
+
+[[sim-fft]]
+===== Frequency content analysis (FFT)
+
+image::images/sim_analysis_fft.png[alt="FFT analysis window", scaledwidth="80%"]
+
+Calculates an FFT based on an existing analysis tab. Any of the signals from an
+existing analysis can be used as inputs to the FFT. The signals are windowed
+using a Hanning window.
+
+FFT analyses have the following options, which are listed here with the
+corresponding ngspice parameter name:
+
+* **Input signals**: the signal(s) to perform an FFT on. An FFT is independently
+  applied to each selected signal.
+* **Linearize inputs before performing FFT**: When enabled, the input vector is
+  converted to have equidistant time points prior to performing the FFT.
+  Corresponds to ngspice's `linearize` command.
+
+The output is displayed as a plot.
+
+[[sim-custom]]
 ===== Custom analysis
 
 image::images/sim_analysis_custom.png[alt="Custom analysis window", scaledwidth="80%"]
 
-A custom analysis lets you write SPICE commands to set up the analysis. Press
-the **Load directives from schematic** button to copy any SPICE directives in
-schematic text into the custom analysis textbox.
+Performs a SPICE analysis defined by raw SPICE analysis commands
+(`.tran`, `.ac`, `.dc`, `.noise`, etc.).
+For details on such analysis commands and their syntax, refer to the
+https://ngspice.sourceforge.io/docs.html[ngspice documentation].
 
-Refer to the https://ngspice.sourceforge.io/docs.html[ngspice documentation] for
-more information about analysis commands.
+The analysis commands given on each line of the **SPICE directives** textbox are run as separate analyses.
+If you click the **Load Directives from Schematic** button,
+any <<sim-directives,SPICE directives>> in schematic text are copied into the textbox.
 
 ===== Additional simulation settings
 
 There are several simulation options that apply to all types of simulations.
+These are located at the bottom of the dialog.
 
-**Add full path for .include library directives** controls whether to convert
-relative paths to absolute in `.include` directives in schematic text.
+* **Add full path for .include library directives**: if enabled, relative paths
+  to SPICE models will be converted to absolute paths in the SPICE netlist.
 
-**Save all voltages** and **Save all currents** controls whether the simulator
-saves voltages and currents, respectively, for internal nodes of devices. When
-unchecked, the simulator only saves voltages and currents for external nodes.
+* **Save all voltages**: if enabled, the simulator will save voltages for each
+  node in the simulation results so that they can be plotted. This corresponds
+  to ngspice's `.save all` command in the SPICE netlist. If disabled, voltages
+  will not be saved in the results, and therefore cannot be plotted, unless a
+  SPICE directive is used to manually probe a node voltage.
 
-The **Compatibility mode** dropdown selects the compatibility mode that the
-simulator uses to load models. The **User configuration** option refers to the
-user's `.spiceinit` ngspice configuration file. Compatibility modes are
-described in the https://ngspice.sourceforge.io/docs.html[ngspice documentation].
+* **Save all currents**: if enabled, the simulator will save currents through
+  each device pin in the simulation results so that they can be plotted. This
+  corresponds to ngspice's `.probe alli` command in the SPICE netlist. If
+  disabled, currents will not be saved in the results, and therefore cannot be
+  plotted, unless a SPICE directive is used to manually probe a current.
 
-==== Probing signals
+* **Save all power dissipations**: if enabled, the simulator will save power
+  dissipations for each device in the simulation results so that they can be
+  plotted. This corresponds to ngspice's `.probe P(<device>)` command in the
+  SPICE netlist for each device in the schematic. If disabled, power
+  dissipations will not be saved in the results, and therefore cannot be
+  plotted, unless a SPICE directive is used to manually probe a power
+  dissipation.
 
-===== Using the signal list
+* **Save all digital event data**: if enabled, the simulator will save digital
+  event data for digital (event-driven) simulation models. This corresponds to
+  ngspice's `.esave all` command. If disabled, digital event data will be
+  discarded.
 
-You can display a list of available signals with **Simulation** ->
-**Add signals** (kbd:[Ctrl+A] hotkey or 
-image:images/icons/sim_add_signal_24.png[add signal icon] button). Double
-clicking an element in the list will add it to list of probed signals. Several
-signals can be selected at once using the kbd:[Ctrl] / kbd:[Shift] keys.
+* The **Compatibility mode** dropdown selects the compatibility mode that the
+  simulator uses to load models. The **User configuration** option refers to the
+  user's `.spiceinit` ngspice configuration file. Compatibility modes are
+  described in the
+  https://ngspice.sourceforge.io/docs.html[ngspice documentation].
 
-===== Using the probe tool 
+[[sim-results]]
+=== Viewing simulation results
 
-A probe tool is available in the toolbar of the simulator window
-(image:images/icons/sim_probe_24.png[]), which provides a user-friendly way of
-selecting signals for plotting. When activated, users can click elements in the
-schematic editor. To probe a voltage, click a wire with the probe tool. When
-hovering over wires with the tool, the corresponding net is highlighted. To
-probe a current, click on a symbol pin. When hovering over a pin, the cursor
-will change from a voltage probe symbol to a current clamp symbol. It is not
-possible to probe power signals with this tool.
+Each analysis has its own tab, containing its own separate plot, signal list, and output log window. Only the active tab is updated when a simulation is run. In this way it is possible to compare simulation results between different runs.
 
-===== Using a SPICE directive
+Simulation results from most analysis types are visualized as
+<<sim-plotted-results,plots>>. However, DC Operating Point (OP) and Pole-zero
+(PZ) analyses do not generate plots. Instead, they
+<<sim-numerical-results,print their results>> in the output log at the bottom of
+the simulator window. OP analysis results can additionally be displayed as
+<<sim-operating-point-annotations,annotations>> on the schematic canvas.
 
-While ngspice supports the `.plot` directive, it cannot be used in current
-versions of KiCad.
+[[sim-plotted-results]]
+==== Plotted results
 
-===== Differential voltage
+Most types of analyses display their results in a plot. The type of plot depends
+on the analysis: transient simulations display signal values over time, for
+example, while AC simulations display results in a Bode plot.
 
-Probing differential voltages usually requires a simulation symbol. One is
-available in `Simulation_SPICE:VOLTMETER_DIFF` in the official libraries. This
-symbol has two terminals for differential voltage sensing, and one the user can
-probe.
+You can zoom and move a plot using the following gestures:
 
-[NOTE]
-A SPICE model called `kicad_builtin_vdiff` is preassigned to the built-in
-`VOLTMETER_DIFF` symbol. Users should not define a SPICE model with the same
-name.
+* Scroll mouse wheel to zoom in/out. kbd:[Shift], kbd:[Ctrl], and kbd:[Alt] can
+  modify the scroll action depending on the configuration in the Simulator panel
+  in the Schematic Editor Preferences.
+* Right click to open a context menu to adjust the view.
+* Draw a selection rectangle to zoom in the selected area.
+* Drag a cursor marker to move the cursor.
 
-It is also possible to probe across two-terminal devices such as a resistor by
-placing the `.probe vd(X)` directive, where `X` is the name of the device (such
-as `R1`). Then in order to probe it, enter `vd_X` when adding a signal using the
-list of signals. Note that the signal will not appear in the list of signals, it
-should be typed in by the user. This method has the advantage of not adding
-extra symbols to the schematic sheet.
+The list of signals that can be plotted in the active plot is shown in the
+Signals pane on the right side of the simulator window. The following types of
+signals can be plotted:
 
-////
-// TODO: AMMETER_DIFF is not in the official libs
-===== Differential currents
+- Node voltages: the voltage of each net in the schematic, displayed as
+  `V(<net>)`.
+- Device node currents: the current for each device in the schematic, displayed
+  as `I(<device>)` or `I(<device:terminal>)`. For two-terminal devices, the
+  device's current is listed as a single signal corresponding to the current
+  into the device's pin 1. For devices with more than two terminals, the current
+  into each terminal is a separate signal.
+- Device power dissipations: the power dissipated by each component, displayed
+  as `P(<device>)`.
+- <<sim-user-defined-signals,User-defined signals>>: custom signals defined as
+  an expression based on other signals. User-defined signals can be arbitrary
+  mathematical expressions. One common use for user-defined signals is to plot a
+  voltage differential, i.e. the voltage between two points.
 
-Probing differential currents can be performed using the
-`Simulation_SPICE:AMMETER_DIFF` symbol in the official libraries. It has four
-input terminals, and two that should be shunted together. The latter two are
-used for probing.
+To plot a signal, check the box in the plot column next to the signal of
+interest. To remove a signal from the plot, clear its checkbox.
 
-[NOTE]
-A SPICE model called `kicad_builtin_adiff` is automatically called when using
-the builtin `AMMETER_DIFF` symbol. Users should not define a SPICE model with
-the same name.
-////
+You can also interactively select signals to plot by using the Probe Schematic
+tool. To activate the tool, use **Simulation** -> **Probe Schematic...**
+(kbd:[P]) or click the (image:images/icons/sim_probe_24.png[]) button. When
+activated, the tool lets you click elements in the schematic to plot the
+corresponding signal. Different types of signals are probed depending on what
+you click:
 
-===== Remove a signal probe
+- Clicking on a wire plots the voltage of that net. When you hover over a wire,
+  the net is highlighted to indicate that its voltage can be probed.
+- Clicking on a symbol pin plots the current going into that pin. When you hover
+  over a pin, the cursor changes to a current clamp to indicate that clicking
+  will probe the current.
 
-In order to remove a signal probe, clear its checkbox in the Signal list at the top-right of the simulator window.
+NOTE: KiCad does not support ngspice's `.plot` directive. This directive has no
+      effect when a simulation is run using KiCad.
 
-==== Tuning components
+===== Plot settings and appearance
 
-It is possible to adjust the value of basic components in the schematic from
-within the simulation interface, which lets you conveniently adjust component
-values based on simulation results. Each time the component value is tuned, the
-simulation is re-run with the new component value. You can tune the value of
-passive resistors, inductors, and capacitors, or the voltage or current of DC
-voltage and current sources.
+Colors of individual signals may be set by clicking the color field associated
+with each signal in the Signals grid. You may choose from a predefined palette
+(**Defined Colors**), or select a custom color (**Color Picker**). You can
+toggle the color of the plot background from black to white with **View** ->
+**Dark Mode Plots** (this affects all analysis tabs, not just the active tab).
+
+Many plot settings can be configured in the **Plot Setup** tab of the Analysis
+Setup window (image:images/icons/sim_command_24.png[] button).
+
+image::images/sim_plot_setup.png[]
+
+- **Fixed scale**: when enabled, this fixes the vertical and/or horizontal plot
+  scales to the specified ranges. Manually zooming will not affect an axis if
+  its scale is fixed.
+- **Show grid**: when enabled, a grid will be shown behind the plotted signals.
+  You can also turn the grid on or off with **View** -> **Show Grid**.
+- **Show legend**: when enabled, a legend will be shown on the plot for the
+  enabled signals. You can reposition the legend by dragging it.
+- **Dotted current/phase**: when enabled, plotted signals representing current
+  (transient simulations) or phase (AC simulations) are displayed using dotted
+  lines instead of solid lines. You can also enable this setting with **View**
+  -> **Dotted Current/Phase**.
+- **Margins**: this controls the padding on each side of the plot.
+
+===== Cursors
+
+For precise measurement, cursors are available in the plot window. You can add a
+cursor to a signal by checking the **Cursor 1** or **Cursor 2** checkbox for the
+signal in the signal grid on the right.
+
+Once cursors have been added, the horizontal position of each cursor is shown by
+a number in a triangular marker at the top of the plot display. You can
+reposition each cursor by clicking and dragging its marker. The vertical
+position of each cursor tracks its assigned signal. The horizontal and vertical
+value for each cursor are shown in the cursor grid on the right of the simulator
+window. If cursors 1 and 2 are both enabled, the difference between them is also
+shown.
+
+To precisely position a cursor, you can directly edit its horizontal position in
+the cursors grid. You can also modify the display format (unit range and number
+of significant digits) by right clicking a value in the cursors grid and
+clicking **Format** for the relevant quantity.
+
+You can also add more cursors beyond the two default cursors. To create more
+cursors, right click on a signal in the signals grid and click **Create new
+cursor**. To remove an extra cursor, right click in a one of the extra cursor
+columns and click **Delete cursor 3** (or whichever cursor you want to delete).
+
+===== Measurements
+
+You can add automatically calculated measurements for any plotted signal, such
+as a minimum, average, or peak-to-peak measurement.
+
+NOTE: Measurements are made over all the data resulting from the simulation, not
+      just the data that is visible in the plot window at the current zoom
+      setting.
+
+NOTE: It is not necessary to have selected a signal for plotting (by selecting
+      its Plot checkbox) in order to make a measurement on it. Even unplotted
+      signals can be measured.
+
+To add a predefined measurement to a signal, right click on a signal in the
+signals grid and select a measurement. The following measurements are available:
+
+* **Measure Min**: measures the minimum value of the entire signal
+* **Measure Max**: measures the minimum value of the entire signal
+* **Measure RMS**: measures the root-mean-square value of the entire signal
+* **Measure Peak-to-peak**: measures the peak-to-peak value of the entire signal
+* **Measure Time of Min**: measures the time at which the minimum value of the
+  entire signal occurs
+* **Measure Time of Max**: measures the time at which the maximum value of the
+  entire signal occurs
+* **Measure Integral**: computes the time integral value of the entire signal
+* **Perform Fourier Analysis**: performs a Fourier analysis of the selected
+  signal based on a specified fundamental frequency. Calculates the amplitude of
+  the harmonics of the fundamental as well as the total harmonic distortion.
+  This measurement is only available for transient analyses, and its results are
+  printed in the simulation log window instead of in the measurement panel.
+
+Measurement results are displayed in the Measurement pane at the lower right of
+the simulator window. Multiple measurements will display as multiple rows in
+this area. You can delete a measurement by right clicking it and clicking
+**Delete Measurement**. To modify the display format of a measurement result
+(unit range and number of significant digits), right click the value and click
+**Format Value...**.
+
+The above context menu options are a shortcut for directly specifying
+measurements in the the Measurement pane. To manually create a new measurement,
+click in an empty row in the Measurement pane and type in an ngspice measurement
+function. You can also edit existing measurements by clicking on them. For more
+information about measurements and their syntax, refer to the ngspice manual.
+
+[[sim-numerical-results]]
+==== Numerical results
+
+While most analyses display their results as plots, DC Operating Point (OP) and
+Pole-zero (PZ) analyses do not result in plots. Instead, these analyses print
+their results as text in the simulation log window.
+
+image::images/sim_pz_results.png[]
+
+[[sim-operating-point-annotations]]
+===== Operating point annotations
+
+For the OP analysis, annotations can also be added to the schematic indicating
+the operating point voltage and current values at the nodes. Operating point
+voltage annotations can be shown or hidden for every node with
+**View** -> **Show OP Voltages**. Operating point current annotations can be
+shown or hidden for every symbol pin with **View** -> **Show OP Currents**.
+These annotations are globally shown or hidden for every node or every pin. You
+can control the formatting of these annotations in the
+<<schematic-setup-formatting,Formatting panel of Schematic Setup>>.
+
+image::images/sim_op_voltages.png[]
+
+You can also display operating point results using text variables. Using text
+variables requires more work to set up but provides more control over how the
+data is displayed. For example, you can use text variables to display only
+certain voltages or currents, or to control the display formatting of particular
+values. You can also use text variables to display power dissipation
+measurements.
+
+To use text variables to display an operating point voltage for a net, add a
+<<labels,label>> to the net, then add a field to that label. The label can
+contain any text as long as it contains the `${OP}` text variable. The text
+variable can contain formatting specifiers in the form
+`${OP.<precision><unit>}`, but both the precision and unit are optional.
+Precision is the number of significant digits to display, which is 3 by default.
+Unit is the unit to use, including a prefix, such as `mV` for millivolts.
+
+As an example, a label field containing the text `Vout: ${OP}`, attached to
+a net with an operating point voltage of 5.123V, displays as "Vout: 5.12V". The
+text `${OP.4mV}` displays as "5123mV", `${OP.2}` displays as "5.1V", and
+`${OP.mV}` displays as "512mV".
+
+Using text variables to display an operating point current into a device pin is
+similar, but uses symbol fields instead of label fields. The field can contain
+any text as long as it contains the `${OP:<pin>}` text variable. The pin can be
+specified as a pin name or a pin number. For two-terminal devices, the pin can
+be omitted, and the current into the device's pin 1 will be reported. The
+same optional formatting specifiers are supported as for voltages, in the form
+`${OP:<pin>.<precision><unit>}`.
+
+For example, in a symbol with an operating point current of 5.123mA through pin
+1 (pin name `C`), a symbol field containing the text `Ic: ${OP:C}` displays
+as "Ic: 5.12mA". The text `${OP:C.2mA}` displays as "5.1mA", `${OP:1.4}`
+displays as "5.123mA", and `${OP:C.A}` displays as "0.00512A".
+
+You can also use text variables to display a device's power dissipation. This
+works identically to current, but with `power` instead of a pin name or number.
+For example, in a symbol with an operating point power dissipation of 5.123mW, a
+symbol field containing `${OP:power.2mW}` displays as "5.1mW".
+
+NOTE: Don't forget to set the label field or symbol field to visible, or it will
+      not be displayed.
+
+[[sim-user-defined-signals]]
+==== User-defined signals
+
+In addition to the list of signals that come from the nets in the schematic, you
+can define your own signals which behave like normal signals in most respects.
+User defined signals are defined as mathematical operations on one or more basic
+signals.
+
+image::images/sim_user_defined_signals.png[]
+
+To add a user-defined signal, open the User-defined Signal dialog with
+**Simulation** -> **User-defined Signals...**
+(image:images/icons/sim_add_signal_24.png[] button) and add a signal. The new
+signal will appear in the Signal grid, where it can be plotted and used like any
+other signal. User-defined signals are also included in OP results.
+
+NOTE: Unlike normal signals, which are plotted incrementally as a simulation
+      progresses, user-defined signals are not plotted until the simulation
+      completes.
+
+One use for user-defined signals is to plot a differential voltage, i.e. the
+voltage between two arbitrary nodes. For example, to plot the voltage difference
+between the nets `/v1` and `/v2`, you can create a user-defined signal with the
+expression `/v1-/v2` and then plot it. This expression could also be written in
+a number of different ways, for example `V(/v1)-V(/v2)` or `V(/v1,/v2)`, which
+are both equivalent.
+
+A number of mathematical functions are available for use in user-defined
+signals. To see a list, click the **Syntax help** link in the User-defined
+Signals dialog. Refer to the ngspice manual for details on each of these
+functions.
+
+NOTE: Net names may contain special characters that have particular meaning to
+      the ngspice interpreter. In particular, ngspice interprets the dash
+      character (`-`) as a subtraction operation. To ensure that net names are
+      interpreted correctly, surround the net name with double quote (`"`)
+      characters when referring to it in a user-defined signal.
+
+[[sim-tuning]]
+=== Tuning components
+
+The simulator has a tuning tool, which lets you observe how changing a component value affects the simulation results.
+Each time the component value is tuned, the simulation is re-run with the new component value.
+You can then save the tuned component value back to the schematic if desired.
+
+The following components can be tuned:
+
+* Resistors
+* Inductors
+* Capacitors
+* DC Voltage sources
+* DC Current sources
 
 NOTE: You can only tune components when running analyses that result in a plot.
       In other words, you cannot tune components when running an operating point
@@ -496,79 +938,54 @@ per component.
 
 image::images/sim_tuner.png[]
 
+* The dropdown menu at the top switches between **Single Run** and **Multi Run** modes.
+  ** In Single Run mode, the simulation is run using the tuned value from the middle text field.
+     Each time this value changes, the simulation is re-run with the new value,
+     and the new results replace the old results.
+  ** In Multi Run mode, the simulation is run multiple times using different values for the tuned value.
+     All runs are plotted simultaneously to show the spread of results.
+     The **Steps** control sets the number of runs.
+     The minimum is two runs, as the minimum and maximum values of the tuning range are always included.
 * The top text field sets the top end of the tuning range.
+  In Multi Run mode, this sets the value for the last simulation run.
 * The bottom text field sets the bottom end of the tuning range.
-* The middle text field sets the actual component value that is used in the
-  simulation. This value can also be adjusted using the slider.
-* The **Save** button updates the schematic symbol with the tuned value. Until
-  you press the **Save** button, the schematic symbol will keep its original
-  value.
+  In Multi Run mode, this sets the value for the first simulation run.
+* The middle text field sets the actual component value that is used in the simulation in Single Run mode.
+  This value can also be adjusted using the slider.
+  In Multi Run mode, the middle text field is disabled.
+* The **Save** button updates the schematic symbol with the tuned value.
+  Until you press the **Save** button, the schematic symbol will keep its original value.
+  In Multi Run mode, the **Save** button is disabled because there is no single value to save back to the schematic.
 * The image:images/icons/small_trash_16.png[trash icon] button removes the
   component from the Tune panel and restores its original value.
 
 In addition, it is possible to restrict the component values to those from a particular series of Preferred Values -- either of the E24, E48, E96 or E192 series. This is particularly useful when it is necessary to restrict component values to commercially available parts.
 
-==== Visualizing results
+[[sim-workbooks]]
+=== Saving simulation setups
 
-===== Plots
+You can save a simulation setup in a workbook. Workbooks are files that store information about a simulation setup, including which analyses are configured
+and what their settings are, which signals are plotted for each analysis,
+user-defined signals, measurements, cursors, and display settings.
+A workbook can be saved and reloaded later to restore the previously configured
+settings in a new session. Workbooks can include more than one simulation: for
+example, it may contain separate tabs for transient, operating point, and AC
+analyses which you added as you worked.
 
-Simulation results from the TRAN, AC, DC, NOISE, SP and FFT analyses are visualized as plots. As multiple analyses can be performed there can be multiple plots open in separate tabs, but only the active tab is updated when a simulation is executed. In this way it is possible to compare simulation results for different runs.
+You can save a workbook using **File** -> **Save Workbook** and load one using
+**File** -> **Open Workbook**. The most recently used workbook is automatically
+loaded when the simulator is opened.
 
-[NOTE]
-Simulation results from OP and PZ analyses do not generate plots. Instead, they present their results in the Simulator output command window and, in the case of OP, as labels added to the source schematic.
+NOTE: Workbooks store simulation setup information, but they do not store
+      simulation results. You can export simulation results to PNG (graphics) or
+      CSV (simulation data values) with **File** ->
+      **Export Current Plot as PNG...** and **File** ->
+      **Export Current Plot as CSV...**. To recreate the results of simulations
+      stored in a workbook, select the appropriate analysis tab in the Simulator
+      window and run the simulation again (kbd:[R] or **Simulation** ->
+      **Run Simulation**).
 
-You can zoom and move a plot using the following gestures:
-
-* Scroll mouse wheel to zoom in/out. kbd:[Shift], kbd:[Ctrl], and kbd:[Alt] can
-  modify the scroll action depending on the configuration in the Simulator panel
-  in the Schematic Editor Preferences.
-* Right click to open a context menu to adjust the view.
-* Draw a selection rectangle to zoom in the selected area.
-* Drag a cursor to change its coordinates.
-
-====== Plot appearance
-
-Colors of individual signals may be set by clicking the **Color** field associated with each signal in the Signals pane. You may choose from a predefined palette (**Defined Colors**), or select a custom color (**Color Picker**).
-
-Plotted signals representing current or phase can be displayed with a dotted trace by selecting **View** -> **Dotted Current/Phase**. In AC simulations, this plots phases using dotted lines and gains using solid lines. In transient simulations, this plots currents using dotted lines and voltages using solid lines.
-
-To show a grid behind the plotted signals, select **View** -> **Show Grid**. You can change the plot background color to either black or white using **View** -> **Dark Mode Plots**. When selected, the background color is black. When not selected, the background color is white.
-
-You can show a plot legend using **View** -> **Show Legend**. You can drag the legend to reposition it.
-
-===== Cursors
-
-For precise measurement, cursors are available in the plot window. They are enabled and selected from within the signal pane on the right, using the checkboxes **Cursor 1** and **Cursor 2**. Each cursor is identified by a number in a triangular marker at the top of the plot pane. Cursors are moved and positioned within the plot window by clicking and dragging them.
-
-===== Measurements
-
-Measurements are associated with signals on plots.
-
-[NOTE]
-Measurements are made over **all the data** resulting from the simulation, not just the data that is visible in the plot window at the current zoom setting. This may be confusing in certain circumstances.
-
-[NOTE]
-It is not necessary to have selected a signal for plotting (by selecting its Plot checkbox) in order to make a measurement on it. Even unselected, and therefore unplotted, signals can be measured.
-
-Predefined measurements associated with a signal are available by a right-click over a signal row which invokes a pop-up menu offering the following measurements:
-
-* **Measure Min**: measures the minimum value of the entire signal,
-* **Measure Max**: measures the minimum value of the entire signal,
-* **Measure RMS**: measures the root-mean-square value of the entire signal,
-* **Measure Peak-to-peak**: measures the peak-to-peak value of the entire signal,
-* **Measure Time-of-min**: measures the time at which the minimum value of the entire signal occurs,
-* **Measure Time-of-max**: measures the time at which the maximum value of the entire signal occurs,
-* **Measure Integral**: computes the time integral value of the entire signal.
-
-Measurement results are displayed in the Measurement pane at the lower right of the Simulator window. Multiple measurements will display as multiple rows in this area.
-
-===== Numerical values
-
-Some analysis types, such as the DC operating point analysis (OP), do not
-have any graphical output to plot. Instead, their output is printed in the SPICE
-console. In the case of the DC operating point analysis, labels are also added to the schematic indicating the operating point voltage and current values at the nodes.
-
-==== Exporting results
+=== Exporting simulation results
 
 KiCad's simulator offers two ways to export results:
 
@@ -577,13 +994,19 @@ KiCad's simulator offers two ways to export results:
 
 Only simulations that produce plots (see above) can be exported as an image or a CSV file. The results of OP and PZ analyses cannot be exported in this way.
 
-===== Exporting the simulator plot as a graphics file
+==== Exporting results as graphics
 
 The currently-visible Simulator plot may be exported as a PNG file using the command **File** -> **Export Current Plot as PNG...**.
 
 The size and aspect-ratio of the saved image will match that of the displayed plot in the Simulator.
 
-===== Exporting the simulator plot as numerical data
+You can also copy an image of the active plot to the clipboard using **File** ->
+**Export Current Plot to Clipboard**, or insert an image of the active plot into
+the schematic using **File** -> **Export Current Plot to Schematic**. Exporting
+a plot to the schematic is equivalent to exporting the plot to the clipboard
+and then pasting it into the schematic.
+
+==== Exporting results as numerical data
 
 The currently-visible Simulator plot may be exported as a CSV file using the command **File** -> **Export Current Plot as CSV...**.
 
@@ -598,20 +1021,21 @@ The data in the exported file contains all the data that would be plotted if the
 [NOTE]
 This function exports the data with data separated by semicolons (`;`) rather than commas. Programs reading this data may need to be configured to expect a semicolon as a delimiter.
 
-==== Troubleshooting
+=== Troubleshooting simulations
 
 Sometimes a simulation will fail, either with or without errors being reported. Paying attention to the error messages reported, taking care in the development and entry into KiCad of the circuit to be simulated, and making use of the KiCad, ngspice and general SPICE documentation and information from fellow users in forums is very worthwhile and can often point the way to a solution.
 
 It's worth noting, for users unfamiliar with SPICE, ngspice or circuit simulation in general that some 'common' and interesting circuits can sometimes be tricky to simulate accurately or reliably. These include apparently simple circuits such as oscillators, which in some cases may fail to oscillate at all! It is nearly always possible to build a working simulation but sometimes this can more require SPICE experience than might be initially apparent, or the guidance of someone who already has it. The ngspice documentation, once again, is worth reading for insights into good and effective simulation practices if you are encountering difficulty.
 
-===== Incorrect netlist
+==== Incorrect netlist
 
 It is possible to inspect the SPICE netlist with **Simulation** ->
-**Show SPICE netlist...**. This method of troubleshooting requires some SPICE
+**Show SPICE netlist...** (image:images/icons/netlist_24.png[] button). This
+method of troubleshooting requires some SPICE
 knowledge, but spotting errors in the netlist can help determine the cause of
 simulation problems, as well as providing confirmation of what input ngspice is actually acting on.
 
-===== Simulation error messages
+==== Simulation error messages
 
 The output console displays messages from the simulator. It is advisable to check
 the console output to verify there are no errors or warnings. Messages appearing
@@ -627,7 +1051,7 @@ drawing the circuit, such as incorrectly
 <<simulation-pin-assignment,assigning pins to the simulation model>> or
 forgetting to provide a voltage supply.
 
-===== Convergence problems
+==== Convergence problems
 
 In case the simulation does not converge in a reasonable amount of time (or not
 at all), it is possible to add the following SPICE directives. More information
@@ -635,13 +1059,13 @@ is available in the ngspice manual.
 
 [WARNING]
 Changing convergence options can lead to erroneous results. These options should
-be used with caution. 
+be used with caution.
 
 ....
-.options gmin=1e-10 
-.options abstol=1e-10 
-.options reltol=0.003 
-.options cshunt=1e-15 
+.options gmin=1e-10
+.options abstol=1e-10
+.options reltol=0.003
+.options cshunt=1e-15
 ....
 
 * `gmin` is the minimum conductance allowed by the program.
@@ -653,7 +1077,7 @@ be used with caution.
 * `cshunt` adds a capacitor of the specified value from each voltage node in the
   circuit to ground.
 
-===== Incorrect assignments of pins between the schematic and the SPICE model
+==== Simulation pin assignments
 
 If unexpected results are generated by a simulation despite it running without
 obvious errors, it is worth double-checking that the
@@ -661,13 +1085,245 @@ obvious errors, it is worth double-checking that the
 are correct. These have to be correct for each instance of the model in the schematic.
 
 === Helpful hints
+
 Some helpful tips, hints and advice to help you get the most from using ngspice in KiCad for simulation.
 
 ==== The ngspice manual is your friend!
+
 Fundamentally the KiCad Simulator is a user-friendly front-end to the powerful ngspice circuit simulator. Therefore problems with the details of simulation, the correct use of SPICE elements, models, etc. is beyond the scope of the KiCad documentation but is very likely to be fully and completely addressed in the ngspice documentation itself. It's therefore recommended not to overlook this https://ngspice.sourceforge.io/docs.html[valuable resource].
 
 [NOTE]
 KiCad updates may result in changes to the ngspice version used by the simulator. The current version of ngspice used in a particular version of KiCad is shown on the **Help** -> **About KiCad** dialog, under the **Version** tab. Referring to the online ngspice documentation will ensure you always have access to the latest information for reference.
 
 ==== Organizing third-party models
+
 Although it is certainly possible to keep simulation models (i.e. `.lib`, `.sub` files) in the directories associated with individual KiCad projects, this will likely result in unnecessary copies of model files proliferating as you create simulations. Consider creating a dedicated storage location (directory, folder) for models, perhaps organized by manufacturer or device type, to hold these files. Then they may simply be referenced in simulations at a common location.
+
+[[sim-default-library-symbols]]
+==== Simulation symbols and models in KiCad's libraries
+
+The KiCad libraries provide a number of symbols for simulation in the
+`Simulation_SPICE` symbol library. Most of these symbols have SPICE models
+already assigned as appropriate, although you may need to adjust the model
+parameters in order to obtain the desired simulation behavior.
+
+The `Simulation_SPICE` symbol library contains the following symbols:
+
+[cols="30%,70%",]
+|====
+| Symbol Name | Description
+| 0
+  | A ground (node 0) symbol. Note that a standard GND symbol from another
+    library can also be used.
+| BSOURCE
+  | A symbol for a SPICE B-source (nonlinear dependent voltage or current
+    source). Refer to the
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Non_linear_Dependent_Sources[ngspice
+  manual]
+    for information on B-sources.
+| D
+  | A diode symbol. Note that the pin assignment is appropriate for both
+    simulation and PCB layout.
+| ESOURCE
+  | A symbol for a SPICE E-source (linear voltage-controlled voltage source). By
+    default it is set up with a gain of 1 V/V. Refer to the
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#subsec_Exxxx__Linear_Voltage_Controlled[ngspice manual]
+    for more information on E-sources.
+| GSOURCE
+  | A symbol for a SPICE G-source (linear voltage-controlled current source). By
+    default it is set up with a gain of 1 A/V. Refer to the
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#subsec_Gxxxx__Linear_Voltage_Controlled[ngspice manual]
+    for more information on G-sources.
+| IAM
+  | A symbol for a SPICE amplitude-modulated independent current source. Refer
+    to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent current sources.
+| IBIS_DEVICE
+  | An IBIS device symbol representing a digital input pin. This symbol is not
+    preconfigured with a simulation model. It is intended to be used with an 
+    <<ibis-library,external IBIS model>> for a device.
+| IBIS_DEVICE_DIFF
+  | An IBIS device symbol representing a digital differential input pin. This
+    symbol is not preconfigured with a simulation model. It is intended to be
+    used with an <<ibis-library,external IBIS model>> for a differential device.
+| IBIS_DRIVER
+  | An IBIS driver symbol representing a digital output pin. This symbol is not
+    preconfigured with a simulation model. It is intended to be used with an
+    <<ibis-library,external IBIS model>> for a driver.
+| IBIS_DRIVER_DIFF
+  | An IBIS driver symbol representing a pair of digital differential output
+    pins. This symbol is not preconfigured with a simulation model. It is
+    intended to be used with an <<ibis-library,external IBIS model>> for a
+    differential driver.
+| IDC
+  | A symbol for a SPICE DC independent current source. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent current sources.
+| IEXP
+  | A symbol for a SPICE exponential independent current source. Refer
+    to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent current sources.
+| IPULSE
+  | A symbol for a SPICE pulsed independent current source. Refer
+    to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent current sources.
+| IPWL
+  | A symbol for a SPICE piecewise linear independent current source. The
+    waveform is specified as space-separated time-current pairs. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent current sources.
+| ISFFM
+  | A symbol for a SPICE single-frequency frequency-modulated independent
+    current source. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent current sources.
+| ISIN
+  | A symbol for a SPICE sinusoidal independent current source. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent current sources.
+| ITRNOISE
+  | A symbol for a SPICE transient noise independent current source. Refer to
+    the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent current sources.
+| ITRRANDOM
+  | A symbol for a SPICE transient random independent current source. Refer to
+    the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent current sources.
+| NJFET
+  | A symbol for an N-channel JFET with drain, gate, and source terminals,
+    suitable for use with 3-terminal N-JFET models.
+| NMOS
+  | A symbol for an N-channel MOSFET with drain, gate, and source terminals,
+    suitable for use with 3-terminal N-MOSFET models.
+| NMOS_Substrate
+  | A symbol for an N-channel MOSFET with drain, gate, source, and substrate
+    (bulk) terminals, suitable for use with 4-terminal N-MOSFET models.
+| NPN
+  | A symbol for an NPN transistor with collector, base, and emitter terminals,
+    suitable for use with 3-terminal NPN models.
+| NPN_Substrate
+  | A symbol for an NPN transistor with collector, base, emitter, and substrate
+    terminals, suitable for use with 4-terminal NPN models.
+| OPAMP
+  | A generic single-pole operational amplifier symbol. There are parameters for
+    pole frequency, open loop gain, offset voltage, and output resistance. These
+    parameters can be edited in the Parameters grid of the SPICE Model Editor
+    dialog.
+| PJFET
+  | A symbol for a P-channel JFET with drain, gate, and source terminals,
+    suitable for use with 3-terminal P-JFET models.
+| PMOS
+  | A symbol for a P-channel MOSFET with drain, gate, and source terminals,
+    suitable for use with 3-terminal P-MOSFET models.
+| PMOS_Substrate
+  | A symbol for a P-channel MOSFET with drain, gate, source, and substrate
+    (bulk) terminals, suitable for use with 4-terminal P-MOSFET models.
+| PNP
+  | A symbol for a PNP transistor with collector, base, and emitter terminals,
+    suitable for use with 3-terminal PNP models.
+| PNP_Substrate
+  | A symbol for a PNP transistor with collector, base, emitter, and substrate
+    terminals, suitable for use with 4-terminal PNP models.
+| SWITCH
+  | A symbol for a voltage-controlled switch. Refer to the
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#subsec_Switches[ngspice manual]
+    for more information on switches.
+| TLINE
+  | A symbol for a transmission line. By default it is set up as a lossless
+    transmission line but it can also be used for a lossy transmission line.
+    Refer to the
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Lossless_Transmission_Lines[ngspice manual]
+    for more information on transmission lines.
+| VAM
+  | A symbol for a SPICE amplitude-modulated independent voltage source. Refer
+    to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent voltage sources.
+| VDC
+  | A symbol for a SPICE DC independent voltage source. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent voltage sources.
+| VEXP
+  | A symbol for a SPICE exponential independent voltage source. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent voltage sources.
+| VOLTMETER_DIFF
+  | A differential voltmeter symbol that can be used to measure the voltage
+    between two arbitrary nodes. The voltage difference between the `+` and
+    `-` pins is output as a ground-referenced voltage on the `out` pin.
+| VPULSE
+  | A symbol for a SPICE pulsed independent voltage source. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent voltage sources.
+| VPWL
+  | A symbol for a SPICE piecewise linear independent voltage source. The
+    waveform is specified as space-separated time-voltage pairs. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent voltage sources.
+| VSFFM
+  | A symbol for a SPICE single-frequency frequency-modulated independent
+    voltage source. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent voltage sources.
+| VSIN
+  | A symbol for a SPICE sinusoidal independent voltage source. Refer to the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent voltage sources.
+| VTRNOISE
+  | A symbol for a SPICE transient noise independent voltage source. Refer to
+    the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent voltage sources.
+| VTRRANDOM
+  | A symbol for a SPICE transient random independent voltage source. Refer to
+    the 
+    https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#sec_Independent_Sources_for[ngspice manual]
+    for more information on independent voltage sources.
+|====
+
+Most of these symbols in the `Simulation_SPICE` library use
+<<sim-built-in,built-in models>>, but several symbols use <<sim-library,external
+models>> from the `Simulation_SPICE.sp` simulation model library. The simulation
+model library is a separate file in the same folder as the symbol library. This
+simulation model library also contains SPICE models that may be useful for use
+with other symbols.
+
+The `Simulation_SPICE.sp` simulation model library contains the following
+models:
+
+[cols="30%,70%",]
+|====
+| Model Name | Description
+| kicad_builtin_opamp
+  | A generic single-pole operational amplifier model. This model is used by the
+    OPAMP symbol in the `Simulation_SPICE` symbol library, and the pins are
+    ordered appropriately for use with any standard single-unit opamp symbol.
+    There are parameters for pole frequency, open loop gain, offset voltage, and
+    output resistance. These parameters can be edited in the Parameters grid of
+    the SPICE Model Editor dialog.
+| kicad_builtin_opamp_dual
+  | A dual version of the kicad_builtin_opamp model, with the same parameters.
+    This model is not assigned to any symbols in the `Simulation_SPICE` symbol
+    library, but the pins are ordered appropriately for use with standard dual
+    opamp symbols.
+| kicad_builtin_opamp_quad
+  | A quad version of the kicad_builtin_opamp model, with the same parameters.
+    This model is not assigned to any symbols in the `Simulation_SPICE` symbol
+    library, but the pins are ordered appropriately for use with standard quad
+    opamp symbols.
+| kicad_builtin_varistor
+  | A generic varistor model. This model is not assigned to any symbols in the
+    `Simulation_SPICE` symbol library. There are parameters for threshold
+    voltage, dynamic resistance, and leakage resistance. These parameters can be
+    edited in the Parameters grid of the SPICE Model Editor dialog.
+| kicad_builtin_vdiff
+  | A differential voltmeter model. The voltage difference between the first two
+    terminals is output as a ground-referenced voltage on the third terminal.
+    This model is used by the VOLTMETER_DIFF symbol in the `Simulation_SPICE`
+    symbol library.
+|====

@@ -11,13 +11,13 @@ is composed of a library nickname and a symbol name. For example, the identifier
 [[managing-symbol-libraries]]
 === Managing symbol libraries
 
-KiCad uses a table of symbol libraries to map a symbol library nickname to an
-underlying symbol library on disk.  Kicad uses a global symbol library table as
-well as a table specific to each project. To edit either symbol library table,
-use **Preferences** ->
-**Manage Symbol Libraries...**.
+KiCad uses a table of symbol libraries to map a symbol library nickname to an underlying symbol library on disk.
+Kicad uses a global symbol library table as well as a table specific to each project.
+Libraries are not loaded unless they are included in either the global or project-specific library table.
 
-image::images/en/options_symbol_lib.png[scaledwidth="80%",alt="sym lib table dlg"]
+To edit either symbol library table, use **Preferences** -> **Manage Symbol Libraries...**.
+
+image::images/sym-lib-table_toplevel.png[scaledwidth="80%",alt="sym lib table dlg"]
 
 The global symbol library table contains the list of libraries that are
 always available regardless of the currently loaded project. The table is
@@ -29,6 +29,14 @@ The project specific symbol library table contains the list of libraries that
 are available specifically for the currently loaded project. If there are any
 project-specific symbol libraries, the table is saved in the file
 `sym-lib-table` in the project folder.
+
+Many (or even all) of the loaded libraries may be contained in a <<nested-library-tables,nested library table>>,
+as shown in the screenshot above.
+To expand a nested library table and view its contents,
+press the image:images/icons/small_new_window_16.png[] button next to the nested library table entry.
+This opens the nested table in a new tab, as shown below.
+
+image::images/sym-lib-table_nested.png[]
 
 KiCad's symbol library management system allows directly using many types
 of symbol libraries, including formats that are native to other non-KiCad EDA
@@ -52,21 +60,36 @@ NOTE: KiCad only supports writing to KiCad's native `.kicad_sym` format symbol
 libraries. All other symbol library formats are read-only. To modify a
 non-KiCad format symbol library, you must first convert it to KiCad format.
 
-==== Initial Configuration
+Library tables can also include other library tables, which are called <<nested-library-tables,_nested_ library tables>>.
+When a nested library table is used, the libraries in the nested table are loaded as if they were included directly in the main table.
 
-The first time the KiCad Schematic Editor is run and the global symbol table
-file `sym-lib-table` is not found in the KiCad configuration folder, KiCad will
-guide the user through setting up a new symbol library table. This process is
-described <<initial-configuration,above>>. You can re-run this process at any
-time by clicking the **Reset Libraries**.
+==== Initial configuration
 
-WARNING: Resetting your symbol library table will permanently change your symbol
-         library table on disk.
+The first time KiCad runs (or any time KiCad runs and no configuration is found),
+KiCad will guide you through creating a new configuration or importing a configuration from a previous version.
+This includes setting up a new footprint library table.
+This process is described in the xref:../kicad/kicad.adoc#settings[Project Manager documentation].
 
-==== Managing Table Entries
+You can reset your footprint library table to the default by clicking the **Reset Libraries** button in the footprint library table dialog.
+
+WARNING: Resetting your footprint library table will permanently change your
+         footprint library table on disk.
+
+The default symbol library table contains a single entry, which points to another symbol library table containing all of KiCad's default symbol libraries.
+This <<nested-library-tables,nested library table>> is maintained as part of the KiCad libraries and is updated along with KiCad and its libraries.
+You should not edit it yourself.
+
+NOTE: KiCad's default symbol libraries are included in your library table via a nested library.
+      This allows the list of default KiCad libraries to be updated when KiCad and its libraries are updated,
+      without affecting your personal library configuration.
+      Your personal library table configuration can be maintained between KiCad versions,
+      while still allowing you to receive updates to the default libraries.
+
+==== Managing table entries
 
 Symbol libraries can only be used if they have been added to either the
-global or project-specific symbol library table.
+global or project-specific symbol library table
+(or to a nested table included in either top-level table).
 
 Add a library either by clicking the
 image:images/icons/small_folder_16.png[Folder icon] button and selecting a
@@ -76,15 +99,25 @@ currently opened library table (Global or Project Specific). Libraries can be
 removed by selecting desired library entries and clicking the
 image:images/icons/small_trash_16.png[Delete icon] button.
 
+When an entry in the library table is itself another library table, you can open this
+<<nested-library-tables,nested table>> by clicking the image:images/icons/small_new_window_16.png[] button next to the nested table's entry.
+This opens the nested table in a new tab, where you can see and edit the libraries included in the nested table.
+To add a nested library table, click the downwards arrow next to the image:images/icons/small_folder_16.png[] button,
+choose the **Table** library type, then browse to the table file.
+
 The image:images/icons/small_up_16.png[Up icon] and
 image:images/icons/small_down_16.png[Down icon] buttons move the selected
 library up and down in the library table. This does not affect the display order
 of libraries in the Symbol Editor or Symbol Chooser.
 
-Libraries can be made inactive by unchecking the *Active* checkbox in the first
-column. Inactive libraries are still in the library table but do not appear in
-any library browsers and are not loaded from disk, which can reduce loading
-times.
+Libraries can be disabled by unchecking the *Enable* checkbox in the first column.
+Inactive libraries are still in the library table but do not appear in any library browsers and are not loaded from disk, which can reduce loading times.
+Alternatively, you can hide a library from the library browsers while still loading it from disk by unchecking the **Show** checkbox.
+
+NOTE: Hiding a library is primarily useful in conjunction with <<database-libraries,database libraries>>.
+      Database libraries define symbols by adding metadata to symbol definitions from another symbol library.
+      This base symbol library needs to be loaded, so it cannot be disabled,
+      but for convenience the library can be hidden if it is not needed beyond the database library definition.
 
 A range of libraries can be selected by clicking the first library in the range
 and then kbd:[Shift]-clicking the last library in the range.
@@ -110,8 +143,27 @@ There is an optional description field to add a description of the library
 entry. The option field is not used at this time so adding options will
 have no effect when loading libraries.
 
+[[nested-library-tables]]
+==== Nested library tables
+
+In addition to containing libraries, library tables can also contain other library tables.
+Library tables that are referenced by other library tables in this way are called _nested_ library tables.
+Any libraries in a nested library table are loaded as if they were directly listed in the top-level library table.
+
+Nested library tables let you separate groups of libraries into different library table files,
+then include all of the individual tables into the main top-level library table.
+This could be used, for example, to make a standard library table for your company,
+and share that table with everyone who needs it.
+Each user can then access the standard set of company libraries after they add the shared table as a nested library table in their own global table.
+
+When KiCad is configured to its default library table configuration,
+the global library table contains a single entry, which is a nested library table.
+This nested table is part of KiCad's default libraries and lists all of the KiCad default symbol libraries.
+When KiCad is updated, this nested table is also updated,
+which allows you to receive an updated list of KiCad's default libraries without disturbing your personal library configuration.
+
 [[sym-path-variable-substitution]]
-==== Path Variable Substitution
+==== Path variable substitution
 
 The symbol library tables support path variable substitution, which
 allows you to define path variables containing custom paths to where your
@@ -130,9 +182,9 @@ path variables are updated when the library location changes.
 NOTE: KiCad will automatically resolve versioned path variables from
       older versions of KiCad to the value of the corresponding variable from
       the current KiCad version, as long as the old variable is not explicitly
-      defined itself. For example, `$\{KICAD8_SYMBOL_DIR\}` will
-      automatically resolve to the value of `$\{KICAD9_SYMBOL_DIR\}` if there
-      is no `KICAD8_SYMBOL_DIR` variable defined.
+      defined itself. For example, `$\{KICAD9_SYMBOL_DIR\}` will
+      automatically resolve to the value of `$\{KICAD10_SYMBOL_DIR\}` if there
+      is no `KICAD9_SYMBOL_DIR` variable defined.
 
 `${KIPRJMOD}` is a special path variable that always expands to the
 absolute path of the current project directory. `${KIPRJMOD}` allows libraries
@@ -140,7 +192,7 @@ to be stored in the project folder without having to use an absolute path in the
 project library table. This makes it possible to relocate projects without
 breaking their project library tables.
 
-==== Usage Patterns
+==== Usage patterns
 
 Symbol libraries can be defined either globally or specifically to the currently
 loaded project. Symbol libraries defined in the user's global table are always
@@ -181,7 +233,8 @@ or kbd:[shift]-clicking.
 Libraries can also be converted one at a time by opening them in the Symbol
 Editor and saving them as a new library.
 
-==== Legacy Project Remapping
+[[symbol-remapping]]
+==== Legacy project remapping
 
 When loading a schematic created prior to the symbol library table
 implementation, KiCad will attempt to remap the symbol library
@@ -223,15 +276,67 @@ new library file to the top of the library list using a version of
 KiCad prior to the symbol library table implementation.
 ====
 
+=== Browsing symbol libraries
+
+The Symbol Library Browser allows you to quickly examine the contents of symbol
+libraries. The Symbol Library Viewer can be accessed by clicking
+image:images/icons/library_browser_24.png[Library viewer icon] icon on the main
+Symbol Editor toolbar or with **View** -> **Symbol Library Browser**.
+
+To examine the contents of a library, select a library from the list in the left
+hand panel. All symbols in the selected library will appear in the second panel.
+Select a symbol name to view the symbol.
+
+image::images/symbol_library_browser.png[alt="Symbol Library Browser",scaledwidth="95%"]
+
+Double clicking the name of a symbol or using the
+image:images/icons/add_symbol_to_schematic_24.png[Add symbol to schematic icon]
+button adds the symbol to the schematic.
+
+The top toolbar contains the following commands:
+
+[width="100%",cols="20%,80%",]
+|=======================================================================
+
+|image:images/icons/lib_previous_24.png[Previous symbol icon]
+|Select previous symbol in library.
+
+|image:images/icons/lib_next_24.png[Next symbol icon]
+|Select next symbol in library.
+
+|image:images/icons/refresh_24.png[] image:images/icons/zoom_in_24.png[]
+image:images/icons/zoom_out_24.png[] image:images/icons/zoom_fit_in_page_24.png[]
+|Zoom tools.
+
+|image:images/icons/pin_show_etype_24.png[Show pintype icon]
+|Toggle display of pin electrical types.
+
+|image:images/icons/pin_24.png[Show pin number icon]
+|Toggle display of pin numbers.
+
+|image:images/symbol_editor_body_style_selector.png[width=70%]
+|Select the body style of a symbol with multiple body styles.
+
+|image:images/symbol_editor_unit_selector.png[width="70%"]
+|Select the unit of a multi-unit symbol.
+
+|image:images/icons/datasheet_24.png[icons/datasheet_png]
+|Open the symbol's datasheet, if it is defined.
+
+|image:images/icons/add_symbol_to_schematic_24.png[Add symbol to schematic icon]
+|Insert current symbol into the schematic.
+|=======================================================================
+
 [[symbol-editor]]
 [[creating-and-editing-symbols]]
-=== Creating and editing symbols
+== Creating and editing symbols
 
 A symbol is a schematic representation of a component. A symbol is composed of:
 
 * Graphical items (lines, circles, arcs, text, etc.) that determine how
   symbol looks in a schematic.
-* Pins, which have both graphic properties (line, clock, inverted, low
+* Pins, which connect to wires in the schematic and correspond to footprint pads in the PCB.
+  Pins have both graphic properties (line, clock, inverted, low
   level active, etc.) and electrical properties (input, output,
   bidirectional, etc.) used by the Electrical Rules Check (ERC) tool.
 * Fields, such as references, values, corresponding footprint names for
@@ -249,7 +354,7 @@ that are similar to a base part. For example, 74LS00, 74HC00, and 7437 symbols
 could all be derived from a 7400 symbol. In previous versions of KiCad, derived
 symbols were referred to as aliases.
 
-==== Symbol Editor overview
+=== Symbol Editor overview
 
 KiCad provides a symbol editing tool that allows you to create libraries; add,
 edit, delete, or transfer symbols between libraries; export symbols to files;
@@ -287,13 +392,15 @@ quick access to common features and a symbol viewing/editing canvas. Not all
 commands are available on the toolbars, but all commands are available in the
 menus.
 
+NOTE: You can edit the toolbars' contents in the **Toolbar** page of the Symbol Editor Preferences.
+
 In addition to the toolbars, there are collapsible panels for the symbol tree,
 Properties Manager, and selection filter on the left. The bottom of the window
 contains a message panel that shows details about the selected object.
 
 image::images/libedit_main_window.png[alt="Symbol Editor main window",scaledwidth="95%"]
 
-===== Top toolbar
+==== Top toolbar
 
 The main toolbar is at the top of the main window. It has buttons for the
 undo/redo commands, zoom commands, symbol properties dialogs, and
@@ -344,13 +451,8 @@ be saved.
 |image:images/icons/erc_24.png[ERC icon]
 |Run the <<checking-symbols,symbol checker>> to test the current symbol for design errors.
 
-|image:images/icons/morgan1_24.png[Normal body style icon]
-|Select the <<symbol-units-and-body-styles,normal body style>>. The button is disabled if the current
-symbol does not have an alternate body style.
-
-|image:images/icons/morgan2_24.png[Alternate body style icon]
-|Select the <<symbol-units-and-body-styles,alternate body style>>. The button is disabled if the current
-symbol does not have an alternate body style.
+|image:images/symbol_editor_body_style_selector.png[alt="Body style dropdown",width="80%"]
+|Select the <<symbol-units-and-body-styles,body style>> to display. The drop down control will be disabled if the current symbol does not have multiple body styles.
 
 |image:images/symbol_editor_unit_selector.png[alt="Unit dropdown",width="80%"]
 |Select the unit of a <<symbol-units-and-body-styles,multi-unit symbol>> to display. The drop down control will
@@ -367,7 +469,7 @@ interchangeable units and cannot be enabled for symbols with only one unit.
 
 |=======================================================================
 
-===== Left toolbar display controls
+==== Left toolbar display controls
 
 The left toolbar provides options to change the display of items in the Symbol Editor.
 
@@ -383,9 +485,15 @@ The left toolbar provides options to change the display of items in the Symbol E
  image:images/icons/unit_mil_24.png[Millimeter unit icon]
  image:images/icons/unit_mm_24.png[Millimeter unit icon]
 |Set units to inches, mils (0.001 inch), or millimeters.
+Clicking the button toggles to the next unit, or you can choose a unit directly by expanding the palette (click and hold/drag).
 
-|image:images/icons/cursor_shape_24.png[Cursor shape icon]
-|Toggle full screen cursor on and off.
+| image:images/icons/cursor_shape_24.png[cursor shape icon]
+
+  image:images/icons/cursor_fullscreen_24.png[]
+
+  image:images/icons/cursor_fullscreen45_24.png[]
+    | Switches the cursor crosshair between small, fullscreen, and 45-degree-rotated fullscreen.
+      Clicking the button toggles to the next crosshair type, or you can choose a crosshair directly by expanding the palette (click and hold/drag).
 
 |image:images/icons/pin_show_etype_24.png[Show pintype icon]
 |Toggle display of pin electrical types.
@@ -403,7 +511,7 @@ The left toolbar provides options to change the display of items in the Symbol E
 |Toggle display of <<editing-symbol-properties,Properties Manager>> panel.
 |=======================================================================
 
-===== Right toolbar tools
+==== Right toolbar tools
 
 Placement and drawing tools are located in the right toolbar.
 
@@ -462,7 +570,7 @@ Double-left-click to complete the line.
 |Delete tool. Left-click to delete an object from the current symbol.
 |=======================================================================
 
-==== Browsing, modifying, and saving symbols
+=== Browsing, modifying, and saving symbols
 
 The image:images/icons/search_tree_24.png[Symbol tree icon] button displays or
 hides the list of available libraries, which allows you to select an active
@@ -509,21 +617,27 @@ warns you the library copy will not be modified. You can click the link in this
 info bar to open the library version of the symbol instead, or press
 kbd:[Ctrl+Shift+E].
 
-==== Creating a new symbol library
+=== Creating a new symbol library
 
 You can create a new symbol library by clicking **File** -> **New Library...**.
-At this point you must choose whether the new library should be added to the
-global symbol library table or the project symbol library table. Libraries in
-the global library table will be available to all projects, while libraries in
-the project library table will only be available in the current project.
+This opens a file browser for you to choose a location and name for the new library.
+Symbol libraries are saved as a file;
+the file name is the library name plus the suffix `.kicad_sym`.
 
-image::images/symbol_editor_new_library.png[]
+The file browser also lets you choose whether the new library should be added to the global symbol library table or the project symbol library table.
+Libraries in the global library table will be available to all projects,
+while libraries in the project library table will only be available in the current project.
 
-Following selection of the library table, you must choose a name and location
-for the new library. A new, empty library will be created at the specified
-location.
+NOTE: The global and project symbol library tables are managed using
+      **Preferences** -> **Manage Symbol Libraries...**.
+      This includes deleting and renaming symbol libraries.
+      For more information about managing library tables, see the
+      <<managing-symbol-libraries,symbol library table documentation>>.
 
-==== Creating a new symbol
+After choosing a name, location, and library table, a new, empty library is created.
+When you create new symbols, you can save them in this library.
+
+=== Creating a new symbol
 
 To create a new symbol in the current symbol library, click the
 image:images/icons/new_component_24.png[New symbol icon] button.
@@ -557,10 +671,8 @@ These properties can also be changed later in the <<symbol-properties, Symbol Pr
 
 image::images/eeschema_new_symbol_properties.png[alt="New symbol properties",scaledwidth="50%"]
 
-A new symbol will be created using the properties above and will
-appear in the editor as shown below.
-
-image::images/eeschema_libedit_new.png[alt="Newly created symbol",scaledwidth="95%"]
+A new symbol will be created in the selected library using the given properties.
+The new symbol is opened in the editor.
 
 The blue cross in the center is the symbol anchor, which specifies the symbol
 origin i.e. the coordinates (0, 0). The anchor can be repositioned by selecting
@@ -568,208 +680,101 @@ the image:images/icons/anchor_24.png[Anchor icon] button and clicking on the new
 desired anchor position.
 
 [[symbol-properties]]
-==== Editing Symbol Properties
+=== Editing symbol properties
 
-Symbol properties are set when the symbol is created but they can be modified
-at any point. To change the symbol properties, click on the
-image:images/icons/part_properties_24.png[Symbol properties icon] button
-to show the Symbol Properties dialog. You can also double click an empty spot in
-the editing canvas.
+Symbols have a number of properties and metadata items that can be defined.
+These include text fields, attributes that can be set or not (such as Do Not
+Populate), pin connection settings, and filters for appropriate footprints.
+These are initially defined in the library copy of the symbol,
+but they can be modified on a per-instance basis once a symbol is added to a schematic.
+In other words, two copies of the same symbol in a single schematic can have their properties edited separately.
 
-image::images/eeschema_properties_for_symbol.png[alt="Symbol Properties",scaledwidth="60%"]
+To change the symbol properties, click on the image:images/icons/part_properties_24.png[Symbol properties icon] button to show the Symbol Properties dialog.
+You can also double click an empty spot in the editing canvas.
 
-It is important to set the *number of units* and check
-*all units are interchangeable* and *has alternate body style*, as applicable,
-because these settings affect how pins and graphics are added to each symbol
-unit.
+image::images/symbol_editor_properties_general.png[alt="Symbol Properties",scaledwidth="60%"]
 
-If you change the number of units per package after adding the pins to the
-symbol, you will need to do extra work to add pins and graphics for the
-additional units. The pins and graphics would have been automatically added to
-each unit had these properties been correctly set initially. Nevertheless, it is
-possible to modify these properties at any time.
+The most important settings are in the **General** tab.
+Here you can edit <<symbol-editor-fields,symbol fields>> as well as many basic properties for the symbol.
+Other tabs contain options for
+<<symbol-units-and-body-styles,multiple units and body styles>>,
+<<footprint-filters,footprint filters>>,
+<<sym-jumper-pins,jumper pins>>,
+and <<sym-embedding-files,embedded files>>.
 
-The graphic options *Show pin number* and *Show pin name* define the
-visibility of the pin number and pin name text. The option *Place pin
-names inside* defines the pin name position relative to the pin body.
-The pin names will be displayed inside the symbol outline if the option
-is checked. In this case the *Pin Name Position Offset* property defines
-the shift of the text away from the body end of the pin. A value from
-`0.02` to `0.05` inches is usually reasonable.
+Symbol fields are explained in a <<symbol-editor-fields,separate section>>.
+The other settings in the general tab are:
+
+* **Symbol name** is the symbol's name in the library.
+  Symbols are identified by a combination of the library and symbol name.
+  In older versions of KiCad, the symbol name was linked to the `Value` field.
+  This link is removed in KiCad 7.0 and later.
+
+* The **keywords** should contain additional terms related to the component.
+  Keywords are primarily used, in combination with the symbol name and the `Description` field,
+  for searching for the symbol in the Symbol Chooser and the Symbol Editor.
+  Those three items are also displayed when you select a symbol in the Symbol Chooser.
+* **Define as power symbol** and **Define as local power symbol** control whether the symbol acts as a <<creating-power-symbols,power symbol>>,
+  making connections between otherwise separate nets.
+* The graphic options *Show pin number* and *Show pin name* control the
+visibility of the pin number and pin name text.
+* *Place pin names inside* controls the pin name position relative to the pin body.
+  The pin names will be displayed inside the symbol outline if the option is checked.
+  In this case the *Pin Name Position Offset* property defines the shift of the text away from the body end of the pin.
+  A value from `0.02` to `0.05` inches is usually reasonable.
+* **Exclude from simulation**, **Exclude from bill of materials**, **Exclude from board**, and **Exclude from position files** set the default state of these <<editing-symbol-properties,symbol attributes>> when the symbol is added to the schematic.
 
 The example below shows a symbol with the *Place pin name inside*
 option unchecked. Notice the position of the names and pin numbers.
 
 image::images/eeschema_uncheck_pin_name_inside.png[alt="Place pin name inside unchecked",scaledwidth="95%"]
 
-===== Symbol Name and Keywords
-
-**Symbol name** is the symbol's name in the library. Symbols are identified by a
-combination of the library and symbol name.
-
-In previous versions of KiCad, the symbol name was linked to the `Value` field.
-This link is removed in KiCad 7.0 and later.
-
-The **keywords** should contain additional terms related to the component.
-Keywords are primarily used, in combination with the symbol name and the
-`Description` field, for searching for the symbol in the Symbol Chooser and the
-Symbol Editor. Those three items are also displayed when you select a symbol in
-the Symbol Chooser.
-
-==== Symbol Fields
-
-Symbols contain multiple fields, which are named values containing information
-related to the symbol. Fields can be displayed on the schematic or hidden and
-only shown in the symbol's properties. Some fields have special meaning to
-KiCad: `Reference` and `Footprint` are both critical for creating a PCB, for
-example. Other fields may contain information that is important for a design but
-is not interpreted by KiCad, like pricing or stock information for a part.
-
-Any fields defined in a library symbol will be included in the symbol when it
-is added to a schematic. You can also add new fields to symbols in the
-schematic. Whether they are in the library symbol or not, these fields can then
-be edited on a per-symbol basis in the schematic. They are also transferred to
-the symbol's corresponding footprint in the PCB.
-
-NOTE: Symbol fields are different than graphic text. In addition to being
-      named, fields can be moved and edited in the schematic, while symbol text
-      can only be edited in the symbol editor.
-
-All library symbols are defined with five default fields: `Reference`, `Value`,
-`Footprint`, `Datasheet`, and `Description`, which are added whenever a symbol
-is created. These default fields cannot be deleted. Only the `Reference` field
-is required to have a value: the contents of a library symbol's `Reference`
-field is used as the reference designator prefix when the symbol is added to a
-schematic. In the schematic, the symbol's `Reference` field contains the entire
-reference designator.
-
-The `Footprint` field, if used, contains a reference to a footprint for the
-symbol. The format is `LIBNAME:FOOTPRINTNAME`, where `LIBNAME` is the name of
-the footprint library in the footprint library table (see the
-xref:../pcbnew/pcbnew.adoc#managing-footprint-libraries[Footprint Library Table]
-section in the PCB Editor manual) and `FOOTPRINTNAME` is the name of the
-footprint in the library `LIBNAME`.
-
-The `Description` field can contain text describing the symbol such as the
-component function, distinguishing features, and package options. Together with
-the symbol's name and keywords, text in this field is used when searching for
-symbols in the Symbol Chooser or Symbol Editor. Before KiCad version 8.0, this
-was a dedicated property (like the symbol name and keywords) rather than a
-symbol field.
-
-Symbols defined in libraries are typically defined with only these five default
-fields. Additional fields such as vendor, part number, unit cost, etc. can be
-added to library symbols but generally this is done in the schematic editor so
-the additional fields can be added to every symbol in the schematic, not just
-all symbols of one type.
-
-NOTE: A convenient way to create additional empty symbol fields is to use define
-      field name templates. Field name templates define empty fields that are
-      added to each symbol when it is inserted into the schematic. Field name
-      templates can be defined globally (for all schematics) in the Schematic
-      Editor Preferences, or they can be defined locally (specific to each
-      project) in the Schematic Setup dialog.
-
-NOTE: If you want to manage a large amount of component data in symbol fields,
-      consider using <<database-libraries,database libraries>>.
-
-To edit an existing symbol field, double-click the field, select it or hover and
-press kbd:[E], or right-click on the field text and select **Properties...**.
-
-To add new fields, delete optional fields, or edit existing fields, use the
-image:images/icons/part_properties_24.png[Component properties icon]
-icon on the main tool bar to open the <<symbol-properties,Symbol Properties dialog>>.
-Fields can be arbitrarily named, but names starting with `ki_`, e.g.
-`ki_description`, are reserved by KiCad and should not be used for user fields.
-
-Fields have a number of properties, each of which is shown as a column in the
-properties grid. Not all columns are shown by default; columns can be shown or
-hidden by right clicking on the grid header and selecting or deselecting columns
-from the menu.
-
-[[footprint-filters]]
-==== Footprint Filters
-
-The footprint filters tab is used to define which footprints are appropriate to
-use with the symbol. The filters can be applied in the Footprint Assignment tool
-so that only appropriate footprints are displayed for each symbol.
-
-Multiple footprint filters can be defined. Footprints that match any of the
-filters will be displayed; if no filters are defined, then all footprints will
-be displayed.
-
-Filters can use wildcards: `\*` matches any number of characters,
-including zero, and `?` matches zero or one characters. For example, `SOIC-*`
-would match the `SOIC-8_3.9x4.9mm_P1.27mm` footprint as well as any other
-footprint beginning with `SOIC-`. The filter `SOT?23` matches `SOT23` as well as
-`SOT-23`.
-
-image::images/eeschema_libedit_footprint.png[alt="Footprint filters",scaledwidth="70%"]
-
-[[sym-embedding-files]]
-==== Embedding files
-
-External files can be embedded within a symbol.
-Embedding a file stores a copy of the file inside the symbol. The symbol
-can then refer to the embedded copy of the file instead of the external file,
-which makes the symbol more portable as it doesn't rely on an external file,
-although the symbol library's filesize is increased as a result. In symbols this
-is especially useful for embedding datasheets and <<sim-library,SPICE models>>.
-Files embedded in a symbol are deduplicated when the symbol is added to a
-schematic: if a file is embedded in a symbol, and multiple instances of that
-symbol are added to the schematic, only one copy of the file will be embedded,
-and all of the schematic instances will refer to the same embedded file. Files
-embedded in a schematic cannot be referred to in the parent schematic. File
-embedding is explained in more detail in the
-<<sch-embedding-files,Schematic Setup documentation>>.
-
-image::images/sym_embedded_files.png[]
-
-NOTE: You can add a datasheet, or a SPICE model, to a symbol and embed it in one
-      step. To do so, browse for a datasheet (in the Symbol Properties dialog)
-      or a SPICE model (in the SPICE Model Editor) and enable the **Embed File**
-      checkbox in the file browser while choosing a file. This embeds the
-      file and automatically uses the embedded reference as the file path
-      instead of the path to the external file.
-
 [[symbol-units-and-body-styles]]
-==== Symbol Units and Alternate Body Styles
+=== Symbol units and alternate body styles
 
 Symbols can have more than one unit per package, each with different graphics
-and pin configurations. This is often used for logic gates, opamps, or other
-components that have multiple subunits within one physical package. Symbols can
-also have up to two body styles, a standard symbol and an alternate symbol often
-referred to as a "De Morgan equivalent".
+and pin configurations.
+This is often used for logic gates, opamps, or other components that have multiple subunits within one physical package.
+Each symbol unit can be placed separately in the schematic, which can make it easier to draw neat schematics.
 
-For example, consider a relay with two switches, which can be designed as
-a symbol with one body style and three different units: a coil, switch 1, and
-switch 2. Designing a symbol with multiple units per package and/or alternate
-body styles is very flexible. A pin or a body symbol item can be common
-to all units or specific to a given unit or they can be common to both
-symbolic representation so are specific to a given symbol representation.
+image::images/symbol_editor_units.png[Multiple units for a NAND gate]
 
-By default, pins are specific to a unit and body style. When a pin is common to
-all units or all body styles, it only needs to be created once, no mattery how
-many units or body styles are used. This is also the case for the body style
-graphic shapes and text, which may be common to each unit, but typically are
-specific to each body style.
+Symbols can also have multiple body styles, which are alternate graphical representations of the same symbol.
+For example, the symbol for a NAND gate could have one body style showing an ANSI-style AND gate with inverting "bubble" on the output,
+another body style drawn as an OR gate with inverting "bubbles" on the inputs,
+and a third body style with an IEC-style rectangular NAND gate symbol.
 
-To add additional units to a symbol, set the **Number of Units** property to the
-appropriate number in the Symbol Properties dialog. By default, symbol units are
-named `Unit A`, `Unit B`, etc., but you can set an arbitrary name for the
-current unit using **Edit** -> **Set Unit Display Name...**.
+NOTE: Before KiCad 10.0, a maximum of one alternate body style per symbol was possible,
+      and a symbol's alternate body style was sometimes referred to as a "De Morgan equivalent". 
+      Beginning in KiCad 10.0, multiple alternate body styles are possible.
 
+image::images/symbol_editor_body_styles.png[Alternate body styles for a NAND gate]
+
+By default, pins are part of a single unit and body style in the symbol.
+Alternatively, pins can be set as common to all units or common to all body styles.
+When a pin is common to all units or all body styles,
+it only needs to be created once, no matter how many units or body styles are used.
+Graphics and text may also be set as common to all units or body styles,
+but typically graphics are specific to a single body style so that each body style can have a unique appearance.
+
+The settings for adjusting a symbol's units and body styles are in the **Units & Body Styles** tab of the Symbol Properties dialog.
+
+image::images/symbol_properties_units_body_styles.png[]
+
+* **Number of Units** controls the number of symbol units.
+* **All units are interchangeable** should be set if all symbol units are equivalent.
+  If all units are interchangeable, you can use the Synchronized Pin Edits mode to quickly make changes to all units.
+* The **Unit Display Names** table lets you set an optional name for each unit.
+  If you do not configure display names, symbol units are named `Unit A`, `Unit B`, etc.
+* The **Body Styles** options let you select between a single body style,
+  two body styles for traditional "Standard" and "De Morgan" representations of a symbol,
+  and an arbitrary number of custom body styles.
+  If you enable custom body styles, you can set the name for each style.
+
+You can only view and edit one symbol unit and body style at a time in the symbol editor's editing canvas.
 Use the image:images/symbol_editor_unit_selector.png[unit selection dropdown]
-unit selection dropdown to select the unit you wish to edit.
-
-To add an alternate body style, set the **Has alternate body style (De Morgan)**
-property in the Symbol Properties dialog.
-
-If the symbol has an alternate body style defined, one body style must be
-selected for editing at a time. To edit the normal representation, click
-the image:images/icons/morgan1_24.png[Normal representation icon] icon. To edit
-the alternate representation, click on the
-image:images/icons/morgan2_24.png[Alternate representation icon] icon.
+unit selection dropdown to select the unit you wish to edit,
+and use the image:images/symbol_editor_body_style_selector.png[body style selection dropdown] body style selection dropdown to select a body style.
 
 NOTE: *Synchronized Pins Edit Mode* can be enabled by clicking the
 image:images/icons/pin2pin_24.png[Synchronized pins edit mode icon] icon. In
@@ -780,34 +785,8 @@ enabled automatically when *All units are interchangeable* is checked, but it
 can be disabled. The mode cannot be enabled when *All units are interchangeable*
 is unchecked or when the symbol only has one unit.
 
-===== Example of a Symbol With Multiple Noninterchangeable Units
-
-For an example of a symbol with multiple units that are not interchangeable,
-consider a relay with 3 units per package: a coil, switch 1, and switch 2.
-
-The three units are not all the same, so *All units are interchangeable* should
-be deselected in the Symbol Properties dialog. Alternatively, this option could
-have been specified when the symbol was initially created.
-
-image::images/eeschema_libedit_not_interchangeable.png[alt="Uncheck all units are interchangeable",scaledwidth="60%"]
-
-====== Unit A
-
-image::images/eeschema_libedit_unit1.png[alt="Relay unit A",scaledwidth="45%"]
-
-====== Unit B
-
-image::images/eeschema_libedit_unit2.png[alt="Relay unit B",scaledwidth="45%"]
-
-====== Unit C
-
-image::images/eeschema_libedit_unit3.png[alt="Relay unit C",scaledwidth="45%"]
-
-Unit A does not have the same symbol and pin layout as Units B and C, so the
-units are not interchangeable.
-
 [[symbol-graphics]]
-==== Symbol Graphics
+=== Symbol graphics
 
 Graphical elements create the visual representation of a symbol and
 contain no electrical connection information. You can draw new graphic shapes
@@ -853,7 +832,7 @@ The properties of a graphic element are:
 * *Common to all units in symbol* determines if the graphical element is drawn
   for each unit in symbol with more than one unit per package or if the
   graphical element is only drawn for the current unit.
-* *Common to all body styles (De Morgan)* determines if the
+* *Common to all body styles* determines if the
   graphical element is drawn for each symbolic representation in
   symbols with an alternate body style or if the graphical element is
   only drawn for the current body style.
@@ -862,63 +841,56 @@ The properties of a graphic element are:
   added to a schematic.
 
 [[symbol-pins]]
-==== Symbol Pins
+=== Symbol pins
 
-You can create and insert a pin by clicking on the
-image:images/icons/pin_24.png[Pin icon] button. Pin properties can be edited by
-double clicking on the pin. You can also delete or move pins that you have
-already added. Pins must be created carefully, because any error will have
-consequences on the PCB design.
+Symbol pins are the parts of a symbol that connect to wires in the schematic.
+Each symbol pin corresponds to a footprint pad in the PCB, and pins are matched to pads by number, so each pin's number must match the corresponding pad number in the footprint.
 
-A pin is defined by its graphical representation, its name, and its number. The
-pin's name and number can contain letters, numbers, and symbols, but not spaces.
-For the Electrical Rules Check (ERC) tool to be useful, the pin's electrical
-type (input, output, tri-state...) must also be defined correctly. If this type
-is not defined properly, the schematic ERC check results may be invalid.
+You can create and insert a pin by clicking on the image:images/icons/pin_24.png[Pin icon] button.
+This opens the Pin Properties dialog, then allows you to place the pin in the symbol.
+After placing a pin, you can edit its properties by reopening its Properties dialog (kbd:[E] or double click on the pin) or by using the <<editing-object-properties,Properties Manager>>.
 
-Important notes:
-
-* Symbol pins are matched to footprint pads by number. The pin number
-  in the symbol must match the corresponding pad number in the footprint.
-* Do not use spaces in pin names and numbers. Spaces will be automatically
-  replaced with underscores (`_`).
-* To define a pin name with an inverted signal (overbar) use the
-  `~` (tilde) character followed by the text to invert in braces.
-  For example `~{FO}O` would display [overline]#FO# O.
-* If the pin name is empty, the pin is considered unnamed.
-* Pin names can be repeated in a symbol.
-* Pin numbers must be unique in a symbol.
-
-===== Pin Properties
+NOTE: You can edit all of a symbol's pins at once using the <<pin-table,Pin Table>>.
+      This may be a more convenient way to edit pins, especially for symbols with many pins.
 
 image::images/eeschema_libedit_pin_properties.png[alt="Pin properties",scaledwidth="95%"]
 
-The pin properties dialog allows you to edit all of the characteristics
-of a pin. This dialog pops up automatically when you create a pin or
-when double-clicking on an existing pin. This dialog allows you to modify:
+Pins have the following properties:
 
-* The pin name and text size.
-* The pin number and text size.
-* The pin length.
-* The pin electrical type and graphical style.
-* Unit and alternate representation membership.
-* Pin visibility.
-* <<alternate-pin-definitions,Alternate pin definitions>>.
-
-===== Pin Graphic Styles
-
-The different pin graphic styles are shown in the figure below. These styles are
-purely graphical and do not affect the pin's electrical type.
-
-image::images/eeschema_libedit_pin_properties_style.png[alt="Pin graphic styles",scaledwidth="95%"]
+* **Pin name** is an optional name for the pin.
+  Pin names can be displayed as part of the symbol,
+  and if present they are used as part of automatically generated net names for unnamed nets attached to the pin.
+  Pin names cannot contain spaces;
+  any spaces in a pin name are automatically replaced with underscores.
+  To define a pin name with an inverted signal (overbar) use the `~` (tilde) character followed by the text to invert in braces.
+  For example, `~{FO}O` would display [overline]#FO# O.
+* **Pin number** is a string that uniquely identifies the pin.
+  Symbol pins are matched to footprint pads by pin/pad number,
+  so pin numbers should correspond to pad numbers.
+  Pin numbers are typically unique within a symbol.
+  In addition to numbers, pin numbers can contain letters or symbols.
+  Pin numbers cannot contain spaces;
+  any spaces in a pin number are automatically replaced with underscores.
+* **Electrical type** describes how the pin behaves electrically, such as input, output, or open collector.
+  <<pin-electrical-types,Electrical types affect ERC and some other behavior>>.  
+* **Graphic style** controls the appearance of the pin, such as an inverted pin or a clock input,
+  but does not have any other effects.
+* **X position** and **Y position** are the location of the pin relative to the symbol's anchor.
+* **Orientation** is the direction the pin extends (left, right, up, or down) relative to its wire attachment point.
+* **Pin length** is the length of the pin.
+* **Name text size** and **Number text size** are the size that the pin name and number, respectively, are displayed at.
+* **Common to all units in symbol** controls whether the pin is part of all <<symbol-units-and-body-styles,symbol units>> or only the currently active symbol unit.
+* **Common to all body styles** controls whether the pin is shown in all <<symbol-units-and-body-styles,body styles>> or only the currently active body style.
+* **Visible** controls whether the pin is shown or hidden.
+  Note that <<creating-power-symbols,hidden power input pins>> have special behavior.
+* <<alternate-pin-definitions,**Alternate pin definitions**>> are optional additional combinations of pin name, electrical type, and graphic style that can be selected in the schematic instead of the default pin definition.
+  These can be used, for example, to represent selectable pin functions in a microcontroller.
 
 [[pin-electrical-types]]
-===== Pin Electrical Types
+==== Pin electrical types
 
 Each pin in a symbol has an electrical type, such as input, output, or
 tri-state.
-
-image::images/eeschema_libedit_pin_properties_type.png[alt="Pin graphic styles",scaledwidth="95%"]
 
 Choosing the correct electrical type is important for the schematic ERC tool.
 ERC will check that pins are connected appropriately, for example ensuring that
@@ -1021,15 +993,53 @@ NOTE: The pin type that produces the optimal ERC pin conflict checking behavior
   unconnected in the current schematic.
 |=======================================================================
 
-===== Pushing Pin Properties to Other Pins
+[[pin-stacks]]
+==== Pin stacks
 
-You can apply the length, name size, or number size of a pin to the other
-pins in the symbol by right clicking the pin and selecting **Push Pin Length**,
-**Push Pin Name Size**, or **Push Pin Number Size**, respectively. All other
-pins in the symbol will be updated.
+When a symbol has multiple pins that should always be connected to each other,
+you can choose to draw the symbol so that those pins are __stacked__.
+Because the pins are in the exact same location,
+all pins in the stack are always connected to each other and to any attached wires or labels.
+As an example, ground (or power) pins are often stacked in symbols where the ground pins should always be connected together.
+
+There are two ways to draw stacked pins in the Symbol Editor; both are equivalent.
+
+- You can place multiple individual pins in the same location so that they are literally stacked on top of each other.
+  Each pin in the stack corresponds to a physical pin in the package (and to a pad in the footprint).
+  Each pin in the stack has its own pin number.
+  Because only the top pin in the stack is shown, it can be hard to tell which other pins are in the stack.
+  Before KiCad 10.0, stacking multiple pins was the only way to create pin stacks.
+- You can place a single pin and enter multiple numbers in square brackets (`[]`) as the pin number.
+  For example, a pin with the pin number given as `[1-3]` represents pins 1, 2, and 3.
+  `[1,2,3]` and `[1-2,3]` also represent the same set of pins.
+  Despite being shown as a single pin, all the pin numbers are displayed.
+  This method was introduced in KiCad 10.0.
+
+Both forms of pin stacks are equivalent and result in the same electrical connections on the PCB.
+The second method has the advantage of visually showing all stack's pin numbers.
+
+image::images/pin_stack_exploded.png[title="Exploded pin stack (separate pins)", caption=""]
+
+image::images/pin_stack_single_pin.png[title="Single pin with multiple pin numbers", caption=""]
+
+You can convert an exploded pin stack (a stack of individual pins) to a single pin with multiple pin numbers by right clicking the pin stack and choosing **Convert Stacked Pins**.
+You can do the reverse operation,
+converting a single pin with multiple pin numbers to a stack of individual pins,
+by right clicking the pin and choosing **Explode Stacked Pin**.
+
+When working with exploded pin stacks (a stack of separate pins), there are several considerations to keep in mind.
+
+- Typically, the top pin in the stack is visible, but the other pins in the stack should be marked as invisible.
+  This has the advantage of avoiding the crowded appearance of multiple pins, their numbers, and their names printed on top of each other,
+  but the disadvantage of not clearly showing that the additional pins exist.
+- The top pin can be set to the most appropriate electrical type, but the other pins should usually be set to the Passive electrical type.
+This allows ERC to check connections to the pin stack, while avoiding ERC conflicts between pins in the stack.
+If the pin type is Power Input, it's especially important to set the hidden pins to Passive because this avoids creating hidden power input pins, which <<hidden-power-pins,act as global labels>>.
+
+WARNING: <<hidden-power-pins,Invisible pins with the Power Input type>> act like global labels.
 
 [[synchronized-pin-edit-mode]]
-===== Defining Pins for Multiple Units and Alternate Symbolic Representations
+==== Defining pins for multiple units and body styles
 
 Symbols with multiple units and/or graphical representations are particularly
 problematic when creating and editing pins. Most commonly, pins are specific to
@@ -1056,42 +1066,15 @@ An example is the output pin in the 7400 quad dual input NAND gate. Since there
 are four units and two symbolic representations, there are eight
 separate output pins defined in the symbol definition. When creating
 a new 7400 symbol, unit A of the normal symbolic representation will
-be shown in the library editor. To edit the pin style in the alternate
-symbolic representation, it must first be enabled by clicking the
-image:images/icons/morgan2_24.png[Alternate representation icon]
-button on the tool bar. To edit the pin number for each unit,
-select the appropriate unit using the
-image:images/symbol_editor_unit_selector.png[unit selection dropdown]
-drop down control.
-
-[[pin-table]]
-===== Pin Table
-
-Another way to edit pins is to use the Pin Table, which is accessible via the
-image:images/icons/pin_table_24.png[Pin table icon] icon. The Pin Table
-displays all of the pins in the symbol and their properties in a table view, so
-it is useful for making bulk pin changes.
-
-Any pin property can be edited by clicking on the appropriate cell. Pins can be
-added and removed with the image:images/icons/small_plus_16.png[Plus icon] and
-image:images/icons/small_trash_16.png[Trash icon] icons, respectively.
-
-You can edit the same property for multiple pins simultaneously by grouping
-pins.  Pins can be automatically grouped by name, or you manually group several
-pins by selecting them and clicking **Group Selected**. Click the
-image:images/icons/small_refresh_16.png[] button to clear the manual grouping.
-You can also filter the table to only display pins in certain units.
-
-NOTE: Columns of the pin table can be shown or hidden by right-clicking on the
-header row and checking or unchecking additional columns. Some columns are
-hidden by default.
-
-The screenshot below shows the pin table for a dual opamp.
-
-image::images/eeschema_libedit_pin_table.png[alt="Pin table",scaledwidth="95%"]
+be shown in the library editor.
+To edit the pin style in the alternate symbolic representation,
+it must first be enabled by selecting the alternate representation with the
+image:images/symbol_editor_body_style_selector.png[body style selection dropdown] dropdown control.
+To edit the pin number for each unit, select the appropriate unit using the
+image:images/symbol_editor_unit_selector.png[unit selection dropdown] drop down control.
 
 [[alternate-pin-definitions]]
-===== Alternate Pin Function Definitions
+==== Alternate pin function definitions
 
 Symbol pins can have alternate pin functions defined for them. Alternate pin
 functions allow you to select a different name, electrical type, and
@@ -1109,8 +1092,225 @@ Alternate pin functions are selected in the Schematic Editor once the symbol
 has been placed in the schematic. For information on using alternate pin
 functions in the schematic, see the <<alternate-pin-functions,schematic editor symbol documentation>>.
 
+==== Pushing pin properties to other pins
+
+You can apply the length, name size, or number size of a pin to the other
+pins in the symbol by right clicking the pin and selecting **Push Pin Length**,
+**Push Pin Name Size**, or **Push Pin Number Size**, respectively. All other
+pins in the symbol will be updated.
+
+[[pin-table]]
+==== Pin table
+
+Another way to edit pins is to use the Pin Table, which is accessible via the
+image:images/icons/pin_table_24.png[Pin table icon] button.
+The Pin Table displays all of the pins in the symbol and their properties in a table view,
+so it is useful for making bulk pin changes.
+
+image::images/symbol_editor_pin_table.png[alt="Pin table",scaledwidth="95%"]
+
+Any pin property can be edited by clicking on the appropriate cell. Pins can be
+added and removed with the image:images/icons/small_plus_16.png[Plus icon] and
+image:images/icons/small_trash_16.png[Trash icon] icons, respectively.
+
+NOTE: Columns of the pin table can be shown or hidden by right-clicking on the
+header row and checking or unchecking additional columns. Some columns are
+hidden by default.
+
+You can edit the same property for multiple pins simultaneously by grouping
+pins.
+Pins can be automatically grouped by name with the **Group by name** checkbox,
+or you manually group several pins by selecting them and clicking **Group Selected Pins**.
+Click the image:images/icons/small_refresh_16.png[] button to clear the manual grouping.
+You can also filter the table to only display pins in certain units or body styles, or filter to the pins selected in the symbol editor.
+
+If **Highlight on cross-probe** is enabled in the image:images/icons/config_16.png[] menu,
+pins will be highlighted in the symbol editor when you select them in the pin table.
+
+You can also import and export pins from the pin table.
+This lets you define and edit pins in an external spreadsheet tool.
+Especially for symbols with many pins, this may be more convenient than editing them within KiCad.
+
+To export pins from the table, click either the **To File...** or **To Clipboard** button.
+The pins are exported in a comma-separated (CSV) format.
+All columns are exported, even if they are hidden in the table.
+If **Export all pins** is selected, all pins in the symbol are included.
+If **Export only shown pins** is selected, only the pins shown in the table are included.
+
+To import pins into the table, click either the **From File...** or **From Clipboard** button.
+Data for import needs to be in either comma-separated (CSV) or tab-separated (TSV) format.
+A header row with column names is required: columns in the imported data are mapped to columns in the pin table by name.
+Any columns in the imported data that don't match a column in the pin table will be skipped,
+and any columns that are missing in the imported data will be filled with default values in the pin table.
+If **Replace all existing pins** is selected, the pins in the table are completely replaced by the imported pins.
+If **Append to existing pins** is selected, the imported pins are added to the table without modifying or replacing the existing pins.
+
+[[symbol-editor-fields]]
+=== Symbol fields
+
+Symbols contain multiple fields, which are named values containing information
+related to the symbol. Fields can be displayed on the schematic or hidden and
+only shown in the symbol's properties. Some fields have special meaning to
+KiCad: `Reference` and `Footprint` are both critical for creating a PCB, for
+example. Other fields may contain information that is important for a design but
+is not interpreted by KiCad, like pricing or stock information for a part.
+
+Any fields defined in a library symbol will be included in the symbol when it
+is added to a schematic. You can also add new fields to symbols in the
+schematic. Whether they are in the library symbol or not, these fields can then
+be edited on a per-symbol basis in the schematic. They are also transferred to
+the symbol's corresponding footprint in the PCB.
+
+NOTE: Symbol fields are different than graphic text. In addition to being
+      named, fields can be moved and edited in the schematic, while symbol text
+      can only be edited in the symbol editor.
+
+All library symbols are defined with five default fields: `Reference`, `Value`,
+`Footprint`, `Datasheet`, and `Description`, which are added whenever a symbol
+is created. These default fields cannot be deleted. Only the `Reference` field
+is required to have a value: the contents of a library symbol's `Reference`
+field is used as the reference designator prefix when the symbol is added to a
+schematic. In the schematic, the symbol's `Reference` field contains the entire
+reference designator.
+
+The `Footprint` field, if used, contains a reference to a footprint for the
+symbol. The format is `LIBNAME:FOOTPRINTNAME`, where `LIBNAME` is the name of
+the footprint library in the footprint library table (see the
+xref:../pcbnew/pcbnew.adoc#managing-footprint-libraries[Footprint Library Table]
+section in the PCB Editor manual) and `FOOTPRINTNAME` is the name of the
+footprint in the library `LIBNAME`.
+
+The `Description` field can contain text describing the symbol such as the
+component function, distinguishing features, and package options. Together with
+the symbol's name and keywords, text in this field is used when searching for
+symbols in the Symbol Chooser or Symbol Editor. Before KiCad version 8.0, this
+was a dedicated property (like the symbol name and keywords) rather than a
+symbol field.
+
+Symbols defined in libraries are typically defined with only these five default
+fields. Additional fields such as vendor, part number, unit cost, etc. can be
+added to library symbols but generally this is done in the schematic editor so
+the additional fields can be added to every symbol in the schematic, not just
+all symbols of one type.
+
+NOTE: A convenient way to create additional empty symbol fields is to use define
+      field name templates. Field name templates define empty fields that are
+      added to each symbol when it is inserted into the schematic. Field name
+      templates can be defined globally (for all schematics) in the Schematic
+      Editor Preferences, or they can be defined locally (specific to each
+      project) in the Schematic Setup dialog.
+
+NOTE: If you want to manage a large amount of component data in symbol fields,
+      consider using <<database-libraries,database libraries>>.
+
+To edit an existing symbol field, double-click the field, select it or hover and
+press kbd:[E], or right-click on the field text and select **Properties...**.
+
+To add new fields, delete optional fields, or edit existing fields, use the
+image:images/icons/part_properties_24.png[Component properties icon]
+icon on the main tool bar to open the <<symbol-properties,Symbol Properties dialog>>.
+Fields can be arbitrarily named, but names starting with `ki_`, e.g.
+`ki_description`, are reserved by KiCad and should not be used for user fields.
+
+Fields have a number of properties, each of which is shown as a column in the
+properties grid. Not all columns are shown by default; columns can be shown or
+hidden by right clicking on the grid header and selecting or deselecting columns
+from the menu.
+
+[[footprint-filters]]
+=== Footprint filters
+
+The footprint filters tab is used to define which footprints are appropriate to
+use with the symbol. The filters can be applied in the Footprint Assignment tool
+so that only appropriate footprints are displayed for each symbol.
+
+Multiple footprint filters can be defined. Footprints that match any of the
+filters will be displayed; if no filters are defined, then all footprints will
+be displayed.
+
+Filters can use wildcards: `\*` matches any number of characters,
+including zero, and `?` matches zero or one characters. For example, `SOIC-*`
+would match the `SOIC-8_3.9x4.9mm_P1.27mm` footprint as well as any other
+footprint beginning with `SOIC-`. The filter `SOT?23` matches `SOT23` as well as
+`SOT-23`.
+
+image::images/symbol_editor_properties_footprint_filters.png[alt="Footprint filters",scaledwidth="70%"]
+
+[[sym-jumper-pins]]
+=== Jumper pins
+
+You can configure a symbol to _jumper_ some or all of its pins internally.
+Any jumpered pins will always have the same net;
+they are considered shorted together, even if they are not explicitly connected together in the schematic and PCB.
+
+Symbols with jumper pins represent components that internally short together multiple pins.
+Examples of such components are wire jumpers,
+connectors with multiple connected shield pins,
+and switches with multiple shorted pins on each side of the switch.
+
+image::images/footprint_jumper_pads_disabled.png[caption="",title="A footprint without jumpered pads. The ratsnest shows missing connections between same-numbered pads."]
+
+image::images/footprint_jumper_pads_enabled.png[caption="",title="The same footprint in the same circuit with same-number pads jumpered (internally connected by the component). PCB connections between the same-numbered pads are no longer required."]
+
+Because KiCad considers the jumpered pins to be shorted by the component,
+you only need to connect to one of the shorted pins in the schematic and PCB.
+
+NOTE: Jumper pins are different than net ties.
+      A xref:../pcbnew.adoc#net-ties[net tie] allows copper to bridge two different nets,
+      and each pad in the net tie has a different net.
+      With jumper pins, each pin has the same net,
+      and the electrical connection between jumper pins is assumed to be off-board in the attached component.
+
+You can configure jumper pins in the **Pin Connections** tab of a symbol's Properties.
+
+image::images/symbol_editor_properties_pin_connections.png[]
+
+When the **All pins with duplicate numbers are jumpers** setting is enabled,
+all pins (and pads in the linked footprint) will be jumpered to the other pins with the same number.
+For example, all pins numbered 1 will be considered connected to each other.
+
+You can also configure jumper pin groups for pins that don't have the same number by adding **Explicit pin jumper groups** with the image:images/icons/small_plus_16.png[] button.
+Enter multiple pin numbers separated by spaces or commas.
+A pin jumper group with the text `1 2`  or `1, 2` will jumper together pins 1 and 2. A group with `3 4 5` or `3, 4, 5` will jumper together pins 3, 4, and 5.
+
+NOTE: Like many other symbol properties, a symbol's jumper pin settings are transferred to the linked footprint.
+      You can also configure a footprint's jumper pads using the xref:../pcbnew/pcbnew.adoc#fp-jumper-pads[Footprint Editor].
+
+[[sym-embedding-files]]
+=== Embedding files
+
+External files can be embedded within a symbol.
+Embedding a file stores a copy of the file inside the symbol. The symbol
+can then refer to the embedded copy of the file instead of the external file,
+which makes the symbol more portable as it doesn't rely on an external file,
+although the symbol library's filesize is increased as a result. In symbols this
+is especially useful for embedding datasheets and <<sim-library,SPICE models>>.
+
+In the symbol editor, you can embed files into library symbols in the **Embedded Files** tab of a symbol's properies.
+
+image::images/symbol_editor_properties_embedded_files.png[]
+
+NOTE: You can add a datasheet, or a SPICE model, to a symbol and embed it in one
+      step. To do so, browse for a datasheet (in the Symbol Properties dialog)
+      or a SPICE model (in the SPICE Model Editor) and enable the **Embed File**
+      checkbox in the file browser while choosing a file. This embeds the
+      file and automatically uses the embedded reference as the file path
+      instead of the path to the external file.
+
+Files embedded in a symbol are deduplicated when the symbol is added to a
+schematic: if a file is embedded in a symbol, and multiple instances of that
+symbol are added to the schematic, only one copy of the file will be embedded,
+and all of the schematic instances will refer to the same embedded file.
+
+When a symbol is derived from a symbol with embedded files,
+the derived symbol can access both its own embedded files and the files embedded in the parent symbol.
+Files embedded in a symbol cannot be referred to in the parent schematic outside of the symbol.
+
+File embedding is explained in more detail in the
+<<sch-embedding-files,Schematic Setup documentation>>.
+
 [[creating-power-symbols]]
-==== Creating Power Symbols
+=== Creating power symbols
 
 Power symbols are symbols that are used to label a wire as part of a global
 power net, like `VCC` or `GND`. The power symbol's `Value` field determines the
@@ -1171,7 +1371,7 @@ An easier method to <<creating-a-symbol-from-another-symbol,create a new power
 symbol is to use another symbol as a starting point>>.
 
 [[checking-symbols]]
-==== Checking Symbols
+=== Checking symbols
 
 The Symbol Editor can check for common issues in your symbols. Run the symbol
 checker using the image:images/icons/erc_24.png[symbol checker icon] button in
@@ -1203,54 +1403,3 @@ NOTE: In previous versions of KiCad, <<creating-power-symbols,power symbols>>
       connection. In KiCad 8, the power input pin does not need to be invisible.
       Therefore the symbol checker will report if invisible power input pins are
       detected.
-
-=== Browsing symbol libraries
-
-The Symbol Library Browser allows you to quickly examine the contents of symbol
-libraries. The Symbol Library Viewer can be accessed by clicking
-image:images/icons/library_browser_24.png[Library viewer icon] icon on the main
-Symbol Editor toolbar or with **View** -> **Symbol Library Browser**.
-
-To examine the contents of a library, select a library from the list in the left
-hand panel. All symbols in the selected library will appear in the second panel.
-Select a symbol name to view the symbol.
-
-image::images/symbol_library_browser.png[alt="Symbol Library Browser",scaledwidth="95%"]
-
-Double clicking the name of a symbol or using the
-image:images/icons/add_symbol_to_schematic_24.png[Add symbol to schematic icon]
-button adds the symbol to the schematic.
-
-The top toolbar contains the following commands:
-
-[width="100%",cols="20%,80%",]
-|=======================================================================
-
-|image:images/icons/lib_previous_24.png[Previous symbol icon]
-|Select previous symbol in library.
-
-|image:images/icons/lib_next_24.png[Next symbol icon]
-|Select next symbol in library.
-
-|image:images/icons/refresh_24.png[] image:images/icons/zoom_in_24.png[]
-image:images/icons/zoom_out_24.png[] image:images/icons/zoom_fit_in_page_24.png[]
-|Zoom tools.
-
-|image:images/icons/pin_show_etype_24.png[Show pintype icon]
-|Toggle display of pin electrical types.
-
-|image:images/icons/pin_24.png[Show pin number icon]
-|Toggle display of pin numbers.
-
-|image:images/icons/morgan1_24.png[] image:images/icons/morgan2_24.png[]
-|Select standard or alternate De Morgan representation of symbol, if applicable.
-
-|image:images/symbol_editor_unit_selector.png[width="70%"]
-|Select the unit of a multi-unit symbol.
-
-|image:images/icons/datasheet_24.png[icons/datasheet_png]
-|Open the symbol's datasheet, if it is defined.
-
-|image:images/icons/add_symbol_to_schematic_24.png[Add symbol to schematic icon]
-|Insert current symbol into the schematic.
-|=======================================================================

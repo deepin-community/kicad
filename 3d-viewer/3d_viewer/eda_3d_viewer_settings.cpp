@@ -38,6 +38,7 @@ LAYER_PRESET_3D::LAYER_PRESET_3D( const wxString& aName ) :
         name( aName )
 {
     layers.set( LAYER_3D_BOARD );
+    layers.set( LAYER_3D_PLATED_BARRELS );
     layers.set( LAYER_3D_COPPER_TOP );
     layers.set( LAYER_3D_COPPER_BOTTOM );
     layers.set( LAYER_3D_SILKSCREEN_TOP );
@@ -59,6 +60,7 @@ LAYER_PRESET_3D::LAYER_PRESET_3D( const wxString& aName ) :
     colors[ LAYER_3D_BACKGROUND_TOP ]    = BOARD_ADAPTER::g_DefaultBackgroundTop;
     colors[ LAYER_3D_BACKGROUND_BOTTOM ] = BOARD_ADAPTER::g_DefaultBackgroundBot;
     colors[ LAYER_3D_BOARD ]             = BOARD_ADAPTER::g_DefaultBoardBody;
+    colors[ LAYER_3D_PLATED_BARRELS ]    = BOARD_ADAPTER::g_DefaultSurfaceFinish;
     colors[ LAYER_3D_COPPER_TOP ]        = BOARD_ADAPTER::g_DefaultSurfaceFinish;
     colors[ LAYER_3D_COPPER_BOTTOM ]     = BOARD_ADAPTER::g_DefaultSurfaceFinish;
     colors[ LAYER_3D_SILKSCREEN_TOP ]    = BOARD_ADAPTER::g_DefaultSilkscreen;
@@ -91,6 +93,7 @@ PARAM_LAYER_PRESET_3D::PARAM_LAYER_PRESET_3D( const std::string& aPath,
     LAYER( "background_bottom",   LAYER_3D_BACKGROUND_BOTTOM );
     LAYER( "background_top",      LAYER_3D_BACKGROUND_TOP    );
     LAYER( "board",               LAYER_3D_BOARD             );
+    LAYER( "plated_barrels",      LAYER_3D_PLATED_BARRELS    );
     LAYER( "copper",              LAYER_3D_COPPER_TOP        );
     LAYER( "copper_bottom",       LAYER_3D_COPPER_BOTTOM     );
     LAYER( "silkscreen_bottom",   LAYER_3D_SILKSCREEN_BOTTOM );
@@ -103,7 +106,7 @@ PARAM_LAYER_PRESET_3D::PARAM_LAYER_PRESET_3D( const std::string& aPath,
     LAYER( "user_drawings",       LAYER_3D_USER_DRAWINGS     );
     LAYER( "user_eco1",           LAYER_3D_USER_ECO1         );
     LAYER( "user_eco2",           LAYER_3D_USER_ECO2         );
-    LAYER( "3d_axes",             LAYER_3D_AXES              );
+    LAYER( "3d_navigator",        LAYER_3D_NAVIGATOR         );
     LAYER( "th_models",           LAYER_3D_TH_MODELS         );
     LAYER( "smd_models",          LAYER_3D_SMD_MODELS        );
     LAYER( "virtual_models",      LAYER_3D_VIRTUAL_MODELS    );
@@ -253,7 +256,7 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "render.opengl_thickness_disableOnMove",
                                             &m_Render.opengl_thickness_disableOnMove, false ) );
     m_params.emplace_back( new PARAM<bool>( "render.opengl_vias_disableOnMove",
-                                            &m_Render.opengl_vias_disableOnMove, false ) );
+                                            &m_Render.opengl_microvias_disableOnMove, false ) );
     m_params.emplace_back( new PARAM<bool>( "render.opengl_holes_disableOnMove",
                                             &m_Render.opengl_holes_disableOnMove, false ) );
     m_params.emplace_back( new PARAM<bool>( "render.opengl_render_bbox_only_OnMove",
@@ -320,7 +323,7 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
 
     m_params.emplace_back( new PARAM_LIST<COLOR4D>( "render.raytrace_lightColor",
                                                     &m_Render.raytrace_lightColor,
-                                                    default_colors ) );
+                                                    std::move( default_colors ) ) );
 
     const std::vector<int> default_elevation =
     {
@@ -329,7 +332,7 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
 
     m_params.emplace_back( new PARAM_LIST<int>( "render.raytrace_lightElevation",
                                                 &m_Render.raytrace_lightElevation,
-                                                default_elevation ) );
+                                                std::move( default_elevation ) ) );
 
     const std::vector<int> default_azimuth =
     {
@@ -338,14 +341,16 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
 
     m_params.emplace_back( new PARAM_LIST<int>( "render.raytrace_lightAzimuth",
                                                 &m_Render.raytrace_lightAzimuth,
-                                                default_azimuth ) );
+                                                std::move( default_azimuth ) ) );
 
     m_params.emplace_back( new PARAM<bool>( "render.show_adhesive",
                                             &m_Render.show_adhesive, true ) );
-    m_params.emplace_back( new PARAM<bool>( "render.show_axis",
-                                            &m_Render.show_axis, true ) );
+    m_params.emplace_back( new PARAM<bool>( "render.show_navigator",
+                                            &m_Render.show_navigator, true ) );
     m_params.emplace_back( new PARAM<bool>( "render.show_board_body",
                                             &m_Render.show_board_body, true ) );
+    m_params.emplace_back( new PARAM<bool>( "render.show_plated_barrels",
+                                            &m_Render.show_plated_barrels, true ) );
     m_params.emplace_back( new PARAM<bool>( "render.show_comments",
                                             &m_Render.show_comments, true ) );
     m_params.emplace_back( new PARAM<bool>( "render.show_drawings",
@@ -489,7 +494,7 @@ EDA_3D_VIEWER_SETTINGS::EDA_3D_VIEWER_SETTINGS() :
                 legacyColorMap[483] = "virtual_models";
                 legacyColorMap[484] = "non_pos_file_models";
                 legacyColorMap[485] = "dnp_models";
-                legacyColorMap[486] = "3d_axes";
+                legacyColorMap[486] = "3d_navigator";
                 legacyColorMap[487] = "bounding_boxes";
                 legacyColorMap[488] = "off_board_silk";
 
@@ -579,7 +584,7 @@ bool EDA_3D_VIEWER_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     ret &= fromLegacy<bool>( aCfg, "Render_RAY_Shadows",        "render.raytrace_shadows" );
     ret &= fromLegacy<bool>( aCfg, "ShowRealisticMode",         "render.realistic" );
     ret &= fromLegacy<bool>( aCfg, "ShowAdhesiveLayers",        "render.show_adhesive" );
-    ret &= fromLegacy<bool>( aCfg, "ShowAxis",                  "render.show_axis" );
+    ret &= fromLegacy<bool>( aCfg, "ShowNavigator",             "render.show_navigator" );
     ret &= fromLegacy<bool>( aCfg, "ShowBoardBody",             "render.show_board_body" );
     ret &= fromLegacy<bool>( aCfg, "ShowCommentsLayers",        "render.show_comments" );
     ret &= fromLegacy<bool>( aCfg, "ShowEcoLayers",             "render.show_eco" );

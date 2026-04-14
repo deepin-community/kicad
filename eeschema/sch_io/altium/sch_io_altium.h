@@ -32,6 +32,7 @@
 #include <sch_io/sch_io_mgr.h>
 #include <wx/filename.h>
 #include <wx/gdicmn.h>
+#include <case_insensitive_map.h>
 
 #include "altium_parser_sch.h"
 
@@ -70,6 +71,7 @@ struct HARNESS
     HARNESS_PORT              m_entry;
 };
 
+
 class SCH_IO_ALTIUM : public SCH_IO
 {
 public:
@@ -95,6 +97,9 @@ public:
     SCH_SHEET* LoadSchematicFile( const wxString& aFileName, SCHEMATIC* aSchematic,
                                   SCH_SHEET*             aAppendToMe = nullptr,
                                   const std::map<std::string, UTF8>* aProperties = nullptr ) override;
+
+    SCH_SHEET* LoadSchematicProject( SCHEMATIC*                         aSchematic,
+                                     const std::map<std::string, UTF8>* aProperties );
 
     // unimplemented functions. Will trigger a not_implemented IO error.
     //void SaveLibrary( const wxString& aFileName, const PROPERTIES* aProperties = NULL ) override;
@@ -148,13 +153,16 @@ private:
     const ASCH_STORAGE_FILE* GetFileFromStorage( const wxString& aFilename ) const;
     void CreateAliases();
     void AddTextBox( const ASCH_TEXT_FRAME* aElem );
-    void AddLibTextBox( const ASCH_TEXT_FRAME* aElem, std::vector<LIB_SYMBOL*>& aSymbol  = nullsym, std::vector<int>& aFontSize = nullint );
+    void AddLibTextBox( const ASCH_TEXT_FRAME* aElem, std::vector<LIB_SYMBOL*>& aSymbol = nullsym,
+                        std::vector<int>& aFontSize = nullint );
 
     void ParseComponent( int aIndex, const std::map<wxString, wxString>& aProperties );
     void ParseTemplate( int aIndex, const std::map<wxString, wxString>& aProperties );
-    void ParsePin( const std::map<wxString, wxString>& aProperties, std::vector<LIB_SYMBOL*>& aSymbol  = nullsym);
-    void ParseLabel( const std::map<wxString, wxString>& aProperties, std::vector<LIB_SYMBOL*>& aSymbol  = nullsym, std::vector<int>& aFontSize = nullint );
-    void ParseTextFrame( const std::map<wxString, wxString>& aProperties, std::vector<LIB_SYMBOL*>& aSymbol  = nullsym, std::vector<int>& aFontSize = nullint );
+    void ParsePin( const std::map<wxString, wxString>& aProperties, std::vector<LIB_SYMBOL*>& aSymbol = nullsym);
+    void ParseLabel( const std::map<wxString, wxString>& aProperties, std::vector<LIB_SYMBOL*>& aSymbol = nullsym,
+                     std::vector<int>& aFontSize = nullint );
+    void ParseTextFrame( const std::map<wxString, wxString>& aProperties, std::vector<LIB_SYMBOL*>& aSymbol = nullsym,
+                         std::vector<int>& aFontSize = nullint );
     void ParseNote( const std::map<wxString, wxString>& aProperties );
     void ParseBezier( const std::map<wxString, wxString>& aProperties, std::vector<LIB_SYMBOL*>& aSymbol  = nullsym);
     void ParsePolyline( const std::map<wxString, wxString>& aProperties, std::vector<LIB_SYMBOL*>& aSymbol  = nullsym);
@@ -196,49 +204,13 @@ private:
     void ParseImplementation( const std::map<wxString, wxString>& aProperties, std::vector<LIB_SYMBOL*>& aSymbol  = nullsym );
 
     void ParseLibHeader( const ALTIUM_COMPOUND_FILE& aAltiumSchFile, std::vector<int>& aFontSizes );
-    std::map<wxString,LIB_SYMBOL*> ParseLibFile( const ALTIUM_COMPOUND_FILE& aAltiumSchFile );
+    CASE_INSENSITIVE_MAP<LIB_SYMBOL*> ParseLibFile( const ALTIUM_COMPOUND_FILE& aAltiumSchFile );
     std::vector<LIB_SYMBOL*> ParseLibComponent( const std::map<wxString, wxString>& aProperties );
 
     void doEnumerateSymbolLib( const wxString& aLibraryPath, const std::map<std::string, UTF8>* aProperties,
                                std::function<void(const wxString&, LIB_SYMBOL*)> aInserter );
 
     void fixupSymbolPinNameNumbers( SYMBOL* aSymbol );
-
-private:
-    SCH_SHEET* m_rootSheet;      // The root sheet of the schematic being loaded..
-    SCH_SHEET_PATH m_sheetPath;
-    SCHEMATIC* m_schematic;      // Passed to Load(), the schematic object being loaded
-    wxString   m_libName;        // Library name to save symbols
-    bool       m_isIntLib;       // Flag to indicate Integrated Library
-
-    IO_RELEASER<SCH_IO>               m_pi;                // Plugin to create KiCad symbol library.
-    std::unique_ptr<std::map<std::string, UTF8>>  m_properties;        // Library plugin properties.
-
-    std::unique_ptr<TITLE_BLOCK>    m_currentTitleBlock; // Will be assigned at the end of parsing
-                                                         // a sheet
-
-    VECTOR2I                        m_sheetOffset;
-    std::unique_ptr<ASCH_SHEET>     m_altiumSheet;
-    std::map<int, SCH_SYMBOL*>      m_symbols;
-    std::map<int, SCH_SHEET*>       m_sheets;
-    std::map<int, LIB_SYMBOL*>      m_libSymbols;        // every symbol has its unique lib_symbol
-
-    std::map<wxString, LIB_SYMBOL*> m_powerSymbols;
-    std::vector<ASCH_STORAGE_FILE>  m_altiumStorage;
-    std::vector<ASCH_ADDITIONAL_FILE>  m_altiumAdditional;
-
-    std::map<int, ASCH_SYMBOL>      m_altiumComponents;
-    std::map<int, ASCH_TEMPLATE>    m_altiumTemplates;
-    std::map<int, int>              m_altiumImplementationList;
-    std::vector<ASCH_PORT>          m_altiumPortsCurrentSheet; // we require all connections first
-
-    // parse harness ports after "FileHeader" was parsed, in 2nd run.
-    std::vector<ASCH_PORT>          m_altiumHarnessPortsCurrentSheet;
-    std::map<int, HARNESS>          m_altiumHarnesses;
-
-    // Add offset to all harness ownerIndex'es after parsing FileHeader.
-    int m_harnessOwnerIndexOffset;
-    int m_harnessEntryParent; // used to identify harness connector for harness entry element
 
     // Symbol caching
     void ensureLoadedLibrary( const wxString& aLibraryPath, const std::map<std::string, UTF8>* aProperties );
@@ -248,11 +220,48 @@ private:
     static bool isASCIIFile( const wxString& aFileName );
     static bool checkFileHeader( const wxString& aFileName );
 
+private:
+    wxString       m_rootFilepath;      // The file path of the root sheet being imported
+    SCH_SHEET*     m_rootSheet;         // The root sheet of the schematic being loaded..
+    SCH_SHEET_PATH m_sheetPath;
+    SCHEMATIC*     m_schematic;         // Passed to Load(), the schematic object being loaded
+    wxString       m_libName;           // Library name to save symbols
+    bool           m_isIntLib;          // Flag to indicate Integrated Library
+
+    std::unique_ptr<TITLE_BLOCK>       m_currentTitleBlock;   // Will be assigned at the end of parsing
+                                                              //   a sheet
+
+    VECTOR2I                           m_sheetOffset;
+    std::unique_ptr<ASCH_SHEET>        m_altiumSheet;
+    std::map<int, SCH_SYMBOL*>         m_symbols;
+    std::map<int, SCH_SHEET*>          m_sheets;
+    std::map<int, LIB_SYMBOL*>         m_libSymbols;        // every symbol has its unique lib_symbol
+
+    std::map<wxString, LIB_SYMBOL*>    m_powerSymbols;
+    std::vector<ASCH_STORAGE_FILE>     m_altiumStorage;
+    std::vector<ASCH_ADDITIONAL_FILE>  m_altiumAdditional;
+
+    std::map<int, ASCH_SYMBOL>         m_altiumComponents;
+    std::map<int, ASCH_TEMPLATE>       m_altiumTemplates;
+    std::map<int, int>                 m_altiumImplementationList;
+    std::vector<ASCH_PORT>             m_altiumPortsCurrentSheet; // we require all connections first
+
+    // parse harness ports after "FileHeader" was parsed, in 2nd run.
+    std::vector<ASCH_PORT>             m_altiumHarnessPortsCurrentSheet;
+    std::map<int, HARNESS>             m_altiumHarnesses;
+
+    // Add offset to all harness ownerIndex'es after parsing FileHeader.
+    int m_harnessOwnerIndexOffset;
+    int m_harnessEntryParent; // used to identify harness connector for harness entry element
+
     std::map<wxString, long long> m_timestamps;
-    std::map<wxString, std::map<wxString, LIB_SYMBOL*>> m_libCache;
+    std::map<wxString, CASE_INSENSITIVE_MAP<LIB_SYMBOL*>> m_libCache;
 
     // List of available fonts with font name and font size in pt
     std::vector<std::pair<wxString, int>> m_fonts;
+
+    // Persists across sheets so variant application can match by Altium UniqueId
+    std::map<const SCH_SYMBOL*, wxString> m_altiumSymbolToUid;
 
     // Cache the error messages to avoid duplicate messages
     std::unordered_map<wxString, SEVERITY > m_errorMessages;

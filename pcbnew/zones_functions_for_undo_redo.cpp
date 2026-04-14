@@ -67,7 +67,7 @@ bool ZONE::IsSame( const ZONE& aZoneToCompare )
     if( GetIsRuleArea() != aZoneToCompare.GetIsRuleArea() )
         return false;
 
-    if( GetDoNotAllowCopperPour() != aZoneToCompare.GetDoNotAllowCopperPour() )
+    if( GetDoNotAllowZoneFills() != aZoneToCompare.GetDoNotAllowZoneFills() )
         return false;
 
     if( GetDoNotAllowVias() != aZoneToCompare.GetDoNotAllowVias() )
@@ -82,13 +82,13 @@ bool ZONE::IsSame( const ZONE& aZoneToCompare )
     if( GetDoNotAllowFootprints() != aZoneToCompare.GetDoNotAllowFootprints() )
         return false;
 
-    if( GetRuleAreaPlacementEnabled() != aZoneToCompare.GetRuleAreaPlacementEnabled() )
+    if( GetPlacementAreaEnabled() != aZoneToCompare.GetPlacementAreaEnabled() )
         return false;
 
-    if( GetRuleAreaPlacementSourceType() != aZoneToCompare.GetRuleAreaPlacementSourceType() )
+    if( GetPlacementAreaSourceType() != aZoneToCompare.GetPlacementAreaSourceType() )
         return false;
 
-    if( GetRuleAreaPlacementSource() != aZoneToCompare.GetRuleAreaPlacementSource() )
+    if( GetPlacementAreaSource() != aZoneToCompare.GetPlacementAreaSource() )
         return false;
 
     if( m_ZoneClearance != aZoneToCompare.m_ZoneClearance )

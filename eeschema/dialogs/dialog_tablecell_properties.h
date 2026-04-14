@@ -31,7 +31,8 @@
 class SCH_EDIT_FRAME;
 class SCH_TABLE;
 class SCH_TABLECELL;
-
+class SCINTILLA_TRICKS;
+class HTML_MESSAGE_BOX;
 
 class DIALOG_TABLECELL_PROPERTIES : public DIALOG_TABLECELL_PROPERTIES_BASE
 {
@@ -45,35 +46,46 @@ public:
     };
 
     DIALOG_TABLECELL_PROPERTIES( SCH_EDIT_FRAME* aParentFrame, std::vector<SCH_TABLECELL*> aCells );
+    ~DIALOG_TABLECELL_PROPERTIES();
 
     ///< @return the value depending on the way the dialog was closed.
     enum TABLECELL_PROPS_RETVALUE GetReturnValue() { return m_returnValue; }
 
 private:
+    void getContextualTextVars( const wxString& aCrossRef, wxArrayString* aTokens );
+    void onMultiLineTCLostFocus( wxFocusEvent& event ) override;
+
     bool TransferDataToWindow() override;
     bool TransferDataFromWindow() override;
 
-    void onHAlignButton( wxCommandEvent &aEvent );
-    void onVAlignButton( wxCommandEvent &aEvent );
-    void onTextColorPopup( wxCommandEvent &aEvent ) override;
-    void onFillColorPopup( wxCommandEvent &aEvent ) override;
+    void onHAlignButton( wxCommandEvent& aEvent );
+    void onVAlignButton( wxCommandEvent& aEvent );
+    void onTextColorPopup( wxCommandEvent& aEvent ) override;
+    void onFillColorPopup( wxCommandEvent& aEvent ) override;
 
     void onEditTable( wxCommandEvent& aEvent ) override;
+    void OnFormattingHelp( wxHyperlinkEvent& aEvent ) override;
+
+    void OnSystemColourChanged( wxSysColourChangedEvent& event );
+
+    void UpdateTheme( void );
 
 private:
-    SCH_EDIT_FRAME*               m_frame;
-    SCH_TABLE*                    m_table;
-    std::vector<SCH_TABLECELL*>   m_cells;
+    SCH_EDIT_FRAME*             m_frame;
+    SCH_TABLE*                  m_table;
+    std::vector<SCH_TABLECELL*> m_cells;
+    SCINTILLA_TRICKS*           m_scintillaTricks;
+    HTML_MESSAGE_BOX*           m_helpWindow;
 
-    UNIT_BINDER                   m_textSize;
-    UNIT_BINDER                   m_marginLeft;
-    UNIT_BINDER                   m_marginTop;
-    UNIT_BINDER                   m_marginRight;
-    UNIT_BINDER                   m_marginBottom;
+    UNIT_BINDER       m_textSize;
+    UNIT_BINDER       m_marginLeft;
+    UNIT_BINDER       m_marginTop;
+    UNIT_BINDER       m_marginRight;
+    UNIT_BINDER       m_marginBottom;
+    wxStyledTextCtrl* m_cellText;
 
     enum TABLECELL_PROPS_RETVALUE m_returnValue; // the option that closed the dialog
 };
-
 
 
 #endif // DIALOG_TABLECELL_PROPERTIES_H

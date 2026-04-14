@@ -25,6 +25,7 @@
 #include <json_common.h>
 
 #include <project/net_settings.h>
+#include <settings/json_settings_internals.h>
 #include <settings/parameters.h>
 #include <settings/settings_manager.h>
 #include <string_utils.h>
@@ -36,7 +37,8 @@
 // const int netSettingsSchemaVersion = 1;     // new overbar syntax
 // const int netSettingsSchemaVersion = 2;     // exclude buses from netclass members
 // const int netSettingsSchemaVersion = 3;     // netclass assignment patterns
-const int netSettingsSchemaVersion = 4;     // netclass ordering
+// const int netSettingsSchemaVersion = 4;     // netclass ordering
+const int netSettingsSchemaVersion = 5; // Tuning profile names
 
 
 static std::optional<int> getInPcbUnits( const nlohmann::json& aObj, const std::string& aKey,
@@ -74,7 +76,8 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
                 nlohmann::json nc_json = { { "name", nc->GetName().ToUTF8() },
                                            { "priority", nc->GetPriority() },
                                            { "schematic_color", nc->GetSchematicColor( true ) },
-                                           { "pcb_color", nc->GetPcbColor( true ) } };
+                                           { "pcb_color", nc->GetPcbColor( true ) },
+                                           { "tuning_profile", nc->GetTuningProfile() } };
 
                 auto saveInPcbUnits =
                         []( nlohmann::json& json, const std::string& aKey, int aValue )
@@ -131,6 +134,8 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
 
                 int priority = entry["priority"];
                 nc->SetPriority( priority );
+
+                nc->SetTuningProfile( entry["tuning_profile"] );
 
                 if( auto value = getInPcbUnits( entry, "clearance" ) )
                     nc->SetClearance( *value );
@@ -316,9 +321,12 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
                         wxString pattern = entry["pattern"].get<wxString>();
                         wxString netclass = entry["netclass"].get<wxString>();
 
-                        m_netClassPatternAssignments.push_back(
-                                { std::make_unique<EDA_COMBINED_MATCHER>( pattern, CTX_NETCLASS ),
-                                  netclass } );
+                        // Expand bus patterns so individual bus member nets can be matched
+                        ForEachBusMember( pattern,
+                                          [&]( const wxString& memberPattern )
+                                          {
+                                              addSinglePatternAssignment( memberPattern, netclass );
+                                          } );
                     }
                 }
             },
@@ -328,6 +336,7 @@ NET_SETTINGS::NET_SETTINGS( JSON_SETTINGS* aParent, const std::string& aPath ) :
     registerMigration( 1, 2, std::bind( &NET_SETTINGS::migrateSchema1to2, this ) );
     registerMigration( 2, 3, std::bind( &NET_SETTINGS::migrateSchema2to3, this ) );
     registerMigration( 3, 4, std::bind( &NET_SETTINGS::migrateSchema3to4, this ) );
+    registerMigration( 4, 5, std::bind( &NET_SETTINGS::migrateSchema4to5, this ) );
 }
 
 
@@ -467,6 +476,21 @@ bool NET_SETTINGS::migrateSchema3to4()
 }
 
 
+bool NET_SETTINGS::migrateSchema4to5()
+{
+    // Add tuning profile name field to netclasses
+    if( m_internals->contains( "classes" ) && m_internals->At( "classes" ).is_array() )
+    {
+        const wxString emptyStr = "";
+
+        for( auto& netClass : m_internals->At( "classes" ).items() )
+            netClass.value()["tuning_profile"] = emptyStr.ToUTF8();
+    }
+
+    return true;
+}
+
+
 void NET_SETTINGS::SetDefaultNetclass( std::shared_ptr<NETCLASS> netclass )
 {
     m_defaultNetClass = netclass;
@@ -558,22 +582,32 @@ bool NET_SETTINGS::HasNetclassLabelAssignment( const wxString& netName ) const
 
 void NET_SETTINGS::SetNetclassPatternAssignment( const wxString& pattern, const wxString& netclass )
 {
-    // Replace existing assignment if we have one
+    // Expand bus patterns (vector buses and bus groups) to individual member patterns.
+    // This is necessary because the regex/wildcard matchers interpret brackets and braces
+    // as special characters, not as bus notation.
+    ForEachBusMember( pattern,
+                      [&]( const wxString& memberPattern )
+                      {
+                          addSinglePatternAssignment( memberPattern, netclass );
+                      } );
+
+    ClearAllCaches();
+}
+
+
+void NET_SETTINGS::addSinglePatternAssignment( const wxString& pattern, const wxString& netclass )
+{
+    // Avoid exact duplicates - these shouldn't cause problems, due to later de-duplication
+    // but they are unnecessary.
     for( auto& assignment : m_netClassPatternAssignments )
     {
-        if( assignment.first->GetPattern() == pattern )
-        {
-            assignment.second = netclass;
-            ClearAllCaches();
+        if( assignment.first->GetPattern() == pattern && assignment.second == netclass )
             return;
-        }
     }
 
     // No assignment, add a new one
     m_netClassPatternAssignments.push_back(
             { std::make_unique<EDA_COMBINED_MATCHER>( pattern, CTX_NETCLASS ), netclass } );
-
-    ClearAllCaches();
 }
 
 
@@ -649,38 +683,40 @@ std::shared_ptr<NETCLASS> NET_SETTINGS::GetCachedEffectiveNetClass( const wxStri
 std::shared_ptr<NETCLASS> NET_SETTINGS::GetEffectiveNetClass( const wxString& aNetName )
 {
     // Lambda to fetch an explicit netclass. Returns a nullptr if not found
-    auto getExplicitNetclass = [this]( const wxString& netclass ) -> std::shared_ptr<NETCLASS>
-    {
-        if( netclass == NETCLASS::Default )
-            return m_defaultNetClass;
+    auto getExplicitNetclass =
+            [this]( const wxString& netclass ) -> std::shared_ptr<NETCLASS>
+            {
+                if( netclass == NETCLASS::Default )
+                    return m_defaultNetClass;
 
-        auto ii = m_netClasses.find( netclass );
+                auto ii = m_netClasses.find( netclass );
 
-        if( ii == m_netClasses.end() )
-            return {};
-        else
-            return ii->second;
-    };
+                if( ii == m_netClasses.end() )
+                    return {};
+                else
+                    return ii->second;
+            };
 
     // Lambda to fetch or create an implicit netclass (defined with a label, but not configured)
     // These are needed as while they do not provide any netclass parameters, they do now appear in
     // DRC matching strings as an assigned netclass.
-    auto getOrAddImplicitNetcless = [this]( const wxString& netclass ) -> std::shared_ptr<NETCLASS>
-    {
-        auto ii = m_impicitNetClasses.find( netclass );
+    auto getOrAddImplicitNetcless =
+            [this]( const wxString& netclass ) -> std::shared_ptr<NETCLASS>
+            {
+                auto ii = m_impicitNetClasses.find( netclass );
 
-        if( ii == m_impicitNetClasses.end() )
-        {
-            std::shared_ptr<NETCLASS> nc = std::make_shared<NETCLASS>( netclass, false );
-            nc->SetPriority( std::numeric_limits<int>::max() - 1 ); // Priority > default netclass
-            m_impicitNetClasses[netclass] = nc;
-            return nc;
-        }
-        else
-        {
-            return ii->second;
-        }
-    };
+                if( ii == m_impicitNetClasses.end() )
+                {
+                    std::shared_ptr<NETCLASS> nc = std::make_shared<NETCLASS>( netclass, false );
+                    nc->SetPriority( std::numeric_limits<int>::max() - 1 ); // Priority > default netclass
+                    m_impicitNetClasses[netclass] = nc;
+                    return nc;
+                }
+                else
+                {
+                    return ii->second;
+                }
+            };
 
     // <no net> is forced to be part of the default netclass.
     if( aNetName.IsEmpty() )
@@ -736,6 +772,44 @@ std::shared_ptr<NETCLASS> NET_SETTINGS::GetEffectiveNetClass( const wxString& aN
     // Handle zero resolved netclasses
     if( resolvedNetclasses.size() == 0 )
     {
+        // For bus patterns, check if all members share the same netclass.
+        // If they do, the bus inherits that netclass for coloring purposes.
+        std::shared_ptr<NETCLASS> sharedNetclass;
+        bool                      allSameNetclass = true;
+        bool                      isBusPattern = false;
+
+        ForEachBusMember( aNetName,
+                          [&]( const wxString& member )
+                          {
+                              // If ForEachBusMember gives us back the same name, it's not a bus.
+                              // Skip to avoid infinite recursion.
+                              if( member == aNetName )
+                                  return;
+
+                              isBusPattern = true;
+
+                              if( !allSameNetclass )
+                                  return;
+
+                              std::shared_ptr<NETCLASS> memberNc = GetEffectiveNetClass( member );
+
+                              if( !sharedNetclass )
+                              {
+                                  sharedNetclass = memberNc;
+                              }
+                              else if( memberNc->GetName() != sharedNetclass->GetName() )
+                              {
+                                  allSameNetclass = false;
+                              }
+                          } );
+
+        if( isBusPattern && allSameNetclass && sharedNetclass
+            && sharedNetclass->GetName() != NETCLASS::Default )
+        {
+            m_effectiveNetclassCache[aNetName] = sharedNetclass;
+            return sharedNetclass;
+        }
+
         m_effectiveNetclassCache[aNetName] = m_defaultNetClass;
 
         return m_defaultNetClass;
@@ -907,6 +981,12 @@ void NET_SETTINGS::makeEffectiveNetclass( std::shared_ptr<NETCLASS>& effectiveNe
             effectiveNetclass->SetSchematicColor( schColor );
             effectiveNetclass->SetSchematicColorParent( nc );
         }
+
+        if( nc->HasTuningProfile() )
+        {
+            effectiveNetclass->SetTuningProfile( nc->GetTuningProfile() );
+            effectiveNetclass->SetTuningProfileParent( nc );
+        }
     }
 
     // Fill in any required defaults
@@ -997,6 +1077,14 @@ bool NET_SETTINGS::addMissingDefaults( NETCLASS* nc ) const
         nc->SetBusWidthParent( m_defaultNetClass.get() );
     }
 
+    // The tuning profile can be empty - only fill if a default tuning profile is set
+    if( !nc->HasTuningProfile() && m_defaultNetClass->HasTuningProfile() )
+    {
+        addedDefault = true;
+        nc->SetTuningProfile( m_defaultNetClass->GetTuningProfile() );
+        nc->SetTuningProfileParent( m_defaultNetClass.get() );
+    }
+
     return addedDefault;
 }
 
@@ -1018,14 +1106,42 @@ static bool isSuperSubOverbar( wxChar c )
 }
 
 
+/**
+ * Check if a character at the given position is escaped by a backslash.
+ *
+ * @param aStr The string to check
+ * @param aPos Position of the character to check
+ * @return true if the character is preceded by a backslash escape
+ */
+static bool isEscaped( const wxString& aStr, size_t aPos )
+{
+    if( aPos == 0 )
+        return false;
+
+    // Count consecutive backslashes before this position
+    int backslashCount = 0;
+    size_t pos = aPos;
+
+    while( pos > 0 && aStr[pos - 1] == '\\' )
+    {
+        backslashCount++;
+        pos--;
+    }
+
+    // If odd number of backslashes, the character is escaped
+    return ( backslashCount % 2 ) == 1;
+}
+
+
 bool NET_SETTINGS::ParseBusVector( const wxString& aBus, wxString* aName,
                                    std::vector<wxString>* aMemberList )
 {
-    auto isDigit = []( wxChar c )
-                   {
-                       static   wxString digits( wxT( "0123456789" ) );
-                       return digits.Contains( c );
-                   };
+    auto isDigit =
+            []( wxChar c )
+            {
+                static   wxString digits( wxT( "0123456789" ) );
+                return digits.Contains( c );
+            };
 
     size_t   busLen = aBus.length();
     size_t   i = 0;
@@ -1035,6 +1151,7 @@ bool NET_SETTINGS::ParseBusVector( const wxString& aBus, wxString* aName,
     long     begin = 0;
     long     end = 0;
     int      braceNesting = 0;
+    bool     inQuotes = false;
 
     prefix.reserve( busLen );
 
@@ -1042,18 +1159,57 @@ bool NET_SETTINGS::ParseBusVector( const wxString& aBus, wxString* aName,
     //
     for( ; i < busLen; ++i )
     {
+        // Handle quoted strings (allows spaces inside)
+        if( aBus[i] == '"' && !isEscaped( aBus, i ) )
+        {
+            inQuotes = !inQuotes;
+            continue;
+        }
+
+        if( inQuotes )
+        {
+            // Inside quotes, add characters directly (including spaces)
+            if( aBus[i] == '\\' && i + 1 < busLen )
+            {
+                // Handle escaped characters inside quotes
+                prefix += aBus[++i];
+            }
+            else
+            {
+                prefix += aBus[i];
+            }
+
+            continue;
+        }
+
         if( aBus[i] == '{' )
         {
             if( i > 0 && isSuperSubOverbar( aBus[i-1] ) )
+            {
                 braceNesting++;
+
+                if( !prefix.IsEmpty() )
+                    prefix.RemoveLast();
+
+                continue;
+            }
             else
                 return false;
         }
         else if( aBus[i] == '}' )
         {
             braceNesting--;
+            continue;
         }
 
+        // Handle backslash-escaped spaces
+        if( aBus[i] == '\\' && i + 1 < busLen && aBus[i + 1] == ' ' )
+        {
+            prefix += aBus[++i];
+            continue;
+        }
+
+        // Unescaped space or ] in bus vector prefix is not allowed
         if( aBus[i] == ' ' || aBus[i] == ']' )
             return false;
 
@@ -1114,6 +1270,9 @@ bool NET_SETTINGS::ParseBusVector( const wxString& aBus, wxString* aName,
         if( aBus[i] == '}' )
         {
             braceNesting--;
+        }
+        else if( aBus[i] == '+' || aBus[i] == '-' || aBus[i] == 'P' || aBus[i] == 'N' )
+        {
             suffix += aBus[i];
         }
         else
@@ -1157,25 +1316,85 @@ bool NET_SETTINGS::ParseBusGroup( const wxString& aGroup, wxString* aName,
     wxString prefix;
     wxString tmp;
     int      braceNesting = 0;
+    bool     inQuotes = false;
 
     prefix.reserve( groupLen );
+
+    // Escape spaces in member names so recursive parsing by ForEachBusMember works correctly.
+    // Both quoted strings and backslash-escaped spaces collapse to bare spaces during parsing,
+    // so we must re-escape them for subsequent ParseBusVector/ParseBusGroup calls.
+    auto escapeSpacesForBus =
+            []( const wxString& aMember ) -> wxString
+            {
+                wxString escaped;
+                escaped.reserve( aMember.length() * 2 );
+
+                for( wxUniChar c : aMember )
+                {
+                    if( c == ' ' )
+                        escaped += wxT( "\\ " );
+                    else
+                        escaped += c;
+                }
+
+                return escaped;
+            };
 
     // Parse prefix
     //
     for( ; i < groupLen; ++i )
     {
+        // Handle quoted strings (allows spaces inside)
+        if( aGroup[i] == '"' && !isEscaped( aGroup, i ) )
+        {
+            inQuotes = !inQuotes;
+            continue;
+        }
+
+        if( inQuotes )
+        {
+            // Inside quotes, add characters directly (including spaces)
+            if( aGroup[i] == '\\' && i + 1 < groupLen )
+            {
+                // Handle escaped characters inside quotes
+                prefix += aGroup[++i];
+            }
+            else
+            {
+                prefix += aGroup[i];
+            }
+
+            continue;
+        }
+
         if( aGroup[i] == '{' )
         {
             if( i > 0 && isSuperSubOverbar( aGroup[i-1] ) )
+            {
                 braceNesting++;
+
+                if( !prefix.IsEmpty() )
+                    prefix.RemoveLast();
+
+                continue;
+            }
             else
                 break;
         }
         else if( aGroup[i] == '}' )
         {
             braceNesting--;
+            continue;
         }
 
+        // Handle backslash-escaped spaces
+        if( aGroup[i] == '\\' && i + 1 < groupLen && aGroup[i + 1] == ' ' )
+        {
+            prefix += aGroup[++i];
+            continue;
+        }
+
+        // Unescaped space, [, or ] in bus group prefix is not allowed
         if( aGroup[i] == ' ' || aGroup[i] == '[' || aGroup[i] == ']' )
             return false;
 
@@ -1195,12 +1414,44 @@ bool NET_SETTINGS::ParseBusGroup( const wxString& aGroup, wxString* aName,
     if( i >= groupLen )
         return false;
 
+    inQuotes = false;
+
     for( ; i < groupLen; ++i )
     {
+        // Handle quoted strings (allows spaces inside member names)
+        if( aGroup[i] == '"' && !isEscaped( aGroup, i ) )
+        {
+            inQuotes = !inQuotes;
+            continue;
+        }
+
+        if( inQuotes )
+        {
+            // Inside quotes, add characters directly (including spaces)
+            if( aGroup[i] == '\\' && i + 1 < groupLen )
+            {
+                // Handle escaped characters inside quotes
+                tmp += aGroup[++i];
+            }
+            else
+            {
+                tmp += aGroup[i];
+            }
+
+            continue;
+        }
+
         if( aGroup[i] == '{' )
         {
             if( i > 0 && isSuperSubOverbar( aGroup[i-1] ) )
+            {
                 braceNesting++;
+
+                if( !tmp.IsEmpty() )
+                    tmp.RemoveLast();
+
+                continue;
+            }
             else
                 return false;
         }
@@ -1209,21 +1460,29 @@ bool NET_SETTINGS::ParseBusGroup( const wxString& aGroup, wxString* aName,
             if( braceNesting )
             {
                 braceNesting--;
+                continue;
             }
             else
             {
                 if( aMemberList && !tmp.IsEmpty() )
-                    aMemberList->push_back( EscapeString( tmp, CTX_NETNAME ) );
+                    aMemberList->push_back( EscapeString( escapeSpacesForBus( tmp ), CTX_NETNAME ) );
 
                 return true;
             }
         }
 
-        // Commas aren't strictly legal, but we can be pretty sure what the author had in mind.
+        // Handle backslash-escaped spaces in member names
+        if( aGroup[i] == '\\' && i + 1 < groupLen && aGroup[i + 1] == ' ' )
+        {
+            tmp += aGroup[++i];
+            continue;
+        }
+
+        // Unescaped space or comma separates members
         if( aGroup[i] == ' ' || aGroup[i] == ',' )
         {
             if( aMemberList && !tmp.IsEmpty() )
-                aMemberList->push_back( EscapeString( tmp, CTX_NETNAME ) );
+                aMemberList->push_back( EscapeString( escapeSpacesForBus( tmp ), CTX_NETNAME ) );
 
             tmp.Clear();
             continue;
@@ -1233,4 +1492,29 @@ bool NET_SETTINGS::ParseBusGroup( const wxString& aGroup, wxString* aName,
     }
 
     return false;
+}
+
+
+void NET_SETTINGS::ForEachBusMember( const wxString&                              aBusPattern,
+                                     const std::function<void( const wxString& )>& aFunction )
+{
+    std::vector<wxString> members;
+
+    if( ParseBusVector( aBusPattern, nullptr, &members ) )
+    {
+        // Vector bus: call function for each expanded member
+        for( const wxString& member : members )
+            aFunction( member );
+    }
+    else if( ParseBusGroup( aBusPattern, nullptr, &members ) )
+    {
+        // Bus group: recursively expand each member (which may itself be a vector or group)
+        for( const wxString& member : members )
+            ForEachBusMember( member, aFunction );
+    }
+    else
+    {
+        // Not a bus pattern: call function with the original pattern
+        aFunction( aBusPattern );
+    }
 }

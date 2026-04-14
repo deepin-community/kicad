@@ -28,8 +28,12 @@
 
 namespace PNS {
 
-const long long int MEANDER_SETTINGS::DEFAULT_TOLERANCE( pcbIUScale.mmToIU( 0.1 ) );
+const long long int MEANDER_SETTINGS::DEFAULT_LENGTH_TOLERANCE( pcbIUScale.mmToIU( 0.1 ) );
 const long long int MEANDER_SETTINGS::LENGTH_UNCONSTRAINED( 1000000 * pcbIUScale.IU_PER_MM );
+
+const long long int MEANDER_SETTINGS::DEFAULT_DELAY_TOLERANCE( 0.1 * pcbIUScale.IU_PER_PS );
+const long long int MEANDER_SETTINGS::DELAY_UNCONSTRAINED( 1000000 * pcbIUScale.IU_PER_PS );
+
 const int MEANDER_SETTINGS::SKEW_UNCONSTRAINED( std::numeric_limits<int>::max() );
 
 
@@ -41,7 +45,9 @@ MEANDER_SETTINGS::MEANDER_SETTINGS()
     m_lenPadToDie = 0;
     m_spacing = 600000;
     SetTargetLength( LENGTH_UNCONSTRAINED );
+    SetTargetLengthDelay( DELAY_UNCONSTRAINED );
     SetTargetSkew( 0 );
+    SetTargetSkewDelay( 0 );
     m_overrideCustomRules = false;
     m_cornerStyle = MEANDER_STYLE_ROUND;
     m_cornerRadiusPercentage = 80;
@@ -49,6 +55,8 @@ MEANDER_SETTINGS::MEANDER_SETTINGS()
     m_initialSide = MEANDER_SIDE_LEFT;
     m_lengthTolerance = 0;
     m_keepEndpoints = false;
+    m_isTimeDomain = false;
+    m_netClass = nullptr;
 }
 
 
@@ -63,8 +71,8 @@ void MEANDER_SETTINGS::SetTargetLength( long long int aOpt )
     }
     else
     {
-        m_targetLength.SetMin( aOpt - DEFAULT_TOLERANCE );
-        m_targetLength.SetMax( aOpt + DEFAULT_TOLERANCE );
+        m_targetLength.SetMin( aOpt - DEFAULT_LENGTH_TOLERANCE );
+        m_targetLength.SetMax( aOpt + DEFAULT_LENGTH_TOLERANCE );
     }
 }
 
@@ -81,6 +89,35 @@ void MEANDER_SETTINGS::SetTargetLength( const MINOPTMAX<int>& aConstraint )
 }
 
 
+void MEANDER_SETTINGS::SetTargetLengthDelay( long long int aOpt )
+{
+    m_targetLengthDelay.SetOpt( aOpt );
+
+    if( aOpt == PNS::MEANDER_SETTINGS::DELAY_UNCONSTRAINED )
+    {
+        m_targetLengthDelay.SetMin( 0 );
+        m_targetLengthDelay.SetMax( aOpt );
+    }
+    else
+    {
+        m_targetLengthDelay.SetMin( aOpt - DEFAULT_DELAY_TOLERANCE );
+        m_targetLengthDelay.SetMax( aOpt + DEFAULT_DELAY_TOLERANCE );
+    }
+}
+
+
+void MEANDER_SETTINGS::SetTargetLengthDelay( const MINOPTMAX<int>& aConstraint )
+{
+    SetTargetLengthDelay( aConstraint.Opt() );
+
+    if( aConstraint.HasMin() )
+        m_targetLengthDelay.SetMin( aConstraint.Min() );
+
+    if( aConstraint.HasMax() )
+        m_targetLengthDelay.SetMax( aConstraint.Max() );
+}
+
+
 void MEANDER_SETTINGS::SetTargetSkew( int aOpt )
 {
     m_targetSkew.SetOpt( aOpt );
@@ -92,8 +129,8 @@ void MEANDER_SETTINGS::SetTargetSkew( int aOpt )
     }
     else
     {
-        m_targetSkew.SetMin( aOpt - DEFAULT_TOLERANCE );
-        m_targetSkew.SetMax( aOpt + DEFAULT_TOLERANCE );
+        m_targetSkew.SetMin( aOpt - DEFAULT_LENGTH_TOLERANCE );
+        m_targetSkew.SetMax( aOpt + DEFAULT_LENGTH_TOLERANCE );
     }
 }
 
@@ -107,6 +144,35 @@ void MEANDER_SETTINGS::SetTargetSkew( const MINOPTMAX<int>& aConstraint )
 
     if( aConstraint.HasMax() )
         m_targetSkew.SetMax( aConstraint.Max() );
+}
+
+
+void MEANDER_SETTINGS::SetTargetSkewDelay( int aOpt )
+{
+    m_targetSkewDelay.SetOpt( aOpt );
+
+    if( aOpt == PNS::MEANDER_SETTINGS::SKEW_UNCONSTRAINED )
+    {
+        m_targetSkewDelay.SetMin( 0 );
+        m_targetSkewDelay.SetMax( aOpt );
+    }
+    else
+    {
+        m_targetSkewDelay.SetMin( aOpt - DEFAULT_LENGTH_TOLERANCE );
+        m_targetSkewDelay.SetMax( aOpt + DEFAULT_LENGTH_TOLERANCE );
+    }
+}
+
+
+void MEANDER_SETTINGS::SetTargetSkewDelay( const MINOPTMAX<int>& aConstraint )
+{
+    SetTargetSkewDelay( aConstraint.Opt() );
+
+    if( aConstraint.HasMin() )
+        m_targetSkewDelay.SetMin( aConstraint.Min() );
+
+    if( aConstraint.HasMax() )
+        m_targetSkewDelay.SetMax( aConstraint.Max() );
 }
 
 
@@ -438,7 +504,7 @@ void MEANDER_SHAPE::miter( int aRadius, bool aSide )
     VECTOR2D dir = m_currentDir.Resize( (double) aRadius );
     SHAPE_LINE_CHAIN lc = makeMiterShape( m_currentPos, dir, aSide );
 
-    m_currentPos = lc.CPoint( -1 );
+    m_currentPos = lc.CLastPoint();
     turn( aSide ? ANGLE_90 : -ANGLE_90 );
 
     m_currentTarget->Append( lc );
@@ -495,12 +561,10 @@ SHAPE_LINE_CHAIN MEANDER_SHAPE::genMeanderShape( const VECTOR2D& aP, const VECTO
     switch( aType )
     {
     case MT_EMPTY:
-    {
         lc.Append( aP + dir_v_b + aDir );
         break;
-    }
+
     case MT_START:
-    {
         if( targetBaseLen )
             top = std::max( top, targetBaseLen - sCorner - uCorner * 2 + offset );
 
@@ -509,10 +573,8 @@ SHAPE_LINE_CHAIN MEANDER_SHAPE::genMeanderShape( const VECTOR2D& aP, const VECTO
         forward( std::min( sCorner, uCorner ) );
         forward( std::abs( offset ) );
         break;
-    }
 
     case MT_FINISH:
-    {
         if( targetBaseLen )
             top = std::max( top, targetBaseLen - cr - spc );
 
@@ -529,10 +591,8 @@ SHAPE_LINE_CHAIN MEANDER_SHAPE::genMeanderShape( const VECTOR2D& aP, const VECTO
             lc.Append( aP + dir_v_b + aDir.Resize( 2 * spc - cr ) );
 
         break;
-    }
 
     case MT_TURN:
-    {
         if( targetBaseLen )
             top = std::max( top, targetBaseLen - uCorner * 2 + offset * 2 );
 
@@ -542,10 +602,8 @@ SHAPE_LINE_CHAIN MEANDER_SHAPE::genMeanderShape( const VECTOR2D& aP, const VECTO
         uShape( turnSide, uCorner, top );
         forward( std::abs( offset ) );
         break;
-    }
 
     case MT_SINGLE:
-    {
         if( targetBaseLen )
             top = std::max( top, ( targetBaseLen - sCorner * 2 - uCorner * 2 ) / 2 );
 
@@ -554,7 +612,6 @@ SHAPE_LINE_CHAIN MEANDER_SHAPE::genMeanderShape( const VECTOR2D& aP, const VECTO
         miter( sCorner, false );
         lc.Append( aP + dir_v_b + aDir.Resize( 2 * spc ) );
         break;
-    }
 
     default:
         break;
@@ -566,6 +623,9 @@ SHAPE_LINE_CHAIN MEANDER_SHAPE::genMeanderShape( const VECTOR2D& aP, const VECTO
 
         lc.Mirror( axis );
     }
+
+    // Clear the current target pointer to avoid dangling pointer after lc goes out of scope
+    m_currentTarget = nullptr;
 
     return lc;
 }
@@ -603,8 +663,9 @@ bool MEANDER_SHAPE::Fit( MEANDER_TYPE aType, const SEG& aSeg, const VECTOR2I& aP
 {
     const MEANDER_SETTINGS& st = Settings();
 
-    bool checkMode = false;
-    MEANDER_TYPE prim1, prim2;
+    bool         checkMode = false;
+    MEANDER_TYPE prim1 = MT_EMPTY;
+    MEANDER_TYPE prim2 = MT_EMPTY;
 
     if( aType == MT_CHECK_START )
     {
@@ -658,6 +719,12 @@ bool MEANDER_SHAPE::Fit( MEANDER_TYPE aType, const SEG& aSeg, const VECTOR2I& aP
     int minAmpl = MinAmplitude();
     int maxAmpl = std::max( st.m_maxAmplitude, minAmpl );
 
+    // Calculate minimum acceptable corner radius for visible rounding.
+    // Use at least half the track width to ensure curves are noticeably rounded.
+    // Smaller values lead to corners that appear nearly square, which is problematic
+    // for high-speed signals (e.g., DDR4) where 90-degree corners cause reflections.
+    int minCornerRadius = m_width / 2;
+
     for( int ampl = maxAmpl; ampl >= minAmpl; ampl -= st.m_step )
     {
         m_amplitude = ampl;
@@ -678,6 +745,11 @@ bool MEANDER_SHAPE::Fit( MEANDER_TYPE aType, const SEG& aSeg, const VECTOR2I& aP
         m_side = aSide;
 
         updateBaseSegment();
+
+        // Reject configurations that would result in nearly-square corners (issue #8629).
+        // m_meanCornerRadius is set by genMeanderShape() to the actual corner radius used.
+        if( m_meanCornerRadius < minCornerRadius )
+            continue;
 
         if( m_placer->CheckFit( this ) )
             return true;
@@ -705,7 +777,10 @@ void MEANDER_SHAPE::Resize( int aAmpl )
     if( aAmpl < 0 )
         return;
 
-    m_amplitude = aAmpl;
+    // Ensure amplitude doesn't go below minimum needed for proper corner radii (issue #8629)
+    int minAmpl = MinAmplitude();
+
+    m_amplitude = std::max( aAmpl, minAmpl );
 
     Recalculate();
 }
@@ -833,7 +908,7 @@ void MEANDER_SHAPE::updateBaseSegment( )
     if( m_dual )
     {
         VECTOR2I midpA = ( CLine( 0 ).CPoint( 0 )  + CLine( 1 ).CPoint( 0  ) ) / 2;
-        VECTOR2I midpB = ( CLine( 0 ).CPoint( -1 ) + CLine( 1 ).CPoint( -1 ) ) / 2;
+        VECTOR2I midpB = ( CLine( 0 ).CLastPoint() + CLine( 1 ).CLastPoint() ) / 2;
 
         m_clippedBaseSeg.A = m_baseSeg.LineProject( midpA );
         m_clippedBaseSeg.B = m_baseSeg.LineProject( midpB );
@@ -841,7 +916,7 @@ void MEANDER_SHAPE::updateBaseSegment( )
     else
     {
         m_clippedBaseSeg.A = m_baseSeg.LineProject( CLine( 0 ).CPoint( 0 ) );
-        m_clippedBaseSeg.B = m_baseSeg.LineProject( CLine( 0 ).CPoint( -1 ) );
+        m_clippedBaseSeg.B = m_baseSeg.LineProject( CLine( 0 ).CLastPoint() );
     }
 }
 

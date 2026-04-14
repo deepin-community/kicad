@@ -35,7 +35,6 @@ add_executable( drc_proto
     ../../../pcbnew/drc/drc_rule_condition.cpp
     ../../../pcbnew/drc/drc_rule_parser.cpp
     ../../../pcbnew/drc/drc_test_provider.cpp
-    ../../../pcbnew/drc/drc_test_provider_clearance_base.cpp
     ../../../pcbnew/drc/drc_test_provider_creepage.cpp
     ../../../pcbnew/drc/drc_test_provider_copper_clearance.cpp
     ../../../pcbnew/board_stackup_manager/stackup_predefined_prms.cpp
@@ -99,6 +98,7 @@ target_link_libraries( drc_proto
     dxflib_qcad
     tinyspline_lib
     nanosvg
+    markdown_lib
     idf3
     Boost::headers
     ${PCBNEW_IO_LIBRARIES}

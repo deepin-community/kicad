@@ -26,24 +26,26 @@
 #include <sch_edit_frame.h>
 #include <symbol_edit_frame.h>
 #include <sch_shape.h>
+#include <sch_rule_area.h>
 #include <dialog_shape_properties.h>
 #include <settings/color_settings.h>
+#include <widgets/wx_infobar.h>
 #include <symbol_editor_settings.h>
 #include <sch_commit.h>
 #include <string_utils.h>
 
 
 DIALOG_SHAPE_PROPERTIES::DIALOG_SHAPE_PROPERTIES( SCH_BASE_FRAME* aParent, SCH_SHAPE* aShape ) :
-    DIALOG_SHAPE_PROPERTIES_BASE( aParent ),
-    m_frame( aParent ),
-    m_shape( aShape ),
-    m_borderWidth( aParent, m_borderWidthLabel, m_borderWidthCtrl, m_borderWidthUnits, true )
+        DIALOG_SHAPE_PROPERTIES_BASE( aParent ),
+        m_frame( aParent ),
+        m_shape( aShape ),
+        m_borderWidth( aParent, m_borderWidthLabel, m_borderWidthCtrl, m_borderWidthUnits, true )
 {
     SetTitle( wxString::Format( GetTitle(), aShape->GetFriendlyName() ) );
 
     // DIALOG_SHIM needs a unique hash_key because classname is not sufficient because the
     // different shapes (and even whether or not we're within the symbol editor) cause different
-    // dialog layouts).
+    // dialog layouts.
     m_hash_key = TO_UTF8( GetTitle() + aParent->GetName() );
 
     m_helpLabel1->SetFont( KIUI::GetInfoFont( this ).Italic() );
@@ -67,6 +69,8 @@ DIALOG_SHAPE_PROPERTIES::DIALOG_SHAPE_PROPERTIES( SCH_BASE_FRAME* aParent, SCH_S
 
     if( m_frame->GetColorSettings()->GetOverrideSchItemColors() )
         m_infoBar->ShowMessage( _( "Note: individual item colors overridden in Preferences." ) );
+
+    m_ruleAreaSizer->Show( dynamic_cast<SCH_RULE_AREA*>( aShape ) != nullptr );
 
     SetInitialFocus( m_borderWidthCtrl );
 
@@ -92,10 +96,8 @@ DIALOG_SHAPE_PROPERTIES::DIALOG_SHAPE_PROPERTIES( SCH_BASE_FRAME* aParent, SCH_S
         m_symbolEditorSizer->Show( false );
     }
 
-    m_borderColorSwatch->Bind( COLOR_SWATCH_CHANGED, &DIALOG_SHAPE_PROPERTIES::onBorderSwatch,
-                               this );
-    m_customColorSwatch->Bind( COLOR_SWATCH_CHANGED, &DIALOG_SHAPE_PROPERTIES::onCustomColorSwatch,
-                               this );
+    m_borderColorSwatch->Bind( COLOR_SWATCH_CHANGED, &DIALOG_SHAPE_PROPERTIES::onBorderSwatch, this );
+    m_customColorSwatch->Bind( COLOR_SWATCH_CHANGED, &DIALOG_SHAPE_PROPERTIES::onCustomColorSwatch, this );
 
     // Now all widgets have the size fixed, call FinishDialogSettings
     finishDialogSettings();
@@ -104,11 +106,8 @@ DIALOG_SHAPE_PROPERTIES::DIALOG_SHAPE_PROPERTIES( SCH_BASE_FRAME* aParent, SCH_S
 
 DIALOG_SHAPE_PROPERTIES::~DIALOG_SHAPE_PROPERTIES()
 {
-    m_borderColorSwatch->Unbind( COLOR_SWATCH_CHANGED, &DIALOG_SHAPE_PROPERTIES::onBorderSwatch,
-                                 this );
-    m_customColorSwatch->Unbind( COLOR_SWATCH_CHANGED,
-                                 &DIALOG_SHAPE_PROPERTIES::onCustomColorSwatch,
-                                 this );
+    m_borderColorSwatch->Unbind( COLOR_SWATCH_CHANGED, &DIALOG_SHAPE_PROPERTIES::onBorderSwatch, this );
+    m_customColorSwatch->Unbind( COLOR_SWATCH_CHANGED, &DIALOG_SHAPE_PROPERTIES::onCustomColorSwatch, this );
 }
 
 
@@ -116,6 +115,14 @@ bool DIALOG_SHAPE_PROPERTIES::TransferDataToWindow()
 {
     if( !wxDialog::TransferDataToWindow() )
         return false;
+
+    if( SCH_RULE_AREA* ruleArea = dynamic_cast<SCH_RULE_AREA*>( m_shape ) )
+    {
+        m_cbExcludeFromSim->SetValue( ruleArea->GetExcludedFromSim() );
+        m_cbExcludeFromBom->SetValue( ruleArea->GetExcludedFromBOM() );
+        m_cbExcludeFromBoard->SetValue( ruleArea->GetExcludedFromBoard() );
+        m_cbDNP->SetValue( ruleArea->GetDNP() );
+    }
 
     if( m_shape->GetWidth() >= 0 )
     {
@@ -144,7 +151,7 @@ bool DIALOG_SHAPE_PROPERTIES::TransferDataToWindow()
     else
         wxFAIL_MSG( wxT( "Line type not found in the type lookup map" ) );
 
-    if( SYMBOL_EDIT_FRAME* symbolEditor = dynamic_cast<SYMBOL_EDIT_FRAME*>( m_frame ) )
+    if( dynamic_cast<SYMBOL_EDIT_FRAME*>( m_frame ) )
     {
         m_rbFillNone->Enable( true );
         m_rbFillOutline->Enable( true );
@@ -184,26 +191,19 @@ bool DIALOG_SHAPE_PROPERTIES::TransferDataToWindow()
         const SYMBOL* symbol = m_shape->GetParentSymbol();
 
         m_privateCheckbox->SetValue( m_shape->IsPrivate() );
-        m_checkApplyToAllUnits->SetValue( symbol->GetUnitCount() > 1 && m_shape->GetUnit() == 0 );
-        m_checkApplyToAllUnits->Enable( symbol->GetUnitCount() > 1 );
-        m_checkApplyToAllBodyStyles->SetValue( m_shape->GetBodyStyle() == 0 );
-
-        bool enableAlternateBodyStyle = symbol->HasAlternateBodyStyle();
-
-        // If a symbol contains no body-style-specific pins or graphic items,
-        // symbol->HasAlternateBodyStyle() will return false.
-        // But when creating a new symbol, with DeMorgan option set, the m_checkApplyToAllBodyStyles
-        // must be enabled in order to be able to create graphic items shared by all body styles.
-        if( symbolEditor->GetShowDeMorgan() )
-            enableAlternateBodyStyle = true;
-
-        m_checkApplyToAllBodyStyles->Enable( enableAlternateBodyStyle );
+        m_checkApplyToAllUnits->SetValue( symbol->IsMultiUnit() && m_shape->GetUnit() == 0 );
+        m_checkApplyToAllUnits->Enable( symbol->IsMultiUnit() );
+        m_checkApplyToAllBodyStyles->SetValue( symbol->IsMultiBodyStyle() && m_shape->GetBodyStyle() == 0 );
+        m_checkApplyToAllBodyStyles->Enable( symbol->IsMultiBodyStyle() );
     }
     else
     {
-        m_filledCtrl->SetValue( m_shape->IsFilled() );
+        m_fillCtrl->SetSelection( m_shape->GetFillModeProp() );
         m_fillColorSwatch->SetSwatchColor( m_shape->GetFillColor(), false );
     }
+
+    m_fillColorLabel->Enable( m_fillCtrl->GetSelection() != UI_FILL_MODE::NONE );
+    m_fillColorSwatch->Enable( m_fillCtrl->GetSelection() != UI_FILL_MODE::NONE );
 
     return true;
 }
@@ -233,12 +233,10 @@ void DIALOG_SHAPE_PROPERTIES::onBorderChecked( wxCommandEvent& event )
 }
 
 
-void DIALOG_SHAPE_PROPERTIES::onFillChecked( wxCommandEvent& aEvent )
+void DIALOG_SHAPE_PROPERTIES::onFillChoice( wxCommandEvent& event )
 {
-    bool fill = m_filledCtrl->GetValue();
-
-    m_fillColorLabel->Enable( fill );
-    m_fillColorSwatch->Enable( fill );
+    m_fillColorLabel->Enable( m_fillCtrl->GetSelection() != UI_FILL_MODE::NONE );
+    m_fillColorSwatch->Enable( m_fillCtrl->GetSelection() != UI_FILL_MODE::NONE );
 }
 
 
@@ -311,6 +309,14 @@ bool DIALOG_SHAPE_PROPERTIES::TransferDataFromWindow()
     if( !m_shape->IsNew() )
         commit.Modify( m_shape, m_frame->GetScreen() );
 
+    if( SCH_RULE_AREA* ruleArea = dynamic_cast<SCH_RULE_AREA*>( m_shape ) )
+    {
+        ruleArea->SetExcludedFromSim( m_cbExcludeFromSim->GetValue() );
+        ruleArea->SetExcludedFromBOM( m_cbExcludeFromBom->GetValue() );
+        ruleArea->SetExcludedFromBoard( m_cbExcludeFromBoard->GetValue() );
+        ruleArea->SetDNP( m_cbDNP->GetValue() );
+    }
+
     STROKE_PARAMS stroke = m_shape->GetStroke();
 
     if( m_borderCheckbox->GetValue() )
@@ -362,11 +368,7 @@ bool DIALOG_SHAPE_PROPERTIES::TransferDataFromWindow()
     }
     else
     {
-        if( m_filledCtrl->GetValue() )
-            m_shape->SetFillMode( FILL_T::FILLED_WITH_COLOR );
-        else
-            m_shape->SetFillMode( FILL_T::NO_FILL );
-
+        m_shape->SetFillModeProp( (UI_FILL_MODE) m_fillCtrl->GetSelection() );
         m_shape->SetFillColor( m_fillColorSwatch->GetSwatchColor() );
     }
 

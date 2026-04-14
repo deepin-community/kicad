@@ -22,6 +22,7 @@
 #define _APP_SETTINGS_H
 
 #include <gal/color4d.h>
+#include <json_common.h>
 #include <settings/json_settings.h>
 #include <settings/grid_settings.h>
 
@@ -34,7 +35,13 @@ struct KICOMMON_API CROSS_PROBING_SETTINGS
     bool center_on_items; ///< Automatically pan to cross-probed items.
     bool zoom_to_fit;     ///< Zoom to fit items (ignored if center_on_items is off).
     bool auto_highlight;  ///< Automatically turn on highlight mode in the target frame.
+    bool flash_selection; ///< Flash newly cross-probed selection (visual attention aid).
 };
+
+namespace KIGFX
+{
+    enum class CROSS_HAIR_MODE : int;
+}
 
 /**
  * Common cursor settings, available to every frame.
@@ -42,7 +49,7 @@ struct KICOMMON_API CROSS_PROBING_SETTINGS
 struct KICOMMON_API CURSOR_SETTINGS
 {
     bool always_show_cursor;
-    bool fullscreen_cursor;
+    KIGFX::CROSS_HAIR_MODE cross_hair_mode;
 };
 
 /**
@@ -50,8 +57,24 @@ struct KICOMMON_API CURSOR_SETTINGS
 */
 enum class ARC_EDIT_MODE
 {
+    /**
+     * When editing endpoints, the angle and radius are adjusted.
+     * When editing the midpoint, the radius is adjusted.
+     * When editing the center, the arcs is moved
+     */
     KEEP_CENTER_ADJUST_ANGLE_RADIUS,
-    KEEP_ENDPOINTS_OR_START_DIRECTION
+    /**
+     * Whe editing endpoints, the other end remains in place.
+     * When editing the midpoint, both endpoints remain in place.
+     * When editing the center, the endpoints remain in place.
+     */
+    KEEP_ENDPOINTS_OR_START_DIRECTION,
+    /**
+     * When editing endpoints, only the angle is adjusted.
+     * The midpoint adjusts only radius.
+     * When editing the center, the arc is moved.
+     */
+    KEEP_CENTER_ENDS_ADJUST_ANGLE,
 };
 
 /**
@@ -75,6 +98,7 @@ struct KICOMMON_API WINDOW_SETTINGS
     WINDOW_STATE state;
     wxString mru_path;
     wxString perspective;
+    nlohmann::json aui_state;
     std::vector<double> zoom_factors;
 
     CURSOR_SETTINGS cursor;
@@ -115,11 +139,11 @@ public:
 
         SELECTION_ZOOM selection_zoom;
         bool           search_hidden_fields;
+        bool           search_metadata;
     };
 
     struct GRAPHICS
     {
-        int   canvas_type;
         float highlight_factor;         ///< How much to brighten highlighted objects by.
         float select_factor;            ///< How much to brighten selected objects by.
     };
@@ -136,15 +160,36 @@ public:
         std::vector<wxString>   open_libs;     ///< list of libraries the user has open in the tree.
     };
 
+    struct PANEL_DESIGN_BLOCK_CHOOSER
+    {
+        int  sash_pos_h;
+        int  sash_pos_v;
+        int  width;
+        int  height;
+        int  sort_mode;
+        bool repeated_placement;
+        bool place_as_sheet;
+        bool place_as_group;
+        bool keep_annotations;
+
+        // For saving tree columns and widths
+        LIB_TREE tree;
+    };
+
     struct PRINTING
     {
-        bool             background;    ///< Whether or not to print background color.
-        bool             monochrome;    ///< Whether or not to print in monochrome.
-        double           scale;         ///< Printout scale.
-        bool             use_theme;     ///< If false, display color theme will be used.
-        wxString         color_theme;   ///< Color theme to use for printing.
-        bool             title_block;   ///< Whether or not to print title block.
-        std::vector<int> layers;        ///< List of enabled layers for printing.
+        bool             background;             ///< Whether or not to print background color.
+        bool             monochrome;             ///< Whether or not to print in monochrome.
+        double           scale;                  ///< Printout scale.
+        bool             use_theme;              ///< If false, display color theme will be used.
+        wxString         color_theme;            ///< Color theme to use for printing.
+        bool             title_block;            ///< Whether or not to print title block.
+        std::vector<int> layers;                 ///< List of enabled layers for printing.
+        bool             mirror;                 ///< Print mirrored.
+        int              drill_marks;            ///< Drill marks type (0=none, 1=small, 2=real).
+        int              pagination;             ///< 0=all layers on one page, 1=one page per layer.
+        bool             edge_cuts_on_all_pages; ///< Print board edges on all pages.
+        bool             as_item_checkboxes;     ///< Honor checkboxes in appearance manager.
     };
 
     struct SYSTEM
@@ -175,10 +220,14 @@ public:
 
     const std::vector<GRID> DefaultGridSizeList() const;
 
+    const std::vector<double> DefaultZoomList() const;
+
 public:
     CROSS_PROBING_SETTINGS m_CrossProbing;
 
     FIND_REPLACE m_FindReplace;
+
+    PANEL_DESIGN_BLOCK_CHOOSER m_DesignBlockChooserPanel;
 
     GRAPHICS m_Graphics;
 
@@ -198,6 +247,9 @@ public:
 
     /// Active color theme name.
     wxString m_ColorTheme;
+
+    /// Use custom toolbars
+    bool m_CustomToolbars;
 
 
     ///! Local schema version for common app settings.
@@ -227,7 +279,8 @@ protected:
      * @param aWindow is the target window settings object.
      * @param aJsonPath is the path to read parameters from.
      */
-    void addParamsForWindow( WINDOW_SETTINGS* aWindow, const std::string& aJsonPath );
+    void addParamsForWindow( WINDOW_SETTINGS* aWindow, const std::string& aJsonPath,
+                             int aDefaultWidth = 0, int aDefaultHeight = 0 );
 
     /**
      * Migrate the library tree width setting from a single column (Item) to multi-column.

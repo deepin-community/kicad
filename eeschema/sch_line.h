@@ -29,6 +29,7 @@
 #include <wx/pen.h>     // for wxPenStyle
 #include <list>         // for std::list
 #include <geometry/seg.h>
+#include <math/vector3.h>
 
 class NETLIST_OBJECT_LIST;
 
@@ -87,7 +88,7 @@ public:
         return false;
     }
 
-    bool IsEndPoint( const VECTOR2I& aPoint ) const
+    bool IsEndPoint( const VECTOR2I& aPoint ) const override
     {
         return aPoint == m_start || aPoint == m_end;
     }
@@ -137,11 +138,19 @@ public:
 
     VECTOR2I GetStartPoint() const { return m_start; }
     void     SetStartPoint( const VECTOR2I& aPosition ) { m_start = aPosition; }
+    int      GetStartX() const { return m_start.x; }
+    void     SetStartX( int aX ) { SetStartPoint( VECTOR2I( aX, m_start.y ) ); }
+    int      GetStartY() const { return m_start.y; }
+    void     SetStartY( int aY ) { SetStartPoint( VECTOR2I( m_start.x, aY ) ); }
 
     VECTOR2I GetMidPoint() const { return ( m_start + m_end ) / 2; }
 
     VECTOR2I GetEndPoint() const { return m_end; }
     void     SetEndPoint( const VECTOR2I& aPosition ) { m_end = aPosition; }
+    int      GetEndX() const { return m_end.x; }
+    void     SetEndX( int aX ) { SetEndPoint( VECTOR2I( aX, m_end.y ) ); }
+    int      GetEndY() const { return m_end.y; }
+    void     SetEndY( int aY ) { SetEndPoint( VECTOR2I( m_end.x, aY ) ); }
 
     /**
      * Get the geometric aspect of the wire as a SEG
@@ -218,6 +227,7 @@ public:
      * @return The length of the line segment.
      */
     double GetLength() const;
+    void   SetLength( double aLength );
 
     int GetPenWidth() const override;
 
@@ -256,9 +266,33 @@ public:
      * @param aPoint Point at which to break the segment
      * @return The newly created segment.
      */
-    SCH_LINE* BreakAt( const VECTOR2I& aPoint );
+    SCH_LINE* BreakAt( SCH_COMMIT* aCommit, const VECTOR2I& aPoint );
+
+    /**
+     * This version should only be used when importing files.  It cannot handle breaking wires
+     * that are part of groups (as it has no commit to modify the parent group within).
+     */
+    SCH_LINE* NonGroupAware_BreakAt( const VECTOR2I& aPoint );
 
     bool IsParallel( const SCH_LINE* aLine ) const;
+
+    /**
+     * For wires only:
+     * @return true if a wire can accept a hop over arc shape
+     * (when 2 wires are crossing, only one must accept the hop over arc)
+     */
+    bool ShouldHopOver( const SCH_LINE* aLine ) const;
+
+    /**
+     * For wires only: build the list of points to draw the shape using segments and 180 deg arcs
+     * Points are VECTOR3D, with Z coord used as flag:
+     * for segments: start point and end point have the Z coord = 0
+     * for arcs (hop over): start point middle point and end point have the Z coord = 1
+     * @return the list of points
+     * @param aScreen is the current screen to draw/plot
+     * @param aArcRadius is the radius of the hop over arc
+     */
+    std::vector<VECTOR3I> BuildWireWithHopShape( const SCH_SCREEN* aScreen, double aArcRadius ) const;
 
     void GetEndPoints( std::vector<DANGLING_END_ITEM>& aItemList ) override;
 
@@ -301,19 +335,12 @@ public:
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
-
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
-
-    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                          const VECTOR2I& aOffset, bool aDimmed ) override {}
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
 
     EDA_ITEM* Clone() const override;
-
-    void SwapData( SCH_ITEM* aItem ) override;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
@@ -348,6 +375,9 @@ public:
     double Similarity( const SCH_ITEM& aOther ) const override;
 
     bool operator==( const SCH_ITEM& aOther ) const override;
+
+protected:
+    void swapData( SCH_ITEM* aItem ) override;
 
 private:
     bool doIsConnected( const VECTOR2I& aPosition ) const override;

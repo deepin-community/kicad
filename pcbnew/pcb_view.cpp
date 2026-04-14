@@ -62,8 +62,8 @@ void PCB_VIEW::Add( KIGFX::VIEW_ITEM* aItem, int aDrawPriority )
 
         if( boardItem->Type() == PCB_FOOTPRINT_T )
         {
-            static_cast<FOOTPRINT*>( boardItem )->RunOnChildren( std::bind( &PCB_VIEW::Add, this,
-                                                                            _1, aDrawPriority ) );
+            static_cast<FOOTPRINT*>( boardItem )->RunOnChildren( std::bind( &PCB_VIEW::Add, this, _1, aDrawPriority ),
+                                                                 RECURSE_MODE::NO_RECURSE );
         }
     }
 
@@ -79,8 +79,8 @@ void PCB_VIEW::Remove( KIGFX::VIEW_ITEM* aItem )
 
         if( boardItem->Type() == PCB_FOOTPRINT_T )
         {
-            static_cast<FOOTPRINT*>( boardItem )->RunOnChildren( std::bind( &PCB_VIEW::Remove,
-                                                                            this, _1 ) );
+            static_cast<FOOTPRINT*>( boardItem )->RunOnChildren( std::bind( &PCB_VIEW::Remove, this, _1 ),
+                                                                 RECURSE_MODE::NO_RECURSE );
         }
     }
 
@@ -104,7 +104,8 @@ void PCB_VIEW::Update( const KIGFX::VIEW_ITEM* aItem, int aUpdateFlags ) const
                     [this, aUpdateFlags]( BOARD_ITEM* child )
                     {
                         VIEW::Update( child, aUpdateFlags );
-                    } );
+                    },
+                    RECURSE_MODE::NO_RECURSE );
         }
     }
 
@@ -115,6 +116,33 @@ void PCB_VIEW::Update( const KIGFX::VIEW_ITEM* aItem, int aUpdateFlags ) const
 void PCB_VIEW::Update( const KIGFX::VIEW_ITEM* aItem ) const
 {
     PCB_VIEW::Update( aItem, KIGFX::ALL );
+}
+
+
+void PCB_VIEW::UpdateCollidingItems( const std::vector<BOX2I>& aStaleAreas,
+                                     std::initializer_list<KICAD_T> aTypes )
+{
+    UpdateAllItemsConditionally(
+            [&]( KIGFX::VIEW_ITEM* aItem ) -> int
+            {
+                if( aItem->IsBOARD_ITEM() )
+                {
+                    BOARD_ITEM* item = static_cast<BOARD_ITEM*>( aItem );
+
+                    if( item->IsType( aTypes ) )
+                    {
+                        BOX2I itemBBox = item->GetBoundingBox();
+
+                        for( const BOX2I& bbox : aStaleAreas )
+                        {
+                            if( itemBBox.Intersects( bbox ) )
+                                return KIGFX::REPAINT;
+                        }
+                    }
+                }
+
+                return 0;
+            } );
 }
 
 

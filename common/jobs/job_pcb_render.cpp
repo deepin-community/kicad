@@ -84,6 +84,8 @@ JOB_PCB_RENDER::JOB_PCB_RENDER() :
         JOB( "render", false ), m_filename()
 {
     m_params.emplace_back( new JOB_PARAM<FORMAT>( "format", &m_format, m_format ) );
+    m_params.emplace_back( new JOB_PARAM<std::string>( "preset", &m_appearancePreset, m_appearancePreset ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "use_board_stackup_colors", &m_useBoardStackupColors, m_useBoardStackupColors ) );
     m_params.emplace_back( new JOB_PARAM<QUALITY>( "quality", &m_quality, m_quality ) );
     m_params.emplace_back( new JOB_PARAM<BG_STYLE>( "bg_style", &m_bgStyle, m_bgStyle ) );
     m_params.emplace_back( new JOB_PARAM<SIDE>( "side", &m_side, m_side ) );
@@ -91,6 +93,9 @@ JOB_PCB_RENDER::JOB_PCB_RENDER() :
     m_params.emplace_back( new JOB_PARAM<double>( "zoom", &m_zoom, m_zoom ) );
     m_params.emplace_back( new JOB_PARAM<bool>( "perspective", &m_perspective, m_perspective ) );
     m_params.emplace_back( new JOB_PARAM<bool>( "floor", &m_floor, m_floor ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "anti_alias", &m_antiAlias, m_antiAlias ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "post_process", &m_postProcess, m_postProcess ) );
+    m_params.emplace_back( new JOB_PARAM<bool>( "procedural_textures", &m_proceduralTextures, m_proceduralTextures ) );
 
     m_params.emplace_back( new JOB_PARAM<int>( "width", &m_width, m_width ) );
     m_params.emplace_back( new JOB_PARAM<int>( "height", &m_height, m_height ) );

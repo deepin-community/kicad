@@ -52,14 +52,27 @@ const wxChar* const traceZoomScroll = wxT( "KICAD_ZOOM_SCROLL" );
 const wxChar* const traceSymbolResolver = wxT( "KICAD_SYM_RESOLVE" );
 const wxChar* const traceDisplayLocation = wxT( "KICAD_DISPLAY_LOCATION" );
 const wxChar* const traceSchSheetPaths = wxT( "KICAD_SCH_SHEET_PATHS" );
+const wxChar* const traceSchCurrentSheet = wxT( "KICAD_SCH_CURRENT_SHEET" );
+const wxChar* const traceSchFieldRendering = wxT( "KICAD_SCH_FIELD_RENDERING" );
+const wxChar* const traceSchPainter = wxT( "KICAD_SCH_PAINTER" );
+const wxChar* const traceSchSymbolRef = wxT( "KICAD_SCH_SYMBOL_REF" );
 const wxChar* const traceEnvVars = wxT( "KICAD_ENV_VARS" );
+const wxChar* const traceSchDragNetCollision = wxT( "KICAD_SCH_DRAG_NET_COLLISION" );
+const wxChar* const traceCrossProbeFlash = wxT( "CROSS_PROBE_FLASH" );
 const wxChar* const traceGalProfile = wxT( "KICAD_GAL_PROFILE" );
+const wxChar* const traceStackedPins = wxT( "KICAD_STACKED_PINS" );
+const wxChar* const traceLibWatch = wxT( "KICAD_LIB_WATCH" );
 const wxChar* const traceKiCad2Step = wxT( "KICAD2STEP" );
 const wxChar* const traceUiProfile = wxT( "KICAD_UI_PROFILE" );
 const wxChar* const traceGit = wxT( "KICAD_GIT" );
 const wxChar* const traceEagleIo = wxT( "KICAD_EAGLE_IO" );
 const wxChar* const traceDesignBlocks = wxT( "KICAD_DESIGN_BLOCK" );
-
+const wxChar* const traceLibFieldTable = wxT( "KICAD_LIB_FIELD_TABLE" );
+const wxChar* const tracePdfPlotter = wxT( "KICAD_PDF_PLOTTER" );
+const wxChar* const traceSnap = wxT( "KICAD_SNAP" );
+const wxChar* const traceLibraries = wxT( "KICAD_LIBRARIES" );
+const wxChar* const traceSchMove = wxT( "KICAD_SCH_MOVE" );
+const wxChar* const traceSymbolInheritance = wxT( "KICAD_SYMBOL_INHERITANCE" );
 
 wxString dump( const wxArrayString& aArray )
 {
@@ -337,7 +350,7 @@ void TRACE_MANAGER::init()
     if( !m_globalTraceEnabled )
         return;
 
-    wxStringTokenizer tokenizer( traceVars, wxT( "," ) );
+    wxStringTokenizer tokenizer( traceVars, "," );
 
     while( tokenizer.HasMoreTokens() )
     {

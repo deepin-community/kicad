@@ -26,7 +26,6 @@
 #define DRC_RTREE_H_
 
 #include <board_item.h>
-#include <pad.h>
 #include <pcb_field.h>
 #include <memory>
 #include <unordered_set>
@@ -40,15 +39,15 @@
 #include "geometry/shape_null.h"
 #include "board.h"
 
+#define ATOMIC_TABLES true
+
 /**
  * Implement an R-tree for fast spatial and layer indexing of connectable items.
  * Non-owning.
  */
 class DRC_RTREE
 {
-
 public:
-
     struct ITEM_WITH_SHAPE
     {
         ITEM_WITH_SHAPE( BOARD_ITEM *aParent, const SHAPE* aShape,
@@ -74,14 +73,12 @@ public:
     };
 
 private:
-
     using drc_rtree = RTree<ITEM_WITH_SHAPE*, int, 2, double>;
 
 public:
-
     DRC_RTREE()
     {
-        for( int layer : LSET::AllLayersMask().Seq() )
+        for( int layer : LSET::AllLayersMask() )
             m_tree[layer] = new drc_rtree();
 
         m_count = 0;
@@ -101,9 +98,9 @@ public:
     /**
      * Insert an item into the tree on a particular layer with an optional worst clearance.
      */
-    void Insert( BOARD_ITEM* aItem, PCB_LAYER_ID aLayer, int aWorstClearance = 0 )
+    void Insert( BOARD_ITEM* aItem, PCB_LAYER_ID aLayer, int aWorstClearance = 0, bool aAtomicTables = false )
     {
-        Insert( aItem, aLayer, aLayer, aWorstClearance );
+        Insert( aItem, aLayer, aLayer, aWorstClearance, aAtomicTables );
     }
 
     /**
@@ -111,12 +108,17 @@ public:
      * source layer to be different from the tree layer.
      */
     void Insert( BOARD_ITEM* aItem, PCB_LAYER_ID aRefLayer, PCB_LAYER_ID aTargetLayer,
-                 int aWorstClearance )
+                 int aWorstClearance, bool aAtomicTables = false )
     {
         wxCHECK( aTargetLayer != UNDEFINED_LAYER, /* void */ );
 
         if( aItem->Type() == PCB_FIELD_T && !static_cast<PCB_FIELD*>( aItem )->IsVisible() )
             return;
+
+        BOARD_ITEM* parent = aItem;
+
+        if( aAtomicTables && aItem->Type() == PCB_TABLECELL_T )
+            parent = aItem->GetParent();
 
         std::vector<const SHAPE*> subshapes;
         std::shared_ptr<SHAPE> shape = aItem->GetEffectiveShape( aRefLayer );
@@ -139,7 +141,7 @@ public:
 
             const int        mmin[2] = { bbox.GetX(), bbox.GetY() };
             const int        mmax[2] = { bbox.GetRight(), bbox.GetBottom() };
-            ITEM_WITH_SHAPE* itemShape = new ITEM_WITH_SHAPE( aItem, subshape, shape );
+            ITEM_WITH_SHAPE* itemShape = new ITEM_WITH_SHAPE( parent, subshape, shape );
 
             m_tree[aTargetLayer]->Insert( mmin, mmax, itemShape );
             m_count++;
@@ -154,7 +156,7 @@ public:
 
             const int        mmin[2] = { bbox.GetX(), bbox.GetY() };
             const int        mmax[2] = { bbox.GetRight(), bbox.GetBottom() };
-            ITEM_WITH_SHAPE* itemShape = new ITEM_WITH_SHAPE( aItem, hole, shape );
+            ITEM_WITH_SHAPE* itemShape = new ITEM_WITH_SHAPE( parent, hole, shape );
 
             m_tree[aTargetLayer]->Insert( mmin, mmax, itemShape );
             m_count++;
@@ -167,7 +169,12 @@ public:
     void clear()
     {
         for( auto& [_, tree] : m_tree )
+        {
+            for( ITEM_WITH_SHAPE* el : *tree )
+                delete el;
+
             tree->RemoveAll();
+        }
 
         m_count = 0;
     }

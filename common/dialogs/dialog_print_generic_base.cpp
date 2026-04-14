@@ -5,6 +5,8 @@
 // PLEASE DO *NOT* EDIT THIS FILE!
 ///////////////////////////////////////////////////////////////////////////
 
+#include "dialogs/panel_printer_list.h"
+
 #include "dialog_print_generic_base.h"
 
 ///////////////////////////////////////////////////////////////////////////
@@ -15,6 +17,15 @@ DIALOG_PRINT_GENERIC_BASE::DIALOG_PRINT_GENERIC_BASE( wxWindow* parent, wxWindow
 
 	wxBoxSizer* bMainSizer;
 	bMainSizer = new wxBoxSizer( wxVERTICAL );
+
+	wxBoxSizer* bSizerPanelPrinters;
+	bSizerPanelPrinters = new wxBoxSizer( wxVERTICAL );
+
+	m_panelPrinters = new PANEL_PRINTER_LIST( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	bSizerPanelPrinters->Add( m_panelPrinters, 1, wxEXPAND | wxALL, 5 );
+
+
+	bMainSizer->Add( bSizerPanelPrinters, 0, wxEXPAND, 5 );
 
 	m_bUpperSizer = new wxBoxSizer( wxHORIZONTAL );
 
@@ -74,8 +85,6 @@ DIALOG_PRINT_GENERIC_BASE::DIALOG_PRINT_GENERIC_BASE( wxWindow* parent, wxWindow
 	bSizerScaleCustom->Add( m_scaleCustom, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5 );
 
 	m_scaleCustomText = new wxTextCtrl( bScaleSizer->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
-	m_scaleCustomText->SetToolTip( _("Set X scale adjust for exact scale plotting") );
-
 	bSizerScaleCustom->Add( m_scaleCustomText, 1, wxEXPAND|wxRIGHT, 5 );
 
 

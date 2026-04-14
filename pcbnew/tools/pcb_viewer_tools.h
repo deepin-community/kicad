@@ -42,7 +42,8 @@ class PCB_VIEWER_TOOLS : public TOOL_INTERACTIVE
 public:
     PCB_VIEWER_TOOLS() :
         TOOL_INTERACTIVE( "pcbnew.PCBViewerTools" ),
-        m_footprintFrame( false )
+        m_footprintFrame( false ),
+        m_isDefaultTool( false )
     {}
 
     ~PCB_VIEWER_TOOLS() override {}
@@ -54,13 +55,16 @@ public:
 
     ///< Launch a tool to measure between points.
     int MeasureTool( const TOOL_EVENT& aEvent );
-    int ToggleHV45Mode( const TOOL_EVENT& aEvent );
+    int NextLineMode( const TOOL_EVENT& aEvent );
 
     // Display modes
     int ShowPadNumbers( const TOOL_EVENT& aEvent );
     int PadDisplayMode( const TOOL_EVENT& aEvent );
     int GraphicOutlines( const TOOL_EVENT& aEvent );
     int TextOutlines( const TOOL_EVENT& aEvent );
+
+    /// Automatically zoom to fit on footprints
+    int FootprintAutoZoom( const TOOL_EVENT& aEvent );
 
     /// Show the 3D viewer
     int Show3DViewer( const TOOL_EVENT& aEvent );

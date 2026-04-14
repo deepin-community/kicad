@@ -160,6 +160,22 @@ public:
 
         TRIANGULATED_POLYGON& operator=( const TRIANGULATED_POLYGON& aOther );
 
+        // Move assignment operator.
+        TRIANGULATED_POLYGON& operator=( TRIANGULATED_POLYGON&& aOther ) noexcept
+        {
+            if( this != &aOther )
+            {
+                m_sourceOutline = aOther.m_sourceOutline;
+                m_triangles = std::move( aOther.m_triangles );
+                m_vertices = std::move( aOther.m_vertices );
+
+                for( TRI& tri : m_triangles )
+                    tri.parent = this;
+            }
+
+            return *this;
+        }
+
         void AddTriangle( int a, int b, int c );
 
         void AddVertex( const VECTOR2I& aP )
@@ -240,8 +256,7 @@ public:
          */
         bool IsEndContour() const
         {
-            return m_currentVertex + 1 ==
-                    m_poly->CPolygon( m_currentPolygon )[m_currentContour].PointCount();
+            return m_currentVertex + 1 == m_poly->CPolygon( m_currentPolygon )[m_currentContour].PointCount();
         }
 
         /**
@@ -280,8 +295,7 @@ public:
             if( m_iterateHoles )
             {
                 // If the last vertex of the contour was reached, advance the contour index
-                if( m_currentVertex >=
-                    m_poly->CPolygon( m_currentPolygon )[m_currentContour].PointCount() )
+                if( m_currentVertex >= m_poly->CPolygon( m_currentPolygon )[m_currentContour].PointCount() )
                 {
                     m_currentVertex = 0;
                     m_currentContour++;
@@ -535,6 +549,24 @@ public:
 
     SHAPE_POLY_SET& operator=( const SHAPE_POLY_SET& aOther );
 
+    // Move assignment operator
+    SHAPE_POLY_SET& operator=( SHAPE_POLY_SET&& aOther ) noexcept
+    {
+        if (this != &aOther)
+        {
+            SHAPE::operator=( aOther );
+
+            m_polys = std::move( aOther.m_polys );
+            m_triangulatedPolys = std::move( aOther.m_triangulatedPolys );
+
+            m_hash = aOther.m_hash;
+            m_hashValid = aOther.m_hashValid;
+            m_triangulationValid.store( aOther.m_triangulationValid );
+        }
+
+        return *this;
+    }
+
     /**
      * Build a polygon triangulation, needed to draw a polygon on OpenGL and in some
      * other calculations
@@ -643,11 +675,11 @@ public:
      * @param aArc      The arc to be inserted
      * @param aOutline  Index of the polygon
      * @param aHole     Index of the hole (-1 for the main outline)
-     * @param aAccuracy Accuracy of the arc representation in IU
+     * @param aMaxError optional; accuracy of the arc representation in IU
      * @return the number of points in the arc (including the interpolated points from the arc)
      */
     int Append( const SHAPE_ARC& aArc, int aOutline = -1, int aHole = -1,
-                double aAccuracy = SHAPE_ARC::DefaultAccuracyForPCB() );
+                std::optional<int> aMaxError = {} );
 
     /**
      * Adds a vertex in the globally indexed position \a aGlobalIndex.
@@ -713,8 +745,7 @@ public:
     /// Returns the number of holes in a given outline
     int HoleCount( int aOutline ) const
     {
-        if( ( aOutline < 0 ) || ( aOutline >= (int) m_polys.size() )
-          || ( m_polys[aOutline].size() < 2 ) )
+        if( aOutline < 0 || aOutline >= (int) m_polys.size() || m_polys[aOutline].size() < 2 )
             return 0;
 
         // the first polygon in m_polys[aOutline] is the main contour,
@@ -1064,8 +1095,13 @@ public:
     void InflateWithLinkedHoles( int aFactor, CORNER_STRATEGY aCornerStrategy, int aMaxError );
 
     /// Convert a set of polygons with holes to a single outline with "slits"/"fractures"
-    /// connecting the outer ring to the inner holes
-    void Fracture();
+    /// connecting the outer ring to the inner holes.
+    ///
+    /// @param aSimplify when true (default), run Simplify() first to remove overlapping
+    ///                  holes and degenerate geometry via Clipper2 Union. Set to false when
+    ///                  the input is known to be well-formed (e.g. imported fill data) to
+    ///                  avoid the expensive boolean operation.
+    void Fracture( bool aSimplify = true );
 
     /// Convert a single outline slitted ("fractured") polygon into a set ouf outlines
     /// with holes.
@@ -1433,16 +1469,23 @@ public:
     /**
      * Build a SHAPE_POLY_SET from a bunch of outlines in provided in random order.
      *
-     * @param aPath set of closed outlines forming the polygon. Positive orientation = outline, negative = hole
+     * @param aPath set of closed outlines forming the polygon.
+     *              Positive orientation = outline, negative = hole
      * @param aEvenOdd forces the even-off fill rule (default is non zero)
      */
-    void BuildPolysetFromOrientedPaths( const std::vector<SHAPE_LINE_CHAIN>& aPaths, bool aEvenOdd = false );
+    void BuildPolysetFromOrientedPaths( const std::vector<SHAPE_LINE_CHAIN>& aPaths,
+                                        bool aEvenOdd = false );
 
     void TransformToPolygon( SHAPE_POLY_SET& aBuffer, int aError,
                              ERROR_LOC aErrorLoc ) const override
     {
         aBuffer.Append( *this );
     }
+
+    const std::vector<SEG> GenerateHatchLines( const std::vector<double>& aSlopes, int aSpacing,
+                                               int aLineLength ) const;
+
+    void Scale( double aScaleFactorX, double aScaleFactorY, const VECTOR2I& aCenter );
 
 protected:
     void cacheTriangulation( bool aPartition, bool aSimplify,
@@ -1469,6 +1512,27 @@ private:
 
     void inflateLine2( const SHAPE_LINE_CHAIN& aLine, int aAmount, int aCircleSegCount,
                        CORNER_STRATEGY aCornerStrategy, bool aSimplify = false );
+
+    void splitCollinearOutlines();
+
+    /**
+     * Split outline segments at vertices that lie on them (self-touching polygons).
+     *
+     * This handles the case where a polygon vertex lies on a non-adjacent segment,
+     * creating a "pinch point" where the polygon touches itself. By inserting the
+     * vertex into the segment, the polygon can be properly processed by boolean
+     * operations.
+     */
+    void splitSelfTouchingOutlines();
+
+    /**
+     * Check if two line segments are collinear and overlap.
+     *
+     * @param aSegA First line segment
+     * @param aSegB Second line segment
+     * @return true if segments are collinear and overlap
+     */
+    bool isExteriorWaist( const SEG& aSegA, const SEG& aSegB ) const;
 
     /**
      * This is the engine to execute all polygon boolean transforms (AND, OR, ... and polygon

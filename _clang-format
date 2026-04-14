@@ -6,7 +6,6 @@ AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: true
 AlignOperands: true
 AlignTrailingComments: true
-AllowAllConstructorInitializersOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: true
@@ -24,8 +23,7 @@ BreakBeforeBraces: Allman
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: AfterColon
 BreakStringLiterals: true
-ColumnLimit: 100
-ConstructorInitializerAllOnOneLineOrOnePerLine: false
+ColumnLimit: 120
 ConstructorInitializerIndentWidth: 8
 ContinuationIndentWidth: 8
 Cpp11BracedListStyle: false
@@ -39,6 +37,7 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 Language: Cpp
 MaxEmptyLinesToKeep: 2
 NamespaceIndentation: Inner
+PackConstructorInitializers: Never
 PointerAlignment: Left
 ReflowComments: false
 SortIncludes: false

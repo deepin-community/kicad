@@ -32,7 +32,11 @@
 #include <widgets/msgpanel.h>
 #include <bitmaps.h>
 #include <string_utils.h>
+#include <geometry/geometry_utils.h>
 #include <schematic.h>
+#include <sch_screen.h>
+#include <sch_sheet.h>
+#include <sch_sheet_pin.h>
 #include <settings/color_settings.h>
 #include <sch_painter.h>
 #include <default_values.h>
@@ -43,11 +47,15 @@
 #include <project/net_settings.h>
 #include <core/kicad_algo.h>
 #include <core/mirror.h>
+#include <algorithm>
 #include <trigo.h>
 #include <sch_label.h>
+#include <sch_rule_area.h>
 #include <magic_enum.hpp>
 #include <api/api_utils.h>
 #include <api/schematic/schematic_types.pb.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 /* Coding polygons for global symbol graphic shapes.
@@ -55,51 +63,48 @@
  *  others are the corners coordinates in reduced units
  *  the real coordinate is the reduced coordinate * text half size
  */
-static int  TemplateIN_HN[] = { 6, 0, 0, -1, -1, -2, -1, -2, 1, -1, 1, 0, 0 };
-static int  TemplateIN_HI[] = { 6, 0, 0, 1, 1, 2, 1, 2, -1, 1, -1, 0, 0 };
-static int  TemplateIN_UP[] = { 6, 0, 0, 1, -1, 1, -2, -1, -2, -1, -1, 0, 0 };
-static int  TemplateIN_BOTTOM[] = { 6, 0, 0, 1, 1, 1, 2, -1, 2, -1, 1, 0, 0 };
+static int TemplateIN_HN[] = { 6, 0, 0, -1, -1, -2, -1, -2, 1, -1, 1, 0, 0 };
+static int TemplateIN_HI[] = { 6, 0, 0, 1, 1, 2, 1, 2, -1, 1, -1, 0, 0 };
+static int TemplateIN_UP[] = { 6, 0, 0, 1, -1, 1, -2, -1, -2, -1, -1, 0, 0 };
+static int TemplateIN_BOTTOM[] = { 6, 0, 0, 1, 1, 1, 2, -1, 2, -1, 1, 0, 0 };
 
-static int  TemplateOUT_HN[] = { 6, -2, 0, -1, 1, 0, 1, 0, -1, -1, -1, -2, 0 };
-static int  TemplateOUT_HI[] = { 6, 2, 0, 1, -1, 0, -1, 0, 1, 1, 1, 2, 0 };
-static int  TemplateOUT_UP[] = { 6, 0, -2, 1, -1, 1, 0, -1, 0, -1, -1, 0, -2 };
-static int  TemplateOUT_BOTTOM[] = { 6, 0, 2, 1, 1, 1, 0, -1, 0, -1, 1, 0, 2 };
+static int TemplateOUT_HN[] = { 6, -2, 0, -1, 1, 0, 1, 0, -1, -1, -1, -2, 0 };
+static int TemplateOUT_HI[] = { 6, 2, 0, 1, -1, 0, -1, 0, 1, 1, 1, 2, 0 };
+static int TemplateOUT_UP[] = { 6, 0, -2, 1, -1, 1, 0, -1, 0, -1, -1, 0, -2 };
+static int TemplateOUT_BOTTOM[] = { 6, 0, 2, 1, 1, 1, 0, -1, 0, -1, 1, 0, 2 };
 
-static int  TemplateUNSPC_HN[] = { 5, 0, -1, -2, -1, -2, 1, 0, 1, 0, -1 };
-static int  TemplateUNSPC_HI[] = { 5, 0, -1, 2, -1, 2, 1, 0, 1, 0, -1 };
-static int  TemplateUNSPC_UP[] = { 5, 1, 0, 1, -2, -1, -2, -1, 0, 1, 0 };
-static int  TemplateUNSPC_BOTTOM[] = { 5, 1, 0, 1, 2, -1, 2, -1, 0, 1, 0 };
+static int TemplateUNSPC_HN[] = { 5, 0, -1, -2, -1, -2, 1, 0, 1, 0, -1 };
+static int TemplateUNSPC_HI[] = { 5, 0, -1, 2, -1, 2, 1, 0, 1, 0, -1 };
+static int TemplateUNSPC_UP[] = { 5, 1, 0, 1, -2, -1, -2, -1, 0, 1, 0 };
+static int TemplateUNSPC_BOTTOM[] = { 5, 1, 0, 1, 2, -1, 2, -1, 0, 1, 0 };
 
-static int  TemplateBIDI_HN[] = { 5, 0, 0, -1, -1, -2, 0, -1, 1, 0, 0 };
-static int  TemplateBIDI_HI[] = { 5, 0, 0, 1, -1, 2, 0, 1, 1, 0, 0 };
-static int  TemplateBIDI_UP[] = { 5, 0, 0, -1, -1, 0, -2, 1, -1, 0, 0 };
-static int  TemplateBIDI_BOTTOM[] = { 5, 0, 0, -1, 1, 0, 2, 1, 1, 0, 0 };
+static int TemplateBIDI_HN[] = { 5, 0, 0, -1, -1, -2, 0, -1, 1, 0, 0 };
+static int TemplateBIDI_HI[] = { 5, 0, 0, 1, -1, 2, 0, 1, 1, 0, 0 };
+static int TemplateBIDI_UP[] = { 5, 0, 0, -1, -1, 0, -2, 1, -1, 0, 0 };
+static int TemplateBIDI_BOTTOM[] = { 5, 0, 0, -1, 1, 0, 2, 1, 1, 0, 0 };
 
-static int  Template3STATE_HN[] = { 5, 0, 0, -1, -1, -2, 0, -1, 1, 0, 0 };
-static int  Template3STATE_HI[] = { 5, 0, 0, 1, -1, 2, 0, 1, 1, 0, 0 };
-static int  Template3STATE_UP[] = { 5, 0, 0, -1, -1, 0, -2, 1, -1, 0, 0 };
-static int  Template3STATE_BOTTOM[] = { 5, 0, 0, -1, 1, 0, 2, 1, 1, 0, 0 };
+static int Template3STATE_HN[] = { 5, 0, 0, -1, -1, -2, 0, -1, 1, 0, 0 };
+static int Template3STATE_HI[] = { 5, 0, 0, 1, -1, 2, 0, 1, 1, 0, 0 };
+static int Template3STATE_UP[] = { 5, 0, 0, -1, -1, 0, -2, 1, -1, 0, 0 };
+static int Template3STATE_BOTTOM[] = { 5, 0, 0, -1, 1, 0, 2, 1, 1, 0, 0 };
 
-static int* TemplateShape[5][4] =
-{
-    { TemplateIN_HN,     TemplateIN_UP,     TemplateIN_HI,     TemplateIN_BOTTOM     },
-    { TemplateOUT_HN,    TemplateOUT_UP,    TemplateOUT_HI,    TemplateOUT_BOTTOM    },
-    { TemplateBIDI_HN,   TemplateBIDI_UP,   TemplateBIDI_HI,   TemplateBIDI_BOTTOM   },
-    { Template3STATE_HN, Template3STATE_UP, Template3STATE_HI, Template3STATE_BOTTOM },
-    { TemplateUNSPC_HN,  TemplateUNSPC_UP,  TemplateUNSPC_HI,  TemplateUNSPC_BOTTOM  }
-};
+static int* TemplateShape[5][4] = { { TemplateIN_HN, TemplateIN_UP, TemplateIN_HI, TemplateIN_BOTTOM },
+                                    { TemplateOUT_HN, TemplateOUT_UP, TemplateOUT_HI, TemplateOUT_BOTTOM },
+                                    { TemplateBIDI_HN, TemplateBIDI_UP, TemplateBIDI_HI, TemplateBIDI_BOTTOM },
+                                    { Template3STATE_HN, Template3STATE_UP, Template3STATE_HI, Template3STATE_BOTTOM },
+                                    { TemplateUNSPC_HN, TemplateUNSPC_UP, TemplateUNSPC_HI, TemplateUNSPC_BOTTOM } };
 
 
 wxString getElectricalTypeLabel( LABEL_FLAG_SHAPE aType )
 {
     switch( aType )
     {
-    case LABEL_FLAG_SHAPE::L_INPUT:       return _( "Input" );
-    case LABEL_FLAG_SHAPE::L_OUTPUT:      return _( "Output" );
-    case LABEL_FLAG_SHAPE::L_BIDI:        return _( "Bidirectional" );
-    case LABEL_FLAG_SHAPE::L_TRISTATE:    return _( "Tri-State" );
+    case LABEL_FLAG_SHAPE::L_INPUT: return _( "Input" );
+    case LABEL_FLAG_SHAPE::L_OUTPUT: return _( "Output" );
+    case LABEL_FLAG_SHAPE::L_BIDI: return _( "Bidirectional" );
+    case LABEL_FLAG_SHAPE::L_TRISTATE: return _( "Tri-State" );
     case LABEL_FLAG_SHAPE::L_UNSPECIFIED: return _( "Passive" );
-    default:                              return wxT( "???" );
+    default: return wxT( "???" );
     }
 }
 
@@ -110,10 +115,10 @@ SPIN_STYLE SPIN_STYLE::RotateCCW()
 
     switch( m_spin )
     {
-    case SPIN_STYLE::LEFT:   newSpin = SPIN_STYLE::BOTTOM; break;
-    case SPIN_STYLE::BOTTOM: newSpin = SPIN_STYLE::RIGHT;  break;
-    case SPIN_STYLE::RIGHT:  newSpin = SPIN_STYLE::UP;     break;
-    case SPIN_STYLE::UP:     newSpin = SPIN_STYLE::LEFT;   break;
+    case SPIN_STYLE::LEFT: newSpin = SPIN_STYLE::BOTTOM; break;
+    case SPIN_STYLE::BOTTOM: newSpin = SPIN_STYLE::RIGHT; break;
+    case SPIN_STYLE::RIGHT: newSpin = SPIN_STYLE::UP; break;
+    case SPIN_STYLE::UP: newSpin = SPIN_STYLE::LEFT; break;
     }
 
     return SPIN_STYLE( newSpin );
@@ -126,10 +131,10 @@ SPIN_STYLE SPIN_STYLE::MirrorX()
 
     switch( m_spin )
     {
-    case SPIN_STYLE::UP:     newSpin = SPIN_STYLE::BOTTOM; break;
-    case SPIN_STYLE::BOTTOM: newSpin = SPIN_STYLE::UP;     break;
-    case SPIN_STYLE::LEFT:                                 break;
-    case SPIN_STYLE::RIGHT:                                break;
+    case SPIN_STYLE::UP: newSpin = SPIN_STYLE::BOTTOM; break;
+    case SPIN_STYLE::BOTTOM: newSpin = SPIN_STYLE::UP; break;
+    case SPIN_STYLE::LEFT: break;
+    case SPIN_STYLE::RIGHT: break;
     }
 
     return SPIN_STYLE( newSpin );
@@ -142,10 +147,10 @@ SPIN_STYLE SPIN_STYLE::MirrorY()
 
     switch( m_spin )
     {
-    case SPIN_STYLE::LEFT:   newSpin = SPIN_STYLE::RIGHT; break;
-    case SPIN_STYLE::RIGHT:  newSpin = SPIN_STYLE::LEFT;  break;
-    case SPIN_STYLE::UP:                                  break;
-    case SPIN_STYLE::BOTTOM:                              break;
+    case SPIN_STYLE::LEFT: newSpin = SPIN_STYLE::RIGHT; break;
+    case SPIN_STYLE::RIGHT: newSpin = SPIN_STYLE::LEFT; break;
+    case SPIN_STYLE::UP: break;
+    case SPIN_STYLE::BOTTOM: break;
     }
 
     return SPIN_STYLE( newSpin );
@@ -163,6 +168,7 @@ SCH_LABEL_BASE::SCH_LABEL_BASE( const VECTOR2I& aPos, const wxString& aText, KIC
         m_shape( L_UNSPECIFIED ),
         m_connectionType( CONNECTION_TYPE::NONE ),
         m_isDangling( true ),
+        m_autoRotateOnPlacement( false ),
         m_lastResolvedColor( COLOR4D::UNSPECIFIED )
 {
     SetMultilineAllowed( false );
@@ -177,6 +183,7 @@ SCH_LABEL_BASE::SCH_LABEL_BASE( const SCH_LABEL_BASE& aLabel ) :
         m_shape( aLabel.m_shape ),
         m_connectionType( aLabel.m_connectionType ),
         m_isDangling( aLabel.m_isDangling ),
+        m_autoRotateOnPlacement( aLabel.m_autoRotateOnPlacement ),
         m_lastResolvedColor( aLabel.m_lastResolvedColor ),
         m_cached_driver_name( aLabel.m_cached_driver_name )
 {
@@ -193,6 +200,16 @@ SCH_LABEL_BASE& SCH_LABEL_BASE::operator=( const SCH_LABEL_BASE& aLabel )
 {
     SCH_TEXT::operator=( aLabel );
 
+    m_fields = aLabel.m_fields;
+
+    for( SCH_FIELD& field : m_fields )
+        field.SetParent( this );
+
+    m_shape = aLabel.m_shape;
+    m_connectionType = aLabel.m_connectionType;
+    m_isDangling = aLabel.m_isDangling;
+    m_autoRotateOnPlacement = aLabel.m_autoRotateOnPlacement;
+    m_lastResolvedColor = aLabel.m_lastResolvedColor;
     m_cached_driver_name = aLabel.m_cached_driver_name;
 
     return *this;
@@ -209,6 +226,12 @@ const wxString SCH_LABEL_BASE::GetDefaultFieldName( const wxString& aName, bool 
         return _( "Field" );
     else
         return aName;
+}
+
+
+int SCH_LABEL_BASE::GetNextFieldOrdinal() const
+{
+    return NextFieldOrdinal( m_fields );
 }
 
 
@@ -246,7 +269,7 @@ bool SCH_LABEL_BASE::IsType( const std::vector<KICAD_T>& aScanTypes ) const
             }
         }
 
-        if ( scanType == SCH_LABEL_LOCATE_BUS_T )
+        if( scanType == SCH_LABEL_LOCATE_BUS_T )
         {
             for( SCH_ITEM* connection : item_set )
             {
@@ -260,9 +283,9 @@ bool SCH_LABEL_BASE::IsType( const std::vector<KICAD_T>& aScanTypes ) const
 }
 
 
-void SCH_LABEL_BASE::SwapData( SCH_ITEM* aItem )
+void SCH_LABEL_BASE::swapData( SCH_ITEM* aItem )
 {
-    SCH_TEXT::SwapData( aItem );
+    SCH_TEXT::swapData( aItem );
 
     SCH_LABEL_BASE* label = static_cast<SCH_LABEL_BASE*>( aItem );
 
@@ -293,32 +316,106 @@ COLOR4D SCH_LABEL_BASE::GetLabelColor() const
 }
 
 
+void SCH_LABEL_BASE::SetLabelShape( LABEL_SHAPE aShape )
+{
+    m_shape = (LABEL_FLAG_SHAPE) aShape;
+
+    static bool s_inUpdate = false;
+
+    if( s_inUpdate )
+        return;
+
+    s_inUpdate = true;
+
+    if( Type() == SCH_HIER_LABEL_T )
+    {
+        SCH_HIERLABEL* label = static_cast<SCH_HIERLABEL*>( this );
+        SCH_SCREEN*    screen = dynamic_cast<SCH_SCREEN*>( label->GetParent() );
+
+        if( screen )
+        {
+            const wxString& text = label->GetText();
+
+            for( SCH_ITEM* item : screen->Items().OfType( SCH_HIER_LABEL_T ) )
+            {
+                SCH_HIERLABEL* other = static_cast<SCH_HIERLABEL*>( item );
+
+                if( other != label && other->GetText() == text )
+                    other->SetLabelShape( aShape );
+            }
+
+            for( const SCH_SHEET_PATH& sheetPath : screen->GetClientSheetPaths() )
+            {
+                SCH_SHEET* sheet = sheetPath.Last();
+
+                if( sheet )
+                {
+                    for( SCH_SHEET_PIN* pin : sheet->GetPins() )
+                    {
+                        if( pin->GetText() == text )
+                            pin->SetLabelShape( aShape );
+                    }
+                }
+            }
+        }
+    }
+    else if( Type() == SCH_SHEET_PIN_T )
+    {
+        SCH_SHEET_PIN* pin = static_cast<SCH_SHEET_PIN*>( this );
+        SCH_SHEET*     parent = pin->GetParent();
+
+        if( parent )
+        {
+            const wxString& text = pin->GetText();
+            SCH_SCREEN*     screen = parent->GetScreen();
+
+            if( screen )
+            {
+                for( SCH_ITEM* item : screen->Items().OfType( SCH_HIER_LABEL_T ) )
+                {
+                    SCH_HIERLABEL* hlabel = static_cast<SCH_HIERLABEL*>( item );
+
+                    if( hlabel->GetText() == text )
+                        hlabel->SetLabelShape( aShape );
+                }
+            }
+
+            for( SCH_SHEET_PIN* other : parent->GetPins() )
+            {
+                if( other != pin && other->GetText() == text )
+                    other->SetLabelShape( aShape );
+            }
+        }
+    }
+
+    s_inUpdate = false;
+}
+
+
 void SCH_LABEL_BASE::SetSpinStyle( SPIN_STYLE aSpinStyle )
 {
     // Assume "Right" and Left" mean which side of the anchor the text will be on
     // Thus we want to left justify text up against the anchor if we are on the right
     switch( aSpinStyle )
     {
-    default:
-        wxFAIL_MSG( "Bad spin style" );
-        KI_FALLTHROUGH;
+    default: wxFAIL_MSG( "Bad spin style" ); KI_FALLTHROUGH;
 
-    case SPIN_STYLE::RIGHT:            // Horiz Normal Orientation
+    case SPIN_STYLE::RIGHT: // Horiz Normal Orientation
         SetTextAngle( ANGLE_HORIZONTAL );
         SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
         break;
 
-    case SPIN_STYLE::UP:               // Vert Orientation UP
+    case SPIN_STYLE::UP: // Vert Orientation UP
         SetTextAngle( ANGLE_VERTICAL );
         SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
         break;
 
-    case SPIN_STYLE::LEFT:             // Horiz Orientation - Right justified
+    case SPIN_STYLE::LEFT: // Horiz Orientation - Right justified
         SetTextAngle( ANGLE_HORIZONTAL );
         SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
         break;
 
-    case SPIN_STYLE::BOTTOM:           //  Vert Orientation BOTTOM
+    case SPIN_STYLE::BOTTOM: //  Vert Orientation BOTTOM
         SetTextAngle( ANGLE_VERTICAL );
         SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
         break;
@@ -357,10 +454,10 @@ VECTOR2I SCH_LABEL_BASE::GetSchematicTextOffset( const RENDER_SETTINGS* aSetting
     switch( GetSpinStyle() )
     {
     case SPIN_STYLE::UP:
-    case SPIN_STYLE::BOTTOM: text_offset.x = -dist;  break; // Vert Orientation
+    case SPIN_STYLE::BOTTOM: text_offset.x = -dist; break; // Vert Orientation
     default:
     case SPIN_STYLE::LEFT:
-    case SPIN_STYLE::RIGHT: text_offset.y = -dist;  break; // Horiz Orientation
+    case SPIN_STYLE::RIGHT: text_offset.y = -dist; break; // Horiz Orientation
     }
 
     return text_offset;
@@ -421,7 +518,7 @@ void SCH_LABEL_BASE::MirrorSpinStyle( bool aLeftRight )
     for( SCH_FIELD& field : m_fields )
     {
         if( ( aLeftRight && field.GetTextAngle().IsHorizontal() )
-                || ( !aLeftRight && field.GetTextAngle().IsVertical() ) )
+            || ( !aLeftRight && field.GetTextAngle().IsVertical() ) )
         {
             if( field.GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT )
                 field.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
@@ -430,7 +527,7 @@ void SCH_LABEL_BASE::MirrorSpinStyle( bool aLeftRight )
         }
 
         VECTOR2I pos = field.GetTextPos();
-        VECTOR2I delta = (VECTOR2I)GetPosition() - pos;
+        VECTOR2I delta = (VECTOR2I) GetPosition() - pos;
 
         if( aLeftRight )
             pos.x = GetPosition().x + delta.x;
@@ -560,7 +657,7 @@ double SCH_LABEL_BASE::Similarity( const SCH_ITEM& aOther ) const
 void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo )
 {
     int margin = GetTextOffset() * 2;
-    int labelLen = GetBodyBoundingBox().GetSizeMax();
+    int labelLen = GetBodyBoundingBox( nullptr ).GetSizeMax();
     int accumulated = GetTextHeight() / 2;
 
     if( Type() == SCH_GLOBAL_LABEL_T )
@@ -577,8 +674,8 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
             field.SetTextAngle( ANGLE_HORIZONTAL );
             field.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
 
-            if( field.GetCanonicalName() == wxT( "Intersheetrefs" ) )
-                offset.x = - ( labelLen + margin );
+            if( field.GetId() == FIELD_T::INTERSHEET_REFS )
+                offset.x = -( labelLen + margin );
             else
                 offset.y = accumulated + field.GetTextHeight() / 2;
 
@@ -588,8 +685,8 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
             field.SetTextAngle( ANGLE_VERTICAL );
             field.SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
 
-            if( field.GetCanonicalName() == wxT( "Intersheetrefs" ) )
-                offset.y = - ( labelLen + margin );
+            if( field.GetId() == FIELD_T::INTERSHEET_REFS )
+                offset.y = -( labelLen + margin );
             else
                 offset.x = accumulated + field.GetTextHeight() / 2;
 
@@ -599,7 +696,7 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
             field.SetTextAngle( ANGLE_HORIZONTAL );
             field.SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
 
-            if( field.GetCanonicalName() == wxT( "Intersheetrefs" ) )
+            if( field.GetId() == FIELD_T::INTERSHEET_REFS )
                 offset.x = labelLen + margin;
             else
                 offset.y = accumulated + field.GetTextHeight() / 2;
@@ -610,7 +707,7 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
             field.SetTextAngle( ANGLE_VERTICAL );
             field.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
 
-            if( field.GetCanonicalName() == wxT( "Intersheetrefs" ) )
+            if( field.GetId() == FIELD_T::INTERSHEET_REFS )
                 offset.y = labelLen + margin;
             else
                 offset.x = accumulated + field.GetTextHeight() / 2;
@@ -620,7 +717,7 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
 
         field.SetTextPos( GetTextPos() + offset );
 
-        if( field.GetCanonicalName() != wxT( "Intersheetrefs" ) )
+        if( field.GetId() == FIELD_T::INTERSHEET_REFS )
             accumulated += field.GetTextHeight() + margin;
     }
 
@@ -629,8 +726,7 @@ void SCH_LABEL_BASE::AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo 
 }
 
 
-void SCH_LABEL_BASE::GetIntersheetRefs( const SCH_SHEET_PATH* aPath,
-                                        std::vector<std::pair<wxString, wxString>>* pages )
+void SCH_LABEL_BASE::GetIntersheetRefs( const SCH_SHEET_PATH* aPath, std::vector<std::pair<wxString, wxString>>* pages )
 {
     wxCHECK( pages, /* void */ );
 
@@ -648,7 +744,7 @@ void SCH_LABEL_BASE::GetIntersheetRefs( const SCH_SHEET_PATH* aPath,
             if( !Schematic()->Settings().m_IntersheetRefsListOwnPage )
             {
                 int currentPage = Schematic()->CurrentSheet().GetVirtualPageNumber();
-                alg::delete_matching( pageListCopy, currentPage );
+                std::erase( pageListCopy, currentPage );
 
                 if( pageListCopy.empty() )
                     return;
@@ -660,7 +756,7 @@ void SCH_LABEL_BASE::GetIntersheetRefs( const SCH_SHEET_PATH* aPath,
             std::map<int, wxString> sheetNames = Schematic()->GetVirtualPageToSheetNamesMap();
 
             for( int pageNum : pageListCopy )
-                pages->push_back( { sheetPages[ pageNum ], sheetNames[ pageNum ] } );
+                pages->push_back( { sheetPages[pageNum], sheetNames[pageNum] } );
         }
     }
 }
@@ -684,8 +780,7 @@ void SCH_LABEL_BASE::GetContextualTextVars( wxArrayString* aVars ) const
 }
 
 
-bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token,
-                                     int aDepth ) const
+bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, int aDepth ) const
 {
     static wxRegEx operatingPoint( wxT( "^"
                                         "OP"
@@ -698,6 +793,8 @@ bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* toke
 
     if( !schematic )
         return false;
+
+    wxString variant = schematic->GetCurrentVariant();
 
     if( operatingPoint.Matches( *token ) )
     {
@@ -727,7 +824,7 @@ bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* toke
     }
 
     if( ( Type() == SCH_GLOBAL_LABEL_T || Type() == SCH_HIER_LABEL_T || Type() == SCH_SHEET_PIN_T )
-         && token->IsSameAs( wxT( "CONNECTION_TYPE" ) ) )
+        && token->IsSameAs( wxT( "CONNECTION_TYPE" ) ) )
     {
         const SCH_LABEL_BASE* label = static_cast<const SCH_LABEL_BASE*>( this );
         *token = getElectricalTypeLabel( label->GetShape() );
@@ -763,8 +860,60 @@ bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* toke
 
         return true;
     }
+    else if( Type() == SCH_DIRECTIVE_LABEL_T && token->IsSameAs( wxT( "EXCLUDE_FROM_BOM" ) ) )
+    {
+        const SCH_DIRECTIVE_LABEL* directive = static_cast<const SCH_DIRECTIVE_LABEL*>( this );
+        *token = wxEmptyString;
 
-    for( const SCH_FIELD& field : m_fields)
+        for( SCH_RULE_AREA* ruleArea : directive->GetConnectedRuleAreas() )
+        {
+            if( ruleArea->GetExcludedFromBOM( aPath, variant ) )
+                *token = _( "Excluded from BOM" );
+        }
+
+        return true;
+    }
+    else if( Type() == SCH_DIRECTIVE_LABEL_T && token->IsSameAs( wxT( "EXCLUDE_FROM_BOARD" ) ) )
+    {
+        const SCH_DIRECTIVE_LABEL* directive = static_cast<const SCH_DIRECTIVE_LABEL*>( this );
+        *token = wxEmptyString;
+
+        for( SCH_RULE_AREA* ruleArea : directive->GetConnectedRuleAreas() )
+        {
+            if( ruleArea->GetExcludedFromBoard( aPath, variant ) )
+                *token = _( "Excluded from board" );
+        }
+
+        return true;
+    }
+    else if( Type() == SCH_DIRECTIVE_LABEL_T && token->IsSameAs( wxT( "EXCLUDE_FROM_SIM" ) ) )
+    {
+        const SCH_DIRECTIVE_LABEL* directive = static_cast<const SCH_DIRECTIVE_LABEL*>( this );
+        *token = wxEmptyString;
+
+        for( SCH_RULE_AREA* ruleArea : directive->GetConnectedRuleAreas() )
+        {
+            if( ruleArea->GetExcludedFromSim( aPath, variant ) )
+                *token = _( "Excluded from simulation" );
+        }
+
+        return true;
+    }
+    else if( Type() == SCH_DIRECTIVE_LABEL_T && token->IsSameAs( wxT( "DNP" ) ) )
+    {
+        const SCH_DIRECTIVE_LABEL* directive = static_cast<const SCH_DIRECTIVE_LABEL*>( this );
+        *token = wxEmptyString;
+
+        for( SCH_RULE_AREA* ruleArea : directive->GetConnectedRuleAreas() )
+        {
+            if( ruleArea->GetDNP( aPath, variant ) )
+                *token = _( "DNP" );
+        }
+
+        return true;
+    }
+
+    for( const SCH_FIELD& field : m_fields )
     {
         if( token->IsSameAs( field.GetName() ) )
         {
@@ -787,7 +936,8 @@ bool SCH_LABEL_BASE::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* toke
     }
     else
     {
-        if( aPath->Last()->ResolveTextVar( aPath, token, aDepth + 1 ) )
+        // aPath->Last() can be null when loading schematic, i.e. when all sheets are not yet loaded
+        if( aPath->Last() && aPath->Last()->ResolveTextVar( aPath, token, aDepth + 1 ) )
             return true;
     }
 
@@ -816,32 +966,30 @@ void SCH_LABEL_BASE::cacheShownText()
 }
 
 
-wxString SCH_LABEL_BASE::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
-                                       int aDepth ) const
+wxString SCH_LABEL_BASE::GetShownText( const SCH_SHEET_PATH* aPath, bool aAllowExtraText, int aDepth ) const
 {
-    std::function<bool( wxString* )> textResolver =
-            [&]( wxString* token ) -> bool
-            {
-                return ResolveTextVar( aPath, token, aDepth + 1 );
-            };
+    // Use local depth counter so each text element starts fresh
+    int depth = 0;
 
-    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
+    std::function<bool( wxString* )> textResolver = [&]( wxString* token ) -> bool
+    {
+        return ResolveTextVar( aPath, token, depth + 1 );
+    };
 
-    if( text == wxS( "~" ) ) // Legacy placeholder for empty string
-    {
-        text = wxS( "" );
-    }
-    else if( HasTextVars() )
-    {
-        if( aDepth < ADVANCED_CFG::GetCfg().m_ResolveTextRecursionDepth )
-            text = ExpandTextVars( text, &textResolver );
-    }
+    wxString text = EDA_TEXT::GetShownText( aAllowExtraText, depth );
+
+    if( HasTextVars() )
+        text = ResolveTextVars( text, &textResolver, depth );
+
+    // Convert escape markers back to literals for final display
+    text.Replace( wxT( "<<<ESC_DOLLAR:" ), wxT( "${" ) );
+    text.Replace( wxT( "<<<ESC_AT:" ), wxT( "@{" ) );
 
     return text;
 }
 
 
-void SCH_LABEL_BASE::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction )
+void SCH_LABEL_BASE::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction, RECURSE_MODE aMode )
 {
     for( SCH_FIELD& field : m_fields )
         aFunction( &field );
@@ -850,7 +998,42 @@ void SCH_LABEL_BASE::RunOnChildren( const std::function<void( SCH_ITEM* )>& aFun
 
 bool SCH_LABEL_BASE::Matches( const EDA_SEARCH_DATA& aSearchData, void* aAuxData ) const
 {
-    return SCH_ITEM::Matches( UnescapeString( GetText() ), aSearchData );
+    if( SCH_ITEM::Matches( UnescapeString( GetText() ), aSearchData ) )
+    {
+        return true;
+    }
+
+    const SCH_SEARCH_DATA* searchData = dynamic_cast<const SCH_SEARCH_DATA*>( &aSearchData );
+    SCH_CONNECTION*        connection = nullptr;
+    SCH_SHEET_PATH*        sheetPath = reinterpret_cast<SCH_SHEET_PATH*>( aAuxData );
+
+    if( searchData && searchData->searchNetNames && sheetPath && ( connection = Connection( sheetPath ) ) )
+    {
+        if( connection->IsBus() )
+        {
+            auto allMembers = connection->AllMembers();
+
+            std::set<wxString> netNames;
+
+            for( std::shared_ptr<SCH_CONNECTION> member : allMembers )
+                netNames.insert( member->GetNetName() );
+
+            for( const wxString& netName : netNames )
+            {
+                if( EDA_ITEM::Matches( netName, aSearchData ) )
+                    return true;
+            }
+
+            return false;
+        }
+
+        wxString netName = connection->GetNetName();
+
+        if( EDA_ITEM::Matches( netName, aSearchData ) )
+            return true;
+    }
+
+    return false;
 }
 
 
@@ -864,8 +1047,7 @@ bool SCH_LABEL_BASE::Replace( const EDA_SEARCH_DATA& aSearchData, void* aAuxData
 }
 
 
-INSPECT_RESULT SCH_LABEL_BASE::Visit( INSPECTOR aInspector, void* testData,
-                                      const std::vector<KICAD_T>& aScanTypes )
+INSPECT_RESULT SCH_LABEL_BASE::Visit( INSPECTOR aInspector, void* testData, const std::vector<KICAD_T>& aScanTypes )
 {
     if( IsType( aScanTypes ) )
     {
@@ -904,8 +1086,7 @@ std::vector<VECTOR2I> SCH_LABEL_BASE::GetConnectionPoints() const
 
 std::vector<int> SCH_LABEL_BASE::ViewGetLayers() const
 {
-    return { LAYER_DANGLING, LAYER_DEVICE, LAYER_NETCLASS_REFS, LAYER_FIELDS,
-             LAYER_SELECTION_SHADOWS };
+    return { LAYER_DANGLING, LAYER_DEVICE, LAYER_NETCLASS_REFS, LAYER_FIELDS, LAYER_SELECTION_SHADOWS };
 }
 
 
@@ -924,14 +1105,14 @@ int SCH_LABEL_BASE::GetLabelBoxExpansion( const RENDER_SETTINGS* aSettings ) con
 }
 
 
-const BOX2I SCH_LABEL_BASE::GetBodyBoundingBox() const
+const BOX2I SCH_LABEL_BASE::GetBodyBoundingBox( const RENDER_SETTINGS* aSettings ) const
 {
     // build the bounding box of the label only, without taking into account its fields
 
     BOX2I                 box;
     std::vector<VECTOR2I> pts;
 
-    CreateGraphicShape( nullptr, pts, GetTextPos() );
+    CreateGraphicShape( aSettings, pts, GetTextPos() );
 
     for( const VECTOR2I& pt : pts )
         box.Merge( pt );
@@ -946,7 +1127,7 @@ const BOX2I SCH_LABEL_BASE::GetBoundingBox() const
 {
     // build the bounding box of the entire label, including its fields
 
-    BOX2I box = GetBodyBoundingBox();
+    BOX2I box = GetBodyBoundingBox( nullptr );
 
     for( const SCH_FIELD& field : m_fields )
     {
@@ -969,7 +1150,7 @@ const BOX2I SCH_LABEL_BASE::GetBoundingBox() const
 
 bool SCH_LABEL_BASE::HitTest( const VECTOR2I& aPosition, int aAccuracy ) const
 {
-    BOX2I bbox = GetBodyBoundingBox();
+    BOX2I bbox = GetBodyBoundingBox( nullptr );
     bbox.Inflate( aAccuracy );
 
     if( bbox.Contains( aPosition ) )
@@ -1006,7 +1187,7 @@ bool SCH_LABEL_BASE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy
     }
     else
     {
-        if( rect.Intersects( GetBodyBoundingBox() ) )
+        if( rect.Intersects( GetBodyBoundingBox( nullptr ) ) )
             return true;
 
         for( const SCH_FIELD& field : m_fields )
@@ -1028,14 +1209,43 @@ bool SCH_LABEL_BASE::HitTest( const BOX2I& aRect, bool aContained, int aAccuracy
 }
 
 
+bool SCH_LABEL_BASE::HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    if( aContained )
+    {
+        return KIGEOM::BoxHitTest( aPoly, GetBoundingBox(), aContained );
+    }
+    else
+    {
+        if( KIGEOM::BoxHitTest( aPoly, GetBodyBoundingBox( nullptr ), aContained ) )
+            return true;
+
+        for( const SCH_FIELD& field : m_fields )
+        {
+            if( field.IsVisible() )
+            {
+                BOX2I fieldBBox = field.GetBoundingBox();
+
+                if( Type() == SCH_LABEL_T || Type() == SCH_GLOBAL_LABEL_T )
+                    fieldBBox.Offset( GetSchematicTextOffset( nullptr ) );
+
+                if( KIGEOM::BoxHitTest( aPoly, fieldBBox, aContained ) )
+                    return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+
 bool SCH_LABEL_BASE::UpdateDanglingState( std::vector<DANGLING_END_ITEM>& aItemListByType,
-                                          std::vector<DANGLING_END_ITEM>& aItemListByPos,
-                                          const SCH_SHEET_PATH*           aPath )
+                                          std::vector<DANGLING_END_ITEM>& aItemListByPos, const SCH_SHEET_PATH* aPath )
 {
     bool     previousState = m_isDangling;
     VECTOR2I text_pos = GetTextPos();
     m_isDangling = true;
-    m_connectionType   = CONNECTION_TYPE::NONE;
+    m_connectionType = CONNECTION_TYPE::NONE;
 
     for( auto it = DANGLING_END_ITEM_HELPER::get_lower_pos( aItemListByPos, text_pos );
          it < aItemListByPos.end() && it->GetPosition() == text_pos; it++ )
@@ -1077,8 +1287,7 @@ bool SCH_LABEL_BASE::UpdateDanglingState( std::vector<DANGLING_END_ITEM>& aItemL
 
             int accuracy = 1; // We have rounding issues with an accuracy of 0
 
-            m_isDangling = !TestSegmentHit( text_pos, item.GetPosition(), nextItem.GetPosition(),
-                                            accuracy );
+            m_isDangling = !TestSegmentHit( text_pos, item.GetPosition(), nextItem.GetPosition(), accuracy );
 
             if( m_isDangling )
                 continue;
@@ -1107,8 +1316,7 @@ bool SCH_LABEL_BASE::UpdateDanglingState( std::vector<DANGLING_END_ITEM>& aItemL
 
                 int accuracy = 1; // We have rounding issues with an accuracy of 0
 
-                m_isDangling = !TestSegmentHit( text_pos, item.GetPosition(),
-                                                nextItem.GetPosition(), accuracy );
+                m_isDangling = !TestSegmentHit( text_pos, item.GetPosition(), nextItem.GetPosition(), accuracy );
 
                 if( m_isDangling )
                     continue;
@@ -1136,8 +1344,7 @@ bool SCH_LABEL_BASE::UpdateDanglingState( std::vector<DANGLING_END_ITEM>& aItemL
 }
 
 
-bool SCH_LABEL_BASE::HasConnectivityChanges( const SCH_ITEM* aItem,
-                                             const SCH_SHEET_PATH* aInstance ) const
+bool SCH_LABEL_BASE::HasConnectivityChanges( const SCH_ITEM* aItem, const SCH_SHEET_PATH* aInstance ) const
 {
     // Do not compare to ourself.
     if( aItem == this || !IsConnectable() )
@@ -1179,11 +1386,11 @@ void SCH_LABEL_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PA
 
     switch( Type() )
     {
-    case SCH_LABEL_T:           msg = _( "Label" );                  break;
-    case SCH_DIRECTIVE_LABEL_T: msg = _( "Directive Label" );        break;
-    case SCH_GLOBAL_LABEL_T:    msg = _( "Global Label" );           break;
-    case SCH_HIER_LABEL_T:      msg = _( "Hierarchical Label" );     break;
-    case SCH_SHEET_PIN_T:       msg = _( "Hierarchical Sheet Pin" ); break;
+    case SCH_LABEL_T: msg = _( "Label" ); break;
+    case SCH_DIRECTIVE_LABEL_T: msg = _( "Directive Label" ); break;
+    case SCH_GLOBAL_LABEL_T: msg = _( "Global Label" ); break;
+    case SCH_HIER_LABEL_T: msg = _( "Hierarchical Label" ); break;
+    case SCH_SHEET_PIN_T: msg = _( "Hierarchical Sheet Pin" ); break;
     default: return;
     }
 
@@ -1197,18 +1404,18 @@ void SCH_LABEL_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PA
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
 
     wxString textStyle[] = { _( "Normal" ), _( "Italic" ), _( "Bold" ), _( "Bold Italic" ) };
-    int style = IsBold() && IsItalic() ? 3 : IsBold() ? 2 : IsItalic() ? 1 : 0;
+    int      style = IsBold() && IsItalic() ? 3 : IsBold() ? 2 : IsItalic() ? 1 : 0;
     aList.emplace_back( _( "Style" ), textStyle[style] );
 
     aList.emplace_back( _( "Text Size" ), aFrame->MessageTextFromValue( GetTextWidth() ) );
 
     switch( GetSpinStyle() )
     {
-    case SPIN_STYLE::LEFT:   msg = _( "Align right" );   break;
-    case SPIN_STYLE::UP:     msg = _( "Align bottom" );  break;
-    case SPIN_STYLE::RIGHT:  msg = _( "Align left" );    break;
-    case SPIN_STYLE::BOTTOM: msg = _( "Align top" );     break;
-    default:                 msg = wxT( "???" );         break;
+    case SPIN_STYLE::LEFT: msg = _( "Align right" ); break;
+    case SPIN_STYLE::UP: msg = _( "Align bottom" ); break;
+    case SPIN_STYLE::RIGHT: msg = _( "Align left" ); break;
+    case SPIN_STYLE::BOTTOM: msg = _( "Align top" ); break;
+    default: msg = wxT( "???" ); break;
     }
 
     aList.emplace_back( _( "Justification" ), msg );
@@ -1231,8 +1438,8 @@ void SCH_LABEL_BASE::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PA
 }
 
 
-void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
-                           int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
+void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts, int aUnit,
+                           int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed )
 {
     static std::vector<VECTOR2I> s_poly;
 
@@ -1246,16 +1453,16 @@ void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_O
     if( aPlotter->GetColorMode() && GetLabelColor() != COLOR4D::UNSPECIFIED )
         color = GetLabelColor();
 
+    if( color.m_text && Schematic() )
+        color = COLOR4D( ResolveText( *color.m_text, &Schematic()->CurrentSheet() ) );
+
     penWidth = std::max( penWidth, settings->GetMinPenWidth() );
     aPlotter->SetCurrentLineWidth( penWidth );
 
-    KIFONT::FONT* font = GetFont();
+    KIFONT::FONT* font = GetDrawFont( settings );
 
-    if( !font )
-        font = KIFONT::FONT::GetFont( settings->GetDefaultFont(), IsBold(), IsItalic() );
-
-    VECTOR2I textpos = GetTextPos() + GetSchematicTextOffset( aPlotter->RenderSettings() );
-    CreateGraphicShape( aPlotter->RenderSettings(), s_poly, GetTextPos() );
+    VECTOR2I textpos = GetTextPos() + GetSchematicTextOffset( settings );
+    CreateGraphicShape( settings, s_poly, GetTextPos() );
 
     TEXT_ATTRIBUTES attrs = GetAttributes();
     attrs.m_StrokeWidth = penWidth;
@@ -1267,8 +1474,7 @@ void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_O
     }
     else
     {
-        aPlotter->PlotText( textpos, color, GetShownText( sheet, true ), attrs, font,
-                            GetFontMetrics() );
+        aPlotter->PlotText( textpos, color, GetShownText( sheet, true ), attrs, font, GetFontMetrics() );
 
         if( aPlotter->GetColorMode() )
         {
@@ -1287,7 +1493,7 @@ void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_O
             aPlotter->PenFinish();
 
             int diameter = ( s_poly[2] - s_poly[1] ).EuclideanNorm() * 2;
-            aPlotter->FilledCircle( s_poly[2], diameter , FILLED, nullptr );
+            aPlotter->FilledCircle( s_poly[2], diameter, nullptr );
         }
         else if( GetShape() == LABEL_FLAG_SHAPE::F_ROUND )
         {
@@ -1296,16 +1502,17 @@ void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_O
             aPlotter->PenFinish();
 
             int diameter = ( s_poly[2] - s_poly[1] ).EuclideanNorm() * 2;
-            aPlotter->ThickCircle( s_poly[2], diameter, penWidth, FILLED, nullptr );
+            aPlotter->ThickCircle( s_poly[2], diameter, penWidth, nullptr );
         }
         else
         {
             if( !s_poly.empty() )
-                aPlotter->PlotPoly( s_poly, FILL_T::NO_FILL, penWidth );
+                aPlotter->PlotPoly( s_poly, FILL_T::NO_FILL, penWidth, nullptr );
         }
 
         // Make sheet pins and hierarchical labels clickable hyperlinks
-        bool linkAlreadyPlotted = false;
+        bool  linkAlreadyPlotted = false;
+        BOX2I bodyBBox = GetBodyBoundingBox( settings );
 
         if( aPlotOpts.m_PDFHierarchicalLinks )
         {
@@ -1315,8 +1522,7 @@ void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_O
                 {
                     SCH_SHEET_PATH path = *sheet;
                     path.pop_back();
-                    aPlotter->HyperlinkBox( GetBodyBoundingBox(),
-                                            EDA_TEXT::GotoPageHref( path.GetPageNumber() ) );
+                    aPlotter->HyperlinkBox( bodyBBox, EDA_TEXT::GotoPageHref( path.GetPageNumber() ) );
                     linkAlreadyPlotted = true;
                 }
             }
@@ -1325,8 +1531,7 @@ void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_O
                 SCH_SHEET_PATH path = *sheet;
                 SCH_SHEET*     parent = static_cast<SCH_SHEET*>( m_parent );
                 path.push_back( parent );
-                aPlotter->HyperlinkBox( GetBodyBoundingBox(),
-                                        EDA_TEXT::GotoPageHref( path.GetPageNumber() ) );
+                aPlotter->HyperlinkBox( bodyBBox, EDA_TEXT::GotoPageHref( path.GetPageNumber() ) );
                 linkAlreadyPlotted = true;
             }
         }
@@ -1338,81 +1543,28 @@ void SCH_LABEL_BASE::Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_O
 
             if( connection )
             {
-                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
-                                                           _( "Net" ),
-                                                           connection->Name() ) );
+                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ), _( "Net" ), connection->Name() ) );
 
-                properties.emplace_back(
-                        wxString::Format( wxT( "!%s = %s" ), _( "Resolved netclass" ),
-                                          GetEffectiveNetClass()->GetHumanReadableName() ) );
+                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ), _( "Resolved netclass" ),
+                                                           GetEffectiveNetClass()->GetHumanReadableName() ) );
             }
 
             for( const SCH_FIELD& field : GetFields() )
             {
-                properties.emplace_back( wxString::Format( wxT( "!%s = %s" ),
-                                                           field.GetName(),
-                                                           field.GetShownText( false ) ) );
+                properties.emplace_back(
+                        wxString::Format( wxT( "!%s = %s" ), field.GetName(), field.GetShownText( false ) ) );
             }
 
             if( !properties.empty() )
-                aPlotter->HyperlinkMenu( GetBodyBoundingBox(), properties );
+                aPlotter->HyperlinkMenu( bodyBBox, properties );
         }
 
         if( Type() == SCH_HIER_LABEL_T )
-        {
-            aPlotter->Bookmark( GetBodyBoundingBox(), GetShownText( false ),
-                                _( "Hierarchical Labels" ) );
-        }
+            aPlotter->Bookmark( bodyBBox, GetShownText( false ), _( "Hierarchical Labels" ) );
     }
 
     for( SCH_FIELD& field : m_fields )
         field.Plot( aPlotter, aBackground, aPlotOpts, aUnit, aBodyStyle, aOffset, aDimmed );
-}
-
-
-void SCH_LABEL_BASE::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                            const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
-{
-    static std::vector<VECTOR2I> s_poly;
-
-    SCH_CONNECTION* connection = Connection();
-    int             layer = ( connection && connection->IsBus() ) ? LAYER_BUS : m_layer;
-    wxDC*           DC = aSettings->GetPrintDC();
-    COLOR4D         color = aSettings->GetLayerColor( layer );
-    bool            blackAndWhiteMode = GetGRForceBlackPenState();
-    int             penWidth = GetEffectivePenWidth( aSettings );
-    VECTOR2I        text_offset = aOffset + GetSchematicTextOffset( aSettings );
-    COLOR4D          labelColor = GetLabelColor();
-
-    if( !blackAndWhiteMode && labelColor != COLOR4D::UNSPECIFIED )
-        color = labelColor;
-
-    EDA_TEXT::Print( aSettings, text_offset, color );
-
-    CreateGraphicShape( aSettings, s_poly, GetTextPos() + aOffset );
-
-    if( GetShape() == LABEL_FLAG_SHAPE::F_DOT )
-    {
-        GRLine( DC, s_poly[0], s_poly[1], penWidth, color );
-
-        int radius = ( s_poly[2] - s_poly[1] ).EuclideanNorm();
-        GRFilledCircle( DC, s_poly[2], radius, penWidth, color, color );
-    }
-    else if( GetShape() == LABEL_FLAG_SHAPE::F_ROUND )
-    {
-        GRLine( DC, s_poly[0], s_poly[1], penWidth, color );
-
-        int radius = ( s_poly[2] - s_poly[1] ).EuclideanNorm();
-        GRCircle( DC, s_poly[2], radius, penWidth, color );
-    }
-    else
-    {
-        if( !s_poly.empty() )
-            GRPoly( DC, s_poly.size(), &s_poly[0], false, penWidth, color, color );
-    }
-
-    for( SCH_FIELD& field : m_fields )
-        field.Print( aSettings, aUnit, aBodyStyle, aOffset, aForceNoFill, aDimmed );
 }
 
 
@@ -1431,13 +1583,13 @@ void SCH_LABEL_BASE::SetAutoRotateOnPlacement( bool autoRotate )
 SCH_LABEL::SCH_LABEL( const VECTOR2I& pos, const wxString& text ) :
         SCH_LABEL_BASE( pos, text, SCH_LABEL_T )
 {
-    m_layer      = LAYER_LOCLABEL;
-    m_shape      = LABEL_FLAG_SHAPE::L_INPUT;
+    m_layer = LAYER_LOCLABEL;
+    m_shape = LABEL_FLAG_SHAPE::L_INPUT;
     m_isDangling = true;
 }
 
 
-void SCH_LABEL::Serialize( google::protobuf::Any &aContainer ) const
+void SCH_LABEL::Serialize( google::protobuf::Any& aContainer ) const
 {
     kiapi::schematic::types::LocalLabel label;
 
@@ -1448,7 +1600,7 @@ void SCH_LABEL::Serialize( google::protobuf::Any &aContainer ) const
 }
 
 
-bool SCH_LABEL::Deserialize( const google::protobuf::Any &aContainer )
+bool SCH_LABEL::Deserialize( const google::protobuf::Any& aContainer )
 {
     kiapi::schematic::types::LocalLabel label;
 
@@ -1462,9 +1614,9 @@ bool SCH_LABEL::Deserialize( const google::protobuf::Any &aContainer )
 }
 
 
-const BOX2I SCH_LABEL::GetBodyBoundingBox() const
+const BOX2I SCH_LABEL::GetBodyBoundingBox( const RENDER_SETTINGS* aSettings ) const
 {
-    BOX2I rect = GetTextBox();
+    BOX2I rect = GetTextBox( aSettings );
 
     rect.Offset( 0, -GetTextOffset() );
     rect.Inflate( GetEffectiveTextPenWidth() );
@@ -1493,8 +1645,7 @@ const BOX2I SCH_LABEL::GetBodyBoundingBox() const
 
 wxString SCH_LABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Label '%s'" ),
-                             aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
+    return wxString::Format( _( "Label '%s'" ), aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
 }
 
 
@@ -1507,17 +1658,17 @@ BITMAPS SCH_LABEL::GetMenuImage() const
 SCH_DIRECTIVE_LABEL::SCH_DIRECTIVE_LABEL( const VECTOR2I& pos ) :
         SCH_LABEL_BASE( pos, wxEmptyString, SCH_DIRECTIVE_LABEL_T )
 {
-    m_layer      = LAYER_NETCLASS_REFS;
-    m_shape      = LABEL_FLAG_SHAPE::F_ROUND;
-    m_pinLength  = schIUScale.MilsToIU( 100 );
+    m_layer = LAYER_NETCLASS_REFS;
+    m_shape = LABEL_FLAG_SHAPE::F_ROUND;
+    m_pinLength = schIUScale.MilsToIU( 100 );
     m_symbolSize = schIUScale.MilsToIU( 20 );
     m_isDangling = true;
 }
 
 
-void SCH_DIRECTIVE_LABEL::SwapData( SCH_ITEM* aItem )
+void SCH_DIRECTIVE_LABEL::swapData( SCH_ITEM* aItem )
 {
-    SCH_LABEL_BASE::SwapData( aItem );
+    SCH_LABEL_BASE::swapData( aItem );
 
     SCH_DIRECTIVE_LABEL* label = static_cast<SCH_DIRECTIVE_LABEL*>( aItem );
 
@@ -1534,15 +1685,22 @@ SCH_DIRECTIVE_LABEL::SCH_DIRECTIVE_LABEL( const SCH_DIRECTIVE_LABEL& aClassLabel
 }
 
 
-void SCH_DIRECTIVE_LABEL::Serialize( google::protobuf::Any &aContainer ) const
+SCH_DIRECTIVE_LABEL::~SCH_DIRECTIVE_LABEL()
 {
-    // TODO
+    for( SCH_RULE_AREA* ruleArea : m_connected_rule_areas )
+        ruleArea->RemoveDirective( this );
 }
 
 
-bool SCH_DIRECTIVE_LABEL::Deserialize( const google::protobuf::Any &aContainer )
+void SCH_DIRECTIVE_LABEL::Serialize( google::protobuf::Any& aContainer ) const
 {
-    // TODO
+    UNIMPLEMENTED_FOR( GetClass() );
+}
+
+
+bool SCH_DIRECTIVE_LABEL::Deserialize( const google::protobuf::Any& aContainer )
+{
+    UNIMPLEMENTED_FOR( GetClass() );
     return false;
 }
 
@@ -1568,7 +1726,7 @@ void SCH_DIRECTIVE_LABEL::MirrorSpinStyle( bool aLeftRight )
     for( SCH_FIELD& field : m_fields )
     {
         if( ( aLeftRight && field.GetTextAngle().IsHorizontal() )
-                || ( !aLeftRight && field.GetTextAngle().IsVertical() ) )
+            || ( !aLeftRight && field.GetTextAngle().IsVertical() ) )
         {
             if( field.GetHorizJustify() == GR_TEXT_H_ALIGN_LEFT )
                 field.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
@@ -1577,7 +1735,7 @@ void SCH_DIRECTIVE_LABEL::MirrorSpinStyle( bool aLeftRight )
         }
 
         VECTOR2I pos = field.GetTextPos();
-        VECTOR2I delta = (VECTOR2I)GetPosition() - pos;
+        VECTOR2I delta = (VECTOR2I) GetPosition() - pos;
 
         if( aLeftRight )
             pos.x = GetPosition().x + delta.x;
@@ -1639,9 +1797,8 @@ void SCH_DIRECTIVE_LABEL::MirrorVertically( int aCenter )
 }
 
 
-void SCH_DIRECTIVE_LABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings,
-                                              std::vector<VECTOR2I>& aPoints,
-                                              const VECTOR2I&        aPos ) const
+void SCH_DIRECTIVE_LABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings, std::vector<VECTOR2I>& aPoints,
+                                              const VECTOR2I& aPos ) const
 {
     int symbolSize = m_symbolSize;
 
@@ -1649,47 +1806,44 @@ void SCH_DIRECTIVE_LABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSett
 
     switch( m_shape )
     {
-    case LABEL_FLAG_SHAPE::F_DOT:
-        symbolSize = KiROUND( symbolSize * 0.7 );
-        KI_FALLTHROUGH;
+    case LABEL_FLAG_SHAPE::F_DOT: symbolSize = KiROUND( symbolSize * 0.7 ); KI_FALLTHROUGH;
 
     case LABEL_FLAG_SHAPE::F_ROUND:
         // First 3 points are used for generating shape
-        aPoints.emplace_back( VECTOR2I(             0, 0                        ) );
-        aPoints.emplace_back( VECTOR2I(             0, m_pinLength - symbolSize ) );
-        aPoints.emplace_back( VECTOR2I(             0, m_pinLength              ) );
+        aPoints.emplace_back( VECTOR2I( 0, 0 ) );
+        aPoints.emplace_back( VECTOR2I( 0, m_pinLength - symbolSize ) );
+        aPoints.emplace_back( VECTOR2I( 0, m_pinLength ) );
 
         // These points are just used to bulk out the bounding box
-        aPoints.emplace_back( VECTOR2I( -m_symbolSize, m_pinLength              ) );
-        aPoints.emplace_back( VECTOR2I(             0, m_pinLength              ) );
-        aPoints.emplace_back( VECTOR2I(  m_symbolSize, m_pinLength + symbolSize ) );
+        aPoints.emplace_back( VECTOR2I( -m_symbolSize, m_pinLength ) );
+        aPoints.emplace_back( VECTOR2I( 0, m_pinLength ) );
+        aPoints.emplace_back( VECTOR2I( m_symbolSize, m_pinLength + symbolSize ) );
         break;
 
     case LABEL_FLAG_SHAPE::F_DIAMOND:
-        aPoints.emplace_back( VECTOR2I(                 0, 0                        ) );
-        aPoints.emplace_back( VECTOR2I(                 0, m_pinLength - symbolSize ) );
-        aPoints.emplace_back( VECTOR2I( -2 * m_symbolSize, m_pinLength              ) );
-        aPoints.emplace_back( VECTOR2I(                 0, m_pinLength + symbolSize ) );
-        aPoints.emplace_back( VECTOR2I(  2 * m_symbolSize, m_pinLength              ) );
-        aPoints.emplace_back( VECTOR2I(                 0, m_pinLength - symbolSize ) );
-        aPoints.emplace_back( VECTOR2I(                 0, 0                        ) );
+        aPoints.emplace_back( VECTOR2I( 0, 0 ) );
+        aPoints.emplace_back( VECTOR2I( 0, m_pinLength - symbolSize ) );
+        aPoints.emplace_back( VECTOR2I( -2 * m_symbolSize, m_pinLength ) );
+        aPoints.emplace_back( VECTOR2I( 0, m_pinLength + symbolSize ) );
+        aPoints.emplace_back( VECTOR2I( 2 * m_symbolSize, m_pinLength ) );
+        aPoints.emplace_back( VECTOR2I( 0, m_pinLength - symbolSize ) );
+        aPoints.emplace_back( VECTOR2I( 0, 0 ) );
         break;
 
     case LABEL_FLAG_SHAPE::F_RECTANGLE:
         symbolSize = KiROUND( symbolSize * 0.8 );
 
-        aPoints.emplace_back( VECTOR2I(               0, 0                        ) );
-        aPoints.emplace_back( VECTOR2I(               0, m_pinLength - symbolSize ) );
+        aPoints.emplace_back( VECTOR2I( 0, 0 ) );
+        aPoints.emplace_back( VECTOR2I( 0, m_pinLength - symbolSize ) );
         aPoints.emplace_back( VECTOR2I( -2 * symbolSize, m_pinLength - symbolSize ) );
         aPoints.emplace_back( VECTOR2I( -2 * symbolSize, m_pinLength + symbolSize ) );
-        aPoints.emplace_back( VECTOR2I(  2 * symbolSize, m_pinLength + symbolSize ) );
-        aPoints.emplace_back( VECTOR2I(  2 * symbolSize, m_pinLength - symbolSize ) );
-        aPoints.emplace_back( VECTOR2I(               0, m_pinLength - symbolSize ) );
-        aPoints.emplace_back( VECTOR2I(               0, 0                        ) );
+        aPoints.emplace_back( VECTOR2I( 2 * symbolSize, m_pinLength + symbolSize ) );
+        aPoints.emplace_back( VECTOR2I( 2 * symbolSize, m_pinLength - symbolSize ) );
+        aPoints.emplace_back( VECTOR2I( 0, m_pinLength - symbolSize ) );
+        aPoints.emplace_back( VECTOR2I( 0, 0 ) );
         break;
 
-    default:
-        break;
+    default: break;
     }
 
     // Rotate outlines and move corners to real position
@@ -1698,10 +1852,10 @@ void SCH_DIRECTIVE_LABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSett
         switch( GetSpinStyle() )
         {
         default:
-        case SPIN_STYLE::LEFT:                                     break;
-        case SPIN_STYLE::UP:     RotatePoint( aPoint, -ANGLE_90 ); break;
-        case SPIN_STYLE::RIGHT:  RotatePoint( aPoint, ANGLE_180 ); break;
-        case SPIN_STYLE::BOTTOM: RotatePoint( aPoint, ANGLE_90 );  break;
+        case SPIN_STYLE::LEFT: break;
+        case SPIN_STYLE::UP: RotatePoint( aPoint, -ANGLE_90 ); break;
+        case SPIN_STYLE::RIGHT: RotatePoint( aPoint, ANGLE_180 ); break;
+        case SPIN_STYLE::BOTTOM: RotatePoint( aPoint, ANGLE_90 ); break;
         }
 
         aPoint += aPos;
@@ -1771,10 +1925,17 @@ wxString SCH_DIRECTIVE_LABEL::GetItemDescription( UNITS_PROVIDER* aUnitsProvider
     }
     else
     {
-        return wxString::Format( _( "Directive Label [%s %s]" ),
-                                 UnescapeString( m_fields[0].GetName() ),
-                                 aFull ? m_fields[0].GetShownText( false )
-                                       : KIUI::EllipsizeMenuText( m_fields[0].GetText() ) );
+        const SCH_FIELD& firstField = m_fields[0];
+        wxString content = aFull ? firstField.GetShownText( false ) : KIUI::EllipsizeMenuText( firstField.GetText() );
+
+        if( content.IsEmpty() )
+        {
+            return wxString::Format( _( "Directive Label [%s (empty)]" ), UnescapeString( m_fields[0].GetName() ) );
+        }
+        else
+        {
+            return wxString::Format( _( "Directive Label [%s %s]" ), UnescapeString( m_fields[0].GetName() ), content );
+        }
     }
 }
 
@@ -1797,26 +1958,51 @@ void SCH_DIRECTIVE_LABEL::RemoveConnectedRuleArea( SCH_RULE_AREA* aRuleArea )
 }
 
 
+const std::unordered_set<SCH_RULE_AREA*> SCH_DIRECTIVE_LABEL::GetConnectedRuleAreas() const
+{
+    return m_connected_rule_areas;
+}
+
+
 bool SCH_DIRECTIVE_LABEL::IsDangling() const
 {
     return m_isDangling && m_connected_rule_areas.empty();
+}
+
+bool SCH_DIRECTIVE_LABEL::IncrementLabel( int aIncrement )
+{
+    for( SCH_FIELD& field : m_fields )
+    {
+        if( field.GetCanonicalName() == wxT( "Netclass" ) || field.GetCanonicalName() == wxT( "Component Class" ) )
+        {
+            wxString text = field.GetText();
+
+            if( IncrementString( text, aIncrement ) )
+            {
+                field.SetText( text );
+            }
+        }
+    }
+
+    return true;
 }
 
 
 SCH_GLOBALLABEL::SCH_GLOBALLABEL( const VECTOR2I& pos, const wxString& text ) :
         SCH_LABEL_BASE( pos, text, SCH_GLOBAL_LABEL_T )
 {
-    m_layer      = LAYER_GLOBLABEL;
-    m_shape      = LABEL_FLAG_SHAPE::L_BIDI;
+    m_layer = LAYER_GLOBLABEL;
+    m_shape = LABEL_FLAG_SHAPE::L_BIDI;
     m_isDangling = true;
 
     SetVertJustify( GR_TEXT_V_ALIGN_CENTER );
 
-    m_fields.emplace_back( SCH_FIELD( pos, INTERSHEET_REFS, this, wxT( "Sheet References" ) ) );
-    m_fields[0].SetText( wxT( "${INTERSHEET_REFS}" ) );
-    m_fields[0].SetVisible( false );
-    m_fields[0].SetLayer( LAYER_INTERSHEET_REFS );
-    m_fields[0].SetVertJustify( GR_TEXT_V_ALIGN_CENTER );
+    m_fields.emplace_back(
+            SCH_FIELD( this, FIELD_T::INTERSHEET_REFS, ::GetDefaultFieldName( FIELD_T::INTERSHEET_REFS, false ) ) );
+    m_fields.back().SetText( wxT( "${INTERSHEET_REFS}" ) );
+    m_fields.back().SetVisible( false );
+    m_fields.back().SetVertJustify( GR_TEXT_V_ALIGN_CENTER );
+    m_fields.back().SetTextPos( pos );
 }
 
 
@@ -1826,16 +2012,32 @@ SCH_GLOBALLABEL::SCH_GLOBALLABEL( const SCH_GLOBALLABEL& aGlobalLabel ) :
 }
 
 
-void SCH_GLOBALLABEL::Serialize( google::protobuf::Any &aContainer ) const
+void SCH_GLOBALLABEL::Serialize( google::protobuf::Any& aContainer ) const
 {
-    // TODO
+    UNIMPLEMENTED_FOR( GetClass() );
 }
 
 
-bool SCH_GLOBALLABEL::Deserialize( const google::protobuf::Any &aContainer )
+bool SCH_GLOBALLABEL::Deserialize( const google::protobuf::Any& aContainer )
 {
-    // TODO
+    UNIMPLEMENTED_FOR( GetClass() );
     return false;
+}
+
+
+SCH_FIELD* SCH_GLOBALLABEL::GetField( FIELD_T aFieldType )
+{
+    if( SCH_FIELD* field = FindField( m_fields, aFieldType ) )
+        return field;
+
+    m_fields.emplace_back( this, aFieldType );
+    return &m_fields.back();
+}
+
+
+const SCH_FIELD* SCH_GLOBALLABEL::GetField( FIELD_T aFieldType ) const
+{
+    return FindField( m_fields, aFieldType );
 }
 
 
@@ -1851,21 +2053,20 @@ VECTOR2I SCH_GLOBALLABEL::GetSchematicTextOffset( const RENDER_SETTINGS* aSettin
     case LABEL_FLAG_SHAPE::L_INPUT:
     case LABEL_FLAG_SHAPE::L_BIDI:
     case LABEL_FLAG_SHAPE::L_TRISTATE:
-        horiz += GetTextHeight() * 3 / 4;  // Use three-quarters-height as proxy for triangle size
+        horiz += GetTextHeight() * 3 / 4; // Use three-quarters-height as proxy for triangle size
         break;
 
     case LABEL_FLAG_SHAPE::L_OUTPUT:
     case LABEL_FLAG_SHAPE::L_UNSPECIFIED:
-    default:
-        break;
+    default: break;
     }
 
     switch( GetSpinStyle() )
     {
     default:
-    case SPIN_STYLE::LEFT:   return VECTOR2I( -horiz, vert );
-    case SPIN_STYLE::UP:     return VECTOR2I( vert, -horiz );
-    case SPIN_STYLE::RIGHT:  return VECTOR2I( horiz, vert );
+    case SPIN_STYLE::LEFT: return VECTOR2I( -horiz, vert );
+    case SPIN_STYLE::UP: return VECTOR2I( vert, -horiz );
+    case SPIN_STYLE::RIGHT: return VECTOR2I( horiz, vert );
     case SPIN_STYLE::BOTTOM: return VECTOR2I( vert, horiz );
     }
 }
@@ -1878,8 +2079,7 @@ void SCH_GLOBALLABEL::SetSpinStyle( SPIN_STYLE aSpinStyle )
 }
 
 
-bool SCH_GLOBALLABEL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token,
-                                      int aDepth ) const
+bool SCH_GLOBALLABEL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* token, int aDepth ) const
 {
     wxCHECK( aPath, false );
 
@@ -1908,15 +2108,14 @@ bool SCH_GLOBALLABEL::ResolveTextVar( const SCH_SHEET_PATH* aPath, wxString* tok
             if( !settings.m_IntersheetRefsListOwnPage )
             {
                 int currentPage = schematic->CurrentSheet().GetVirtualPageNumber();
-                alg::delete_matching( pageListCopy, currentPage );
+                std::erase( pageListCopy, currentPage );
             }
 
             std::map<int, wxString> sheetPages = schematic->GetVirtualPageToSheetPagesMap();
 
             if( ( settings.m_IntersheetRefsFormatShort ) && ( pageListCopy.size() > 2 ) )
             {
-                ref.Append( wxString::Format( wxT( "%s..%s" ),
-                                              sheetPages[pageListCopy.front()],
+                ref.Append( wxString::Format( wxT( "%s..%s" ), sheetPages[pageListCopy.front()],
                                               sheetPages[pageListCopy.back()] ) );
             }
             else
@@ -1944,14 +2143,13 @@ std::vector<int> SCH_GLOBALLABEL::ViewGetLayers() const
 }
 
 
-void SCH_GLOBALLABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings,
-                                          std::vector<VECTOR2I>& aPoints,
-                                          const VECTOR2I&        aPos ) const
+void SCH_GLOBALLABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings, std::vector<VECTOR2I>& aPoints,
+                                          const VECTOR2I& aPos ) const
 {
-    int margin    = GetLabelBoxExpansion( aRenderSettings );
-    int halfSize  = ( GetTextHeight() / 2 ) + margin;
+    int margin = GetLabelBoxExpansion( aRenderSettings );
+    int halfSize = ( GetTextHeight() / 2 ) + margin;
     int linewidth = GetPenWidth();
-    int symb_len  = GetTextBox().GetWidth() + 2 * margin;
+    int symb_len = GetTextBox( aRenderSettings ).GetWidth() + 2 * margin;
 
     int x = symb_len + linewidth + 3;
     int y = halfSize + linewidth + 3;
@@ -1960,11 +2158,11 @@ void SCH_GLOBALLABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings
 
     // Create outline shape : 6 points
     aPoints.emplace_back( VECTOR2I( 0, 0 ) );
-    aPoints.emplace_back( VECTOR2I( 0, -y ) );    // Up
-    aPoints.emplace_back( VECTOR2I( -x, -y ) );   // left
-    aPoints.emplace_back( VECTOR2I( -x, 0 ) );    // Up left
-    aPoints.emplace_back( VECTOR2I( -x, y ) );    // left down
-    aPoints.emplace_back( VECTOR2I( 0, y ) );     // down
+    aPoints.emplace_back( VECTOR2I( 0, -y ) );  // Up
+    aPoints.emplace_back( VECTOR2I( -x, -y ) ); // left
+    aPoints.emplace_back( VECTOR2I( -x, 0 ) );  // Up left
+    aPoints.emplace_back( VECTOR2I( -x, y ) );  // left down
+    aPoints.emplace_back( VECTOR2I( 0, y ) );   // down
 
     int x_offset = 0;
 
@@ -1975,9 +2173,7 @@ void SCH_GLOBALLABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings
         aPoints[0].x += halfSize;
         break;
 
-    case LABEL_FLAG_SHAPE::L_OUTPUT:
-        aPoints[3].x -= halfSize;
-        break;
+    case LABEL_FLAG_SHAPE::L_OUTPUT: aPoints[3].x -= halfSize; break;
 
     case LABEL_FLAG_SHAPE::L_BIDI:
     case LABEL_FLAG_SHAPE::L_TRISTATE:
@@ -1987,8 +2183,7 @@ void SCH_GLOBALLABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings
         break;
 
     case LABEL_FLAG_SHAPE::L_UNSPECIFIED:
-    default:
-        break;
+    default: break;
     }
 
     // Rotate outlines and move corners in real position
@@ -1999,10 +2194,10 @@ void SCH_GLOBALLABEL::CreateGraphicShape( const RENDER_SETTINGS* aRenderSettings
         switch( GetSpinStyle() )
         {
         default:
-        case SPIN_STYLE::LEFT:                                     break;
-        case SPIN_STYLE::UP:     RotatePoint( aPoint, -ANGLE_90 ); break;
-        case SPIN_STYLE::RIGHT:  RotatePoint( aPoint, ANGLE_180 ); break;
-        case SPIN_STYLE::BOTTOM: RotatePoint( aPoint, ANGLE_90 );  break;
+        case SPIN_STYLE::LEFT: break;
+        case SPIN_STYLE::UP: RotatePoint( aPoint, -ANGLE_90 ); break;
+        case SPIN_STYLE::RIGHT: RotatePoint( aPoint, ANGLE_180 ); break;
+        case SPIN_STYLE::BOTTOM: RotatePoint( aPoint, ANGLE_90 ); break;
         }
 
         aPoint += aPos;
@@ -2028,21 +2223,21 @@ BITMAPS SCH_GLOBALLABEL::GetMenuImage() const
 SCH_HIERLABEL::SCH_HIERLABEL( const VECTOR2I& pos, const wxString& text, KICAD_T aType ) :
         SCH_LABEL_BASE( pos, text, aType )
 {
-    m_layer      = LAYER_HIERLABEL;
-    m_shape      = LABEL_FLAG_SHAPE::L_INPUT;
+    m_layer = LAYER_HIERLABEL;
+    m_shape = LABEL_FLAG_SHAPE::L_INPUT;
     m_isDangling = true;
 }
 
 
-void SCH_HIERLABEL::Serialize( google::protobuf::Any &aContainer ) const
+void SCH_HIERLABEL::Serialize( google::protobuf::Any& aContainer ) const
 {
-    // TODO
+    UNIMPLEMENTED_FOR( GetClass() );
 }
 
 
-bool SCH_HIERLABEL::Deserialize( const google::protobuf::Any &aContainer )
+bool SCH_HIERLABEL::Deserialize( const google::protobuf::Any& aContainer )
 {
-    // TODO
+    UNIMPLEMENTED_FOR( GetClass() );
     return false;
 }
 
@@ -2054,16 +2249,15 @@ void SCH_HIERLABEL::SetSpinStyle( SPIN_STYLE aSpinStyle )
 }
 
 
-void SCH_HIERLABEL::CreateGraphicShape( const RENDER_SETTINGS* aSettings,
-                                        std::vector<VECTOR2I>& aPoints, const VECTOR2I& aPos ) const
+void SCH_HIERLABEL::CreateGraphicShape( const RENDER_SETTINGS* aSettings, std::vector<VECTOR2I>& aPoints,
+                                        const VECTOR2I& aPos ) const
 {
     CreateGraphicShape( aSettings, aPoints, aPos, m_shape );
 }
 
 
-void SCH_HIERLABEL::CreateGraphicShape( const RENDER_SETTINGS* aSettings,
-                                        std::vector<VECTOR2I>& aPoints, const VECTOR2I& aPos,
-                                        LABEL_FLAG_SHAPE aShape ) const
+void SCH_HIERLABEL::CreateGraphicShape( const RENDER_SETTINGS* aSettings, std::vector<VECTOR2I>& aPoints,
+                                        const VECTOR2I& aPos, LABEL_FLAG_SHAPE aShape ) const
 {
     int* Template = TemplateShape[static_cast<int>( aShape )][static_cast<int>( GetSpinStyle() )];
     int  halfSize = GetTextHeight() / 2;
@@ -2075,10 +2269,10 @@ void SCH_HIERLABEL::CreateGraphicShape( const RENDER_SETTINGS* aSettings,
     for( int ii = 0; ii < imax; ii++ )
     {
         VECTOR2I corner;
-        corner.x = ( halfSize * (*Template) ) + aPos.x;
+        corner.x = ( halfSize * ( *Template ) ) + aPos.x;
         Template++;
 
-        corner.y = ( halfSize * (*Template) ) + aPos.y;
+        corner.y = ( halfSize * ( *Template ) ) + aPos.y;
         Template++;
 
         aPoints.push_back( corner );
@@ -2086,18 +2280,18 @@ void SCH_HIERLABEL::CreateGraphicShape( const RENDER_SETTINGS* aSettings,
 }
 
 
-const BOX2I SCH_HIERLABEL::GetBodyBoundingBox() const
+const BOX2I SCH_HIERLABEL::GetBodyBoundingBox( const RENDER_SETTINGS* aSettings ) const
 {
     int penWidth = GetEffectiveTextPenWidth();
     int margin = GetTextOffset();
 
-    int x  = GetTextPos().x;
-    int y  = GetTextPos().y;
+    int x = GetTextPos().x;
+    int y = GetTextPos().y;
 
     int height = GetTextHeight() + penWidth + margin;
-    int length = GetTextBox().GetWidth();
+    int length = GetTextBox( aSettings ).GetWidth();
 
-    length += height;       // add height for triangular shapes
+    length += height; // add height for triangular shapes
 
     int dx, dy;
 
@@ -2142,17 +2336,17 @@ const BOX2I SCH_HIERLABEL::GetBodyBoundingBox() const
 VECTOR2I SCH_HIERLABEL::GetSchematicTextOffset( const RENDER_SETTINGS* aSettings ) const
 {
     VECTOR2I text_offset;
-    int     dist = GetTextOffset( aSettings );
+    int      dist = GetTextOffset( aSettings );
 
     dist += GetTextWidth();
 
     switch( GetSpinStyle() )
     {
     default:
-    case SPIN_STYLE::LEFT:   text_offset.x = -dist; break; // Orientation horiz normale
-    case SPIN_STYLE::UP:     text_offset.y = -dist; break; // Orientation vert UP
-    case SPIN_STYLE::RIGHT:  text_offset.x = dist;  break; // Orientation horiz inverse
-    case SPIN_STYLE::BOTTOM: text_offset.y = dist;  break; // Orientation vert BOTTOM
+    case SPIN_STYLE::LEFT: text_offset.x = -dist; break;  // Orientation horiz normale
+    case SPIN_STYLE::UP: text_offset.y = -dist; break;    // Orientation vert UP
+    case SPIN_STYLE::RIGHT: text_offset.x = dist; break;  // Orientation horiz inverse
+    case SPIN_STYLE::BOTTOM: text_offset.y = dist; break; // Orientation vert BOTTOM
     }
 
     return text_offset;
@@ -2176,9 +2370,9 @@ HTML_MESSAGE_BOX* SCH_TEXT::ShowSyntaxHelp( wxWindow* aParentWindow )
 {
     wxString msg =
 #include "sch_text_help_md.h"
-     ;
+            ;
 
-    HTML_MESSAGE_BOX* dlg = new HTML_MESSAGE_BOX( nullptr, _( "Syntax Help" ) );
+    HTML_MESSAGE_BOX* dlg = new HTML_MESSAGE_BOX( aParentWindow, _( "Syntax Help" ) );
     wxSize            sz( 320, 320 );
 
     dlg->SetMinSize( dlg->ConvertDialogToPixels( sz ) );
@@ -2202,10 +2396,10 @@ static struct SCH_LABEL_DESC
         if( labelShapeEnum.Choices().GetCount() == 0 )
         {
             labelShapeEnum.Map( LABEL_SHAPE::LABEL_INPUT, _HKI( "Input" ) )
-                          .Map( LABEL_SHAPE::LABEL_OUTPUT, _HKI( "Output" ) )
-                          .Map( LABEL_SHAPE::LABEL_BIDI, _HKI( "Bidirectional" ) )
-                          .Map( LABEL_SHAPE::LABEL_TRISTATE, _HKI( "Tri-state" ) )
-                          .Map( LABEL_SHAPE::LABEL_PASSIVE, _HKI( "Passive" ) );
+                    .Map( LABEL_SHAPE::LABEL_OUTPUT, _HKI( "Output" ) )
+                    .Map( LABEL_SHAPE::LABEL_BIDI, _HKI( "Bidirectional" ) )
+                    .Map( LABEL_SHAPE::LABEL_TRISTATE, _HKI( "Tri-state" ) )
+                    .Map( LABEL_SHAPE::LABEL_PASSIVE, _HKI( "Passive" ) );
         }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
@@ -2230,17 +2424,16 @@ static struct SCH_LABEL_DESC
         propMgr.InheritsAfter( TYPE_HASH( SCH_HIERLABEL ), TYPE_HASH( SCH_LABEL_BASE ) );
         propMgr.InheritsAfter( TYPE_HASH( SCH_GLOBALLABEL ), TYPE_HASH( SCH_LABEL_BASE ) );
 
-        auto hasLabelShape =
-                []( INSPECTABLE* aItem ) -> bool
-                {
-                    if( SCH_LABEL_BASE* label = dynamic_cast<SCH_LABEL_BASE*>( aItem ) )
-                        return label->IsType( { SCH_GLOBAL_LABEL_T, SCH_HIER_LABEL_T } );
+        auto hasLabelShape = []( INSPECTABLE* aItem ) -> bool
+        {
+            if( SCH_LABEL_BASE* label = dynamic_cast<SCH_LABEL_BASE*>( aItem ) )
+                return label->IsType( { SCH_GLOBAL_LABEL_T, SCH_HIER_LABEL_T, SCH_SHEET_PIN_T } );
 
-                    return false;
-                };
+            return false;
+        };
 
-        propMgr.AddProperty( new PROPERTY_ENUM<SCH_LABEL_BASE, LABEL_SHAPE>( _HKI( "Shape" ),
-                             &SCH_LABEL_BASE::SetLabelShape, &SCH_LABEL_BASE::GetLabelShape ) )
+        propMgr.AddProperty( new PROPERTY_ENUM<SCH_LABEL_BASE, LABEL_SHAPE>(
+                                     _HKI( "Shape" ), &SCH_LABEL_BASE::SetLabelShape, &SCH_LABEL_BASE::GetLabelShape ) )
                 .SetAvailableFunc( hasLabelShape );
 
         propMgr.Mask( TYPE_HASH( SCH_LABEL_BASE ), TYPE_HASH( EDA_TEXT ), _HKI( "Hyperlink" ) );
@@ -2257,9 +2450,9 @@ static struct SCH_DIRECTIVE_LABEL_DESC
         if( flagShapeEnum.Choices().GetCount() == 0 )
         {
             flagShapeEnum.Map( FLAG_SHAPE::FLAG_DOT, _HKI( "Dot" ) )
-                         .Map( FLAG_SHAPE::FLAG_CIRCLE, _HKI( "Circle" ) )
-                         .Map( FLAG_SHAPE::FLAG_DIAMOND, _HKI( "Diamond" ) )
-                         .Map( FLAG_SHAPE::FLAG_RECTANGLE, _HKI( "Rectangle" ) );
+                    .Map( FLAG_SHAPE::FLAG_CIRCLE, _HKI( "Circle" ) )
+                    .Map( FLAG_SHAPE::FLAG_DIAMOND, _HKI( "Diamond" ) )
+                    .Map( FLAG_SHAPE::FLAG_RECTANGLE, _HKI( "Rectangle" ) );
         }
 
         PROPERTY_MANAGER& propMgr = PROPERTY_MANAGER::Instance();
@@ -2271,21 +2464,18 @@ static struct SCH_DIRECTIVE_LABEL_DESC
         propMgr.InheritsAfter( TYPE_HASH( SCH_DIRECTIVE_LABEL ), TYPE_HASH( SCH_LABEL_BASE ) );
 
         propMgr.AddProperty( new PROPERTY_ENUM<SCH_DIRECTIVE_LABEL, FLAG_SHAPE>(
-                _HKI( "Shape" ), &SCH_DIRECTIVE_LABEL::SetFlagShape,
-                &SCH_DIRECTIVE_LABEL::GetFlagShape ) );
+                _HKI( "Shape" ), &SCH_DIRECTIVE_LABEL::SetFlagShape, &SCH_DIRECTIVE_LABEL::GetFlagShape ) );
 
-        propMgr.AddProperty( new PROPERTY<SCH_DIRECTIVE_LABEL, int>( _HKI( "Pin length" ),
-                             &SCH_DIRECTIVE_LABEL::SetPinLength, &SCH_DIRECTIVE_LABEL::GetPinLength,
-                             PROPERTY_DISPLAY::PT_SIZE ) );
+        propMgr.AddProperty( new PROPERTY<SCH_DIRECTIVE_LABEL, int>(
+                _HKI( "Pin length" ), &SCH_DIRECTIVE_LABEL::SetPinLength, &SCH_DIRECTIVE_LABEL::GetPinLength,
+                PROPERTY_DISPLAY::PT_SIZE ) );
 
         propMgr.Mask( TYPE_HASH( SCH_DIRECTIVE_LABEL ), TYPE_HASH( EDA_TEXT ), _HKI( "Text" ) );
         propMgr.Mask( TYPE_HASH( SCH_DIRECTIVE_LABEL ), TYPE_HASH( EDA_TEXT ), _HKI( "Thickness" ) );
         propMgr.Mask( TYPE_HASH( SCH_DIRECTIVE_LABEL ), TYPE_HASH( EDA_TEXT ), _HKI( "Italic" ) );
         propMgr.Mask( TYPE_HASH( SCH_DIRECTIVE_LABEL ), TYPE_HASH( EDA_TEXT ), _HKI( "Bold" ) );
-        propMgr.Mask( TYPE_HASH( SCH_DIRECTIVE_LABEL ), TYPE_HASH( EDA_TEXT ),
-                      _HKI( "Horizontal Justification" ) );
-        propMgr.Mask( TYPE_HASH( SCH_DIRECTIVE_LABEL ), TYPE_HASH( EDA_TEXT ),
-                      _HKI( "Vertical Justification" ) );
+        propMgr.Mask( TYPE_HASH( SCH_DIRECTIVE_LABEL ), TYPE_HASH( EDA_TEXT ), _HKI( "Horizontal Justification" ) );
+        propMgr.Mask( TYPE_HASH( SCH_DIRECTIVE_LABEL ), TYPE_HASH( EDA_TEXT ), _HKI( "Vertical Justification" ) );
     }
 } _SCH_DIRECTIVE_LABEL_DESC;
 

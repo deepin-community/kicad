@@ -114,7 +114,7 @@ image::images/pcbnew_preferences_editing.png[scaledwidth="50%"]
 
 image::images/pcbnew_preferences_colors.png[scaledwidth="50%"]
 
-KiCad supports switching between different color themes to match your preferences. Kicad 9.0
+KiCad supports switching between different color themes to match your preferences. Kicad 10.0
 comes with two built-in color themes: "KiCad Default" is a new theme designed to have good
 contrast and balance for most cases and is the default for new installations. "KiCad Classic" is
 the default theme from KiCad 5.1 and earlier versions. Neither of these built-in themes can be
@@ -172,25 +172,39 @@ image::images/pcbnew_preferences_origin_axes.png[scaledwidth="50%"]
 [[text-variables]]
 === Text variables
 
-KiCad supports text variables, which allow you to substitute the variable name
-with a defined text string. This substitution happens anywhere the variable name
-is used inside the variable replacement syntax of `${VARIABLENAME}`.
+KiCad supports text variables, which allow you to reference predefined variables by name in many kinds of text.
+KiCad will substitute the variable name with the text string assigned to the variable.
+Text variables can be used in schematic and PCB graphic text, symbol and footprint text, symbol and footprint fields, drawing sheet fields, custom DRC rules, and other text contexts.
+This substitution happens anywhere the variable name is used inside the variable replacement syntax of `${VARIABLENAME}`.
 
-You can define project text variables in the
+For example, you could create a variable named `VERSION` and set the text substitution to `1.0`.
+Now, in any text object on the PCB, you can enter `${VERSION}` and KiCad will display this as `1.0`.
+If you change the value to `2.0`, every text object that includes `${VERSION}` will be updated automatically.
+You can also mix regular text and variables:
+a text object with the text `Version: ${VERSION}` will be displayed as `Version: 1.0`.
+
+You can define text variables in the
 xref:../eeschema/eeschema.adoc#schematic-setup-text-variables[schematic] or
-<<board-setup-text-variables,board setup>> dialogs. Project text variables are
-defined for the whole project, so a project text variable defined in the
-Schematic Editor can also be used in the Board Editor.
+<<board-setup-text-variables,board setup>> dialogs.
+These are referred to as project text variables because they are defined for the whole project,
+so a project text variable defined in the Schematic Editor can also be used in the Board Editor, and vice versa.
 
-There are also a number of built-in system text variables. System text variables
-may be available in some contexts and not others. The following variables can be
-used in PCB text, footprint text, footprint fields, and drawing sheet fields.
-There are also a number of
-xref:../eeschema/eeschema.adoc#text-variables[variables that can be used in the Schematic Editor].
+The PCB Editor also has a number of built-in system text variables, which are listed in the table below.
+System text variables may be available in some contexts and not others.
+There is an equivalent list of variables for the xref:../eeschema/eeschema.adoc#text-variables[Schematic Editor].
 
 [options="header",cols="20%,80%"]
 |====
 | Variable name | Description
+| `ADDR`
+  | Column (letter) and row (zero-indexed number) address of current table cell.
+    This variable is only available in <<tables,table>> cells.
+| `CELL(<row>, <col>)`
+  | Contents of the table cell indexed by `<row>` and `<col>` (zero-indexed).
+    This variable is only available in <<tables,table>> cells.
+| `COL`
+  | Column number (zero-indexed) of current table cell.
+    This variable is only available in <<tables,table>> cells.
 | `COMMENT1` - `COMMENT9`
   | Contents of drawing sheet's `Comment<n>` field.
 | `COMPANY`
@@ -206,16 +220,33 @@ xref:../eeschema/eeschema.adoc#text-variables[variables that can be used in the 
 | `KICAD_VERSION`
   | Current version of KiCad. This variable is only available in drawing sheet fields.
 | `LAYER`
-  | Layer of the object. In footprint fields, this is the layer of the parent footprint.
-    In drawing sheet fields, this resolves to the plotted layer.
+  | Layer of the object. In footprint fields and text objects in footprints, this is
+    the layer of the field/text object, not the layer of the parent footprint. In
+    drawing sheet fields, this resolves to the plotted layer, for example `F.Fab` in
+    a plot of the `F.Fab` layer and `F.Cu` in a plot of the `F.Cu` layer.
+    This variable is only available in objects that have a layer, like footprint fields and PCB text.
+    It is not available if there is no applicable layer, such as in DRC rules.
 | `PAPER`
   | Current sheet's paper size. This variable is only available in drawing sheet fields.
 | `PROJECTNAME`
   | Project name, without a file extension.
 | `REVISION`
   | Contents of drawing sheet's `Revision` field.
+| `ROW`
+  | Row number (zero-indexed) of current table cell.
+    This variable is only available in <<tables,table>> cells.
 | `TITLE`
   | Contents of drawing sheet's `Title` field.
+| `VARIANT`
+  | Name of the currently selected variant.
+| `VARIANT_DESC`
+  | Description of the currently selected variant.
+| `VCSHASH`
+  | Full hash of the project's current Git commit.
+    If the project is not part of a Git repository, resolves to "no hash".
+| `VCSSHORTHASH`
+  | Short (8 character) hash of the project's current Git commit.
+    If the project is not part of a Git repository, resolves to "no hash".
 | `<variablename>`
   | Contents of <<board-setup-text-variables,project text variable>>
   `<variablename>`.
@@ -229,9 +260,16 @@ xref:../eeschema/eeschema.adoc#text-variables[variables that can be used in the 
     uppercase letters: for example, to access a footprint's value, use
     `${VALUE}`.
 
-    Built-in footprint fields are `FOOTPRINT_LIBRARY`, `FOOTPRINT_NAME`,
-    `LAYER`, `NET_CLASS(<pad_number>)`, `NET_NAME(<pad_number>)`,
-    `PIN_NAME(<pad_number>)`, `REFERENCE`, `SHORT_NET_NAME(<pad_number>)`,
+    Built-in footprint fields are
+    `FOOTPRINT_LIBRARY`,
+    `FOOTPRINT_NAME`,
+    `LAYER`,
+    `NET_CLASS(<pad_number>)`,
+    `NET_NAME(<pad_number>)`,
+    `PIN_NAME(<pad_number>)`,
+    `REFERENCE`,
+    `SHORT_NET_NAME(<pad_number>)`,
+    and
     `VALUE`.
 
 | `<refdes>:<fieldname>`
@@ -242,10 +280,20 @@ xref:../eeschema/eeschema.adoc#text-variables[variables that can be used in the 
     uppercase letters: for example, to access the value of `U1`, use
     `${U1:VALUE}`.
 
-    Built-in footprint fields are `FOOTPRINT_LIBRARY`, `FOOTPRINT_NAME`,
-    `LAYER`, `NET_CLASS(<pad_number>)`, `NET_NAME(<pad_number>)`,
-    `PIN_NAME(<pad_number>)`, `REFERENCE`, `SHORT_NET_NAME(<pad_number>)`,
+    Built-in footprint fields are
+    `FOOTPRINT_LIBRARY`,
+    `FOOTPRINT_NAME`,
+    `LAYER`,
+    `NET_CLASS(<pad_number>)`,
+    `NET_NAME(<pad_number>)`,
+    `PIN_NAME(<pad_number>)`,
+    `REFERENCE`,
+    `SHORT_NET_NAME(<pad_number>)`,
+    and
     `VALUE`.
+
+    **Note:** If the footprint referenced by `<refdes>` is reannotated, i.e. receives a new reference designator,
+    `<refdes>` in the text variable will be automatically updated to the new reference designator so that the text variable continues to reference the same footprint.
 | `DRC_ERROR <errorname>`
   | Generates a <<text-var-drc,DRC error>> named `<errorname>`. Everything
     inside the braces resolves to an empty string, while everything after the
@@ -261,6 +309,354 @@ xref:../eeschema/eeschema.adoc#text-variables[variables that can be used in the 
 
 |====
 
+[[text-expressions]]
+=== Text expressions
+
+KiCad has a system for evaluating text expressions,
+which allows you to manipulate text, evaluate mathematical expressions in strings, and dynamically create strings based on other information.
+Text expressions can be used in schematic and PCB graphic text, symbol and footprint text, symbol and footprint fields, drawing sheet fields, and other text contexts.
+
+Text expressions are evaluated when the `@{expression}` syntax is used.
+Everything inside the braces is evaluated, and the entire expression, including the surrounding `@{}`, is replaced by the evaluated results.
+If the expression cannot be evaluated, the expression is not replaced and the original text is retained.
+
+As a basic example, a text object containing `1 plus 1 is @{1 + 1}` will read `1 plus 1 is 2`.
+
+Many expression functions are provided to perform more complex operations.
+The available expression functions are detailed in the tables below.
+For example, the absolute value of a number can be calculated using the `abs` function:
+`@{abs(-1)}` evaluates to `1`.
+
+A single text item can contain multiple text evaluations, and evaluations can be nested.
+You can also combine text evaluations with <<text-variables,text variables>>.
+For example, `@{max(1, 2, 3)}, @{max(4, 5, 6)}` evaluates to `3, 6`.
+If the text variable `var` is defined as `-10`, a text item containing
+`@{max(abs(${var}), 5)}` evaluates to `10`.
+
+Numbers can be written in scientific notation, so `@{2e3 + 1}` evaluates to `2001`.
+
+Text expressions support units.
+Results are always printed in SI units, and the unit is not printed.
+For example, `@{1mm + 1in}` evaluates to `26.4`.
+
+In addition to numbers, some expression functions operate on strings.
+A string is text that is enclosed with single or double quotes, like `'string 1'` or `"string 2"`.
+An example of an expression function that operates on strings is `upper`, which converts a string to uppercase.
+`@{upper("string")}` evaluates to `STRING`.
+
+You can concatenate multiple strings or strings and numbers using the `concat` expression function or using the `+` operator:
+`@{concat("hello ", "world")}` and `@{"hello " + "world"}` both evaluate to `hello world`.
+`@{concat("revision ", 1)}` and `@{"revision " + 1}` both evaluate to `revision 1`.
+
+==== Mathematical and logical expressions
+
+The following arithmetic operations are available for operations between two numbers.
+The operators are all infix operators and obey order of operations.
+Parentheses can be used for grouping.
+For example, `@{3 + 4 * 3}` evaluates to `15`, and `@{(3 + 4) * 3}` evaluates to `21`.
+
+[options="header",cols="10%,50%,40%"]
+|====
+| Arithmetic operator | Description | Example
+| `+`
+  | Addition
+
+    **Note:** `+` can also be used to concatenate two strings, or to concatenate a string and a number.
+  | `@{1 + 1}` = `2`
+| `-` | Subtraction | `@{1 - 1}` = `0`
+| `*` | Multiplication | `@{2 * 2}` = `4`
+| `/`
+  | Division (the expression is not evaluated if the divisor is `0`)
+  | `@{3 / 2}` = `1.5`
+
+    `@{1 / 0}` = `@{1 / 0}`
+| `%`
+  | Modulo (the expression is not evaluated if the divisor is `0`)
+  | `@{3 % 2}` = `1`
+
+    `@{3 % -2}` = `1`
+
+    `@{1 % 0}` = `@{1 % 0}`
+| `^`
+  | Exponentiation (right-associative)
+  | `@{2 ^ 3}` = `8`
+
+    `@{2 ^ 3 ^ 2}` = `512`
+|====
+
+The following expression functions are available for performing mathematical functions.
+For example, `@{abs(-1)}` evaluates to `1`.
+
+[options="header",cols="20%,50%,30%"]
+|====
+| Expression function | Description | Example
+| `abs(x)`
+  | Evaluates to the absolute value of `x`.
+  | `@{abs(-1)}` = `1`
+| `sqrt(x)`
+  | Evaluates to the square root of `x`.
+    The expression is not evaluated if `x` is negative.
+  | `@{sqrt(4)}` = `2`
+
+    `@{sqrt(-1)}` = `@{sqrt(-1)}`
+| `pow(x, y)` | Evaluates to `x` to the power of `y`. | `@{pow(2, 3)}` = `8`
+| `floor(x)`
+  | Evaluates to the greatest integer less than or equal to `x`.
+  | `@{floor(3.7)}` = `3`
+| `ceil(x)`
+  | Evaluates to the smallest integer greater than or equal to `x`.
+  | `@{ceil(3.2)}` = `4`
+| `round(x, [precision])`
+  | Evaluates to `x` rounded to the number of decimal places given by `precision`.
+    `precision` is optional; if it is not given, `x` is rounded to the nearest integer.
+  | `@{round(3.7)}` = `4`
+
+    `@{round(3.2)}` = `3`
+
+    `@{round(3.14159, 2)}` = `3.14`
+| `min(...)`
+  | Evaluates to the minimum of the given comma-separated values.
+  | `@{min(5, 3, 8, 1)}` = `1`
+| `max(...)`
+  | Evaluates to the maximum of the given comma-separated values.
+  | `@{max(5, 3, 8, 1)}` = `8`
+| `sum(...)`
+  | Evaluates to the sum of the given comma-separated values.
+  | `@{sum(1, 2, 3, 4)}` = `10`
+| `avg(...)`
+  | Evaluates to the average of the given comma-separated values.
+  | `@{avg(2, 4, 6)}` = `4`
+| `random()`
+  | Evaluates to a random number between `0` (inclusive) and `1` (exclusive).
+  | `0` &le; `@{random()}` &lt; `1`
+| `shunt(r1, r2)`
+  | Evaluates to the equivalent resistance of the two parallel resistances `r1` and `r2`: `(r1*r2) / (r1+r2)`.
+  | `@{shunt(10k, 10k)}` = `5000`
+| `db(ratio)`
+  | Converts the power ratio `ratio` to decibels: `10*log10(ratio)`.
+  | `@{db(2)}` &#x2248; `3`
+| `dbv(ratio)`
+  | Converts the voltage or current ratio `ratio` to decibels: `20*log10(ratio)`.
+  | `@{dbv(2)}` &#x2248; `6`
+| `fromdb(db)`
+  | Converts the quantity `db`, in decibels, to a power ratio: `10^(db/10)`.
+  | `@{fromdb(3)}` &#x2248; `2`
+| `fromdbv(db)`
+  | Converts the quantity `db`, in decibels, to a voltage or current ratio: `10^(db/20)`.
+  | `@{fromdbv(6)}` &#x2248; `2`
+| `enearest(value, [series])`
+  | Evaluates to the closest E-series standard value to `value` from the specified `series`.
+    Valid values for `series` are `"E3"`, `"E6"`, `"E12"`, `"E24"`, `"E48"`, `"E96"`, and `"E192"`.
+    `series` is optional; if it is not given, `"E24"` is used.
+  | `@{enearest(5)}` = `5.1`
+| `eup(value, [series])`
+  | Evaluates to the closest E-series standard value greater than `value` from the specified `series`.
+    Valid values for `series` are `"E3"`, `"E6"`, `"E12"`, `"E24"`, `"E48"`, `"E96"`, and `"E192"`.
+    `series` is optional; if it is not given, `"E24"` is used.
+  | `@{eup(5)}` = `5.1`
+| `edown(value, [series])`
+  | Evaluates to the closest E-series standard value less than `value` from the specified `series`.
+    Valid values for `series` are `"E3"`, `"E6"`, `"E12"`, `"E24"`, `"E48"`, `"E96"`, and `"E192"`.
+    `series` is optional; if it is not given, `"E24"` is used.
+  | `@{edown(5)}` = `4.7`
+|====
+
+==== Boolean expressions
+
+The following boolean operations are available.
+These operations evaluate to `1` if the expression is true or `0` if it is false.
+
+[options="header",cols="10%,50%,40%"]
+|====
+| Arithmetic operator | Description | Example
+| `<` | Less than | `@{1 < 2}` = `1`
+| `\<=` | Less than or equal to | `@{1 \<= 2}` = `1`
+| `>` | Greater than | `@{1 > 2}` = `0`
+| `>=` | Greater than or equal to | `@{1 >= 2}` = `0`
+| `==` | Equal to | `@{1 == 2}` = `0`
+| `!=` | Not equal to | `@{1 != 2}` = `1`
+|====
+
+The following expression functions are available for operating on the result of a boolean or mathematical expression.
+
+[options="header",cols="20%,50%,30%"]
+|====
+| Expression function | Description | Example
+| `if(condition, true_value, false_value)`
+  | Evaluates to `true_value` if `condition` evaluates to a true (non-zero) value.
+    Otherwise, evaluates to `false_value`.
+  | `@{if(0, "true", "false")}` = `false`
+
+    `@{if(1 < 2, 5, 10)}` = `5`
+|====
+
+==== String manipulation
+
+The following expression functions are available for manipulating strings.
+
+NOTE: Strings are text that is surrounded by single or double quotes.
+      For example, `"this is a string"` and `'this is also a string'`.
+
+[options="header",cols="20%,40%,40%"]
+|====
+| Expression function | Description | Example
+| `upper(str)`
+  | Evaluates to `str` converted to uppercase.
+  | `@{upper("hello world")}` = `HELLO WORLD`
+| `lower(str)`
+  | Evaluates to `str` converted to lowercase.
+  | `@{lower("HELLO WORLD")}` = `hello world`
+| `concat(...)`
+  | Evaluates to the given comma-separated strings or numbers concatenated together.
+
+    *Note:* strings and numbers can also be concatenated using the `+` operator.
+  | `@{concat("Hello", " ", "World")}` = `Hello World`
+
+    `@{concat("Count: ", 42, " items")}` = `Count: 42 items`
+
+    `@{"Count: " + 42 + " items"}` = `Count: 42 items`
+| `beforefirst(str, c)`
+  | Evaluates to the portion of `str` before the first occurrence of the character `c` in `str`.
+  | `@{beforefirst("hello.world.txt", ".")}` = `hello`
+| `beforelast(str, c)`
+  | Evaluates to the portion of `str` before the last occurrence of the character `c` in `str`.
+  | `@{beforelast("hello.world.txt", ".")}` = `hello.world`
+| `afterfirst(str, c)`
+  | Evaluates to the portion of `str` after the first occurrence of the character `c` in `str`.
+  | `@{afterfirst("hello.world.txt", ".")}` = `world.txt`
+| `afterlast(str, c)`
+  | Evaluates to the portion of `str` after the last occurrence of the character `c` in `str`.
+  | `@{afterlast("hello.world.txt", ".")}` = `txt`
+| `format(num, [precision])`
+  | Formats `num` as a string containing `num` rounded to `precision` decimal places.
+    `precision` is optional; if it is not given, `num` is rounded to 2 decimal places.
+
+    **Note:** `format()` behaves exactly the same as `fixed()`.
+  | `@{format(3.14159)}` = `3.14`
+
+    `@{format(3.14159, 3)}` = `3.142`
+
+    `@{format(1234.5)}` = `1234.50`
+| `fixed(num, [precision])`
+  | Formats `num` as a string containing `num` rounded to `precision` decimal places.
+    `precision` is optional; if it is not given, `num` is rounded to 2 decimal places.
+
+    **Note:** `fixed()` behaves exactly the same as `format()`.
+  | `@{fixed(3.14159)}` = `3.14`
+
+    `@{fixed(3.14159, 3)}` = `3.142`
+
+    `@{fixed(1234.5)}` = `1234.50`
+| `currency(amount, [symbol])`
+  | Formats `amount` as a string containing the currency symbol specified by `symbol` and a value with two decimal places.
+    `symbol` is optional; if it is not given, `"$"` is used.
+  | `@{currency(1234.56)}` = `$1234.56`
+
+    `@{currency(999.99, "€")}` = `€999.99`
+|====
+
+==== Date and time formatting
+
+The following expression functions are available for manipulating dates and times.
+
+[options="header",cols="20%,40%,40%"]
+|====
+| Expression function | Description | Example
+| `today()`
+  | Evaluates to the current date, represented as the number of days since the Unix epoch (00:00:00 UTC on 1970-01-01).
+
+  **Note:** this value can be formatted in various ways using the `dateformat()` function. You can add or subtract numbers to this value to get dates relative to the current date.
+  |
+| `now()`
+  | Evaluates to the current timestamp, represented as the number of seconds since the Unix epoch (00:00:00 UTC on 1970-01-01).
+
+  **Note:** you can add or subtract numbers to this value to get timestamps relative to the current timestamp.
+  |
+| `dateformat(days, [format])`
+  | Formats `days` as a string depending on the specified date `format`.
+    `days` is a number representing the number of days since the Unix epoch (00:00:00 UTC on 1970-01-01).
+    Valid values for `format` are `"ISO"`, `"US"`, `"EU"`, `"Chinese"`, `"Japanese"`, `"long"`, and `"short"`.
+    `format` is optional; if it is not given, `"ISO"` is used.
+  | `@{dateformat(0)}` = `1970-01-01`
+
+    `@{dateformat(0, "ISO")}` = `1970-01-01`
+
+    `@{dateformat(0, "short")}` = `Jan 1, 1970`
+| `weekdayname(days)`
+  | Evaluates to the day of the week of the date represented by `days`.
+    `days` is a number representing the number of days since the Unix epoch (00:00:00 UTC on 1970-01-01).
+  | `@{weekdayname(0)}` = `Thursday`
+|====
+
+==== Version control expressions
+
+The following expression functions are available for extracting version control system information about the project.
+If the project is not under version control, each expression function evaluates to `<unknown>`.
+
+Git is the only supported version control system for these expression functions.
+
+[options="header",cols="20%,80%"]
+|====
+| Expression function | Description
+| `vcsidentifier([length])`
+  | Evaluates to the current HEAD commit identifier, truncated to `length` characters.
+    `length` is optional; if it is not given, the commit identifier is truncated to 40 characters.
+    The minimum `length` is 4 characters.
+| `vcsbranch()`
+  | Evaluates to the current branch name.
+| `vcsauthor()`
+  | Evaluates to the current HEAD commit's author's name.
+| `vcsauthoremail()`
+  | Evaluates to the current HEAD commit's author's email address.
+| `vcscommitter()`
+  | Evaluates to the current HEAD commit's committer's name.
+| `vcscommitteremail()`
+  | Evaluates to the current HEAD commit's committer's email address.
+| `vcscommitdate([format])`
+  | Evaluates to the current HEAD commit's commit date.
+    Valid values for `format` are `"ISO"`, `"US"`, `"EU"`, `"Chinese"`, `"Japanese"`, `"long"`, and `"short"`.
+    `format` is optional; if it is not given, `"ISO"` is used.
+| `vcsnearestlabel([match], [anyTags])`
+  | Evaluates to the name of the matching tag closest to the HEAD commit.
+    `match` is an optional pattern (glob-style) to match tag names against;
+    if it is given, only tag names that match the pattern will be considered.
+    If it is not given, this is equivalent to the pattern `*`.
+    If `anyTags` is `0` or not given, only annotated tags will be considered.
+    If `anyTags` is `1`, all tags will be considered.
+| `vcslabeldistance([match], [anyTags])`
+  | Evaluates to the number of commits between HEAD and the matching tag closest to the HEAD commit.
+    `match` is an optional pattern (glob-style) to match tag names against;
+    if it is given, only tag names that match the pattern will be considered.
+    If it is not given, this is equivalent to the pattern `*`.
+    If `anyTags` is `0` or not given, only annotated tags will be considered.
+    If `anyTags` is `1`, all tags will be considered.
+| `vcsdirty([includeUntracked])`
+  | Evaluates to `1` if the repository is dirty, or `0` if it is not.
+    If `includeUntracked` is `0` or not given, untracked files will not contribute to the repository's dirty status.
+    If `includeUntracked` is 1, untracked files will contribute.
+| `vcsdirtysuffix([suffix], [includeUntracked])`
+  | Evaluates to the given `suffix` if the repository is dirty or an empty string if it is not.
+    `suffix` is optional; if it is not given, `-dirty` is used.
+    If `includeUntracked` is `0` or not given, untracked files will not contribute to the repository's dirty status.
+    If `includeUntracked` is 1, untracked files will contribute.
+| `vcsfileidentifier(file, [length])`
+  | Evaluates to the commit identifier of the last commit that modified the specified `file`,
+    truncated to `length` characters.
+    `length` is optional; if it is not given, the commit identifier is truncated to 40 characters.
+    The minimum `length` is 4 characters.
+| `vcsfileauthor(file)`
+  | Evaluates to the name of the author of the last commit that modified the specified `file`.
+| `vcsfileauthoremail(file)`
+  | Evaluates to the email address of the author of the last commit that modified the specified `file`.
+| `vcsfilecommitter(file)`
+  | Evaluates to the name of the committer of the last commit that modified the specified `file`.
+| `vcsfilecommitteremail(file)`
+  | Evaluates to the email address of the committer of the last commit that modified the specified `file`.
+| `vcsfilecommitdate(file, [format])`
+  | Evaluates to the commit date of the last commit that modified the specified `file`.
+    Valid values for `format` are `"ISO"`, `"US"`, `"EU"`, `"Chinese"`, `"Japanese"`, `"long"`, and `"short"`.
+    `format` is optional; if it is not given, `"ISO"` is used.
+|====
 
 // anchor with underscores is needed for linking from Board Editor syntax help dialog
 [[custom-design-rules]]
@@ -315,8 +711,8 @@ In the syntax descriptions below, items in `<angle brackets>` represent keywords
 and items in `[square brackets]` represent keywords or values that are optional or only sometimes required.
 
 The Custom Rules file must start with a version header defining the version of the rules language.
-As of KiCad 9.0, the version is `1`.  The syntax of the version header is `(version <number>)`. So
-in KiCad 9.0 the header should read:
+As of KiCad 10.0, the version is `1`.  The syntax of the version header is `(version <number>)`. So
+in KiCad 10.0 the header should read:
 
     (version 1)
 
@@ -351,6 +747,20 @@ to comment or uncomment lines automatically.
    (rule HV
        (condition "A.hasNetclass('HV')")
        (constraint clearance (min 1.5mm)))
+
+Custom rules can reference <<text-variables,text variables>>.
+These are not technically part of the custom rules syntax, but are resolved in a preprocessing step before evaluating the rules file.
+Because text variables are resolved as a simple text replacement, they can be used anywhere in the DRC rules,
+as long as all rules are syntactically valid after the variables have been resolved.
+
+Text variables could be used, for example, to define a project-wide value that is used in one or more constraints,
+like `(constraint clearance (min ${hv_clearance}))`,
+where `${hv_clearance}` is a text variable defined in the project as `${3 mm}`.
+
+Not all text variables can be resolved in custom rules.
+Some text variables resolve to different values depending on the object they are a part of, such as `${LAYER}` or `${<fieldname>}`.
+Because text variables in custom rules are resolved before evaluating any rules or applying rules to specific objects in the board, such text variables cannot be resolved in custom rules.
+Any text variables that cannot be resolved will remain in their unresolved state and cause a syntax error when the rules file is evaluated.
 
 ===== Layer Clause
 
@@ -501,18 +911,21 @@ Numeric constraint values can use simple math expressions, for example
 [options="header",cols="20%,20%,60%"]
 |====
 | Constraint type | Argument type | Description
-| `annular_width` | min/opt/max   | Checks the width of annular rings on vias and pads.
+| `annular_width` | min/max   | Checks the width of annular rings on vias and pads.
 | `assertion` | boolean expression
   | Checks that the boolean expression is true. If the expression is false, a DRC error will be
     created. The expression can use any of the properties listed in the Object Properties section.
+| `bridged_mask` |
+  | Checks for solder mask bridges between copper items.
+    This constraint does not take a min/opt/max value.
+    In combination with a severity clause,
+    this constraint can be used to allow or disallow solder mask bridging in various conditions.
 | `clearance` | min
   | Specifies the *electrical* clearance between copper objects of different nets.  (See
     `physical_clearance` if you wish to specify clearance between objects regardless of net.)
 
     To allow copper objects to overlap (collide), create a `clearance` constraint with the `min`
     value less than zero (for example, `-1`).
-| `creepage` | min
-  | Specifies the creepage between copper objects of different nets.
 | `connection_width` | min
   | Checks the width of connections between pads and zones. An error will be generated for each pad
     connection that is narrower than the `min` value.
@@ -523,8 +936,10 @@ Numeric constraint values can use simple math expressions, for example
 
     To allow courtyard objects to overlap (collide), create a `courtyard_clearance` constraint with
     the `min` value less than zero (for example, `-1`).
+| `creepage` | min
+  | Specifies the creepage between copper objects of different nets.
 | `diff_pair_gap` | min/opt/max
-  | Sets the gap between parallel tracks in a differential pair.  The `opt` setting is used by the
+  | Checks the gap between parallel tracks in a differential pair.  The `opt` setting is used by the
     interactive router for placing new differential pairs. An error will be generated if the
     spacing between tracks in a differential pair is outside of the `min` and `max` settings.
     Differential pair gap is not tested on non-parallel portions of a differential pair (for example,
@@ -551,7 +966,7 @@ Numeric constraint values can use simple math expressions, for example
     `(constraint disallow track)` or `(constraint disallow track via pad)`.  If an object of this
     type matches the rule condition, a DRC error will be created.  This constraint is essentially
     the same as a keepout rule area, but can be used to create more specific keepout restrictions.
-| `edge_clearance` | min/opt/max
+| `edge_clearance` | min
   | Checks the clearance between objects and the board edge.
 
     This can also be thought of as the "milling tolerance" as the board edge will include all
@@ -563,10 +978,11 @@ Numeric constraint values can use simple math expressions, for example
 | `hole_clearance` | min
   | Checks the clearance between a drilled hole in a pad or via and copper objects on a different
     net.  The clearance is measured from the diameter of the hole, not its center.
-| `hole_size` | min/max
+| `hole_size` | min/opt/max
   | Checks the size (diameter) of a drilled hole in a pad or via.  For oval holes, the smaller
     (minor) diameter will be tested against the `min` value (if specified) and the larger (major)
     diameter will be tested against the `max` value (if specified).
+    The `opt` value is used by the interactive router as the default via hole size for nets that match the rule condition.
 | `hole_to_hole` | min
   | Checks the clearance between mechanically-drilled holes in pads and vias.  The clearance is
     measured between the diameters of the holes, not between their centers.
@@ -574,11 +990,11 @@ Numeric constraint values can use simple math expressions, for example
     This constraint is solely for the protection of drill bits.  The clearance between
     *laser-drilled* (microvias) and other non-mechanically-drilled holes is not checked, nor is
     the clearance between *milled* (oval-shaped) and other non-mechanically-drilled holes.
-| `length` | min/max
+| `length` | min/opt/max
   | Checks the total routed length for the nets that match the rule condition and generates an
     error for each net that is below the `min` value (if specified) or above the `max` value (if
     specified) of the constraint.
-    This constraint also sets a target length that is used by the
+    The `opt` value sets a target length that is used by the
     <<length-tuning,length tuning tool>> for any nets that match the rule condition.
 | `min_resolved_spokes`
   | `0 +
@@ -605,7 +1021,7 @@ Numeric constraint values can use simple math expressions, for example
 
     This can also be thought of as the "drilling tolerance" as it only includes *round* holes
     (see `edge_clearance` for the milling tolerance).
-| `silk_clearance` | min/opt/max
+| `silk_clearance` | min
   | Checks the clearance between objects on silkscreen layers and other objects.
 
     To allow silkscreen objects to overlap (collide) with other objects, create a `silk_clearance`
@@ -618,9 +1034,16 @@ Numeric constraint values can use simple math expressions, for example
     This constraint also sets a target skew that is used by the <<length-tuning,skew tuning tool>>
     for any nets that match the rule condition. The target skew is the `opt` value, if specified,
     or the `min` value if not. If neither `min` nor `opt` is specified, the target skew is `0`.
-    If the option `within_diff_pairs` is specified, the skew will be tested separately for every 
+    If the option `within_diff_pairs` is specified, the skew will be tested separately for every
     valid differential pair in the nets matching the rule. If `within_diff_pairs` is not specified,
     the skew will  be tested across all matching nets (e.g. for skew tuning a bus).
+| `solder_mask_expansion` | opt | Specifies the solder mask expansion for pads, shapes and tracks.
+| `solder_paste_abs_margin` | opt
+  | Specifies the absolute solder paste clearance for pads. Usually negative to inset the paste.
+    The final solder paste clearance will be the absolute clearance plus the relative clearance.
+| `solder_paste_rel_margin` | opt
+  | Specifies the relative solder paste clearance for pads.  Usually negative to inset the paste.
+    The final solder paste clearance will be the absolute clearance plus the relative clearance.
 | `text_height` | min/max
   | Checks the height of text, including text boxes. An error will be generated for each text item
     that has a height below the `min` value (if specified) or above the `max` value (if specified).
@@ -638,17 +1061,23 @@ Numeric constraint values can use simple math expressions, for example
     (if specified).
 | `track_segment_length` | min/max
   | Checks the length of track and arc segments. An error will be generated for each segment that
-    has a width below the min value (if specified) or above the max value (if specified).
+    has a length below the min value (if specified) or above the max value (if specified).
 | `track_width` | min/opt/max
   | Checks the width of track and arc segments.  An error will be generated for each segment that
     has a width below the `min` value (if specified) or above the `max` value (if specified).
+    The `opt` value is used by the interactive router as the default track width for nets that match the rule condition.
 | `via_count` | min/max
   | Counts the number of vias on every net matched by the rule condition.  An error will be generated
     for each net that has fewer vias than the `min` value (if specified) or more than the `max` value
     (if specified).
-| `via_diameter` | min/max
+| `via_dangling` |
+  | Checks for vias that are unconnected or connected on only one layer. This constraint does not take
+    a min/opt/max value. In combination with a `severity` clause, this constraint can be used to allow
+    or disallow dangling vias in various conditions.
+| `via_diameter` | min/opt/max
   | Checks the diameter of vias. An error will be generated for each via that has a diameter below
     the `min` value (if specified) or above the `max` value (if specified).
+    The `opt` value is used by the interactive router as the default via diameter for nets that match the rule condition.
 | `zone_connection`
   | `solid +
     thermal_reliefs +
@@ -921,6 +1350,12 @@ These properties apply to copper and non-copper zones, and rule areas (formerly 
 |====
 | Property    | Data type | Description
 | `Clearance_Override` | dimension | The copper clearance override set for the zone.
+| `Hatch_Gap` | dimension | The distance between hatched lines in the zone.
+| `Hatch_Minimum_Hole_Ratio` | float
+  | The minimum allowed hatching hole size, expressed as a fraction of the
+    nominal hatching hole size.
+| `Hatch_Orientation` | integer | The angle (in degrees) of the hatched lines in the zone.
+| `Hatch_Width` | dimension | The width of hatched lines in the zone.
 | `Min_Width` | dimension | The minimum allowed width of filled areas in the zone.
 | `Name` | string | The user-specified name (blank by default).
 | `Pad_Connections` | string
@@ -990,7 +1425,9 @@ The following functions can be called on objects in custom rule expressions:
       containing the name of a board layer.
 | `fromTo('x', 'y')` | `A` or `B`
     | Returns true if the object exists on the copper path between the given pads.  `x` and `y` are
-      the full names of pads in the design, such as `'R1-Pad1'`.
+      pad identifiers in the format `'RefDes-PadNumber'` (for example, `'U1-A5'`), or a reference
+      designator alone (for example, `'U1'`) to match all pads of a footprint.  Wildcards `\*` and
+      `?` are supported in both `x` and `y`.  See <<from-to-signal-path-matching>> for details.
 | `getField('x')` | `A` or `B`
     | Returns the value of field `x` in the object. Note that only footprints have fields, so no field will
       be returned unless the object is is a footprint.
@@ -1039,7 +1476,7 @@ The following functions can be called on objects in custom rule expressions:
     * A component class, in the form `${Class:ClassName}`. The `Class` keyword is not case-sensitive,
       but component class names are case-sensitive. The function will return true if the object is
       inside the courtyard of a footprint with the named component class.
-    
+
 **Deprecated**; use `intersectsCourtyard()`, `intersectsFrontCourtyard()`, and `intersectsBackCourtyard()` instead.
 | `intersectsArea('x')` | `A` or `B`
     | Returns true if any part of the object is inside the named rule area or zone.  Rule area and zone
@@ -1098,8 +1535,211 @@ The following functions can be called on objects in custom rule expressions:
 | `memberOfSheetOrChildren('x')` |  `A` or `B`
   | Returns true if the object is a member of a schematic sheet named `x` or any of its child hierarchical
     sheets. The sheet path can contain wildcards `\*` and `?`.
-    Note: this function was added in KiCad 9.0.2.
 |====
+
+[[from-to-signal-path-matching]]
+==== From-To signal path matching
+
+In high-speed PCB design, constraining an entire net is often too coarse.  A single net may connect
+many pads, but only a specific segment of that net -- the path between two particular pads -- carries
+the timing-critical signal.  For example, a DDR data net may run from a memory controller pad to a
+DRAM pad, but the same net also fans out to termination resistors or test points.  Applying a length
+constraint to the whole net would include copper that is irrelevant to the high-speed signaling path.
+
+From-To paths solve this problem.  A From-To path is a designer-defined signal path between two
+specific pads on a board.  By identifying the copper objects (tracks, vias, and pads) that form the
+unique electrical path between a source pad and a destination pad, From-To paths allow custom DRC
+rules to target exactly the portion of a net that matters for signal integrity.
+
+This concept is analogous to Altium Designer's xSignals feature, where designers define specific
+signal paths to scope length-matching and other high-speed design rules to individual point-to-point
+connections rather than entire nets.
+
+===== How From-To paths work
+
+When a custom DRC rule uses the `fromTo()` function, KiCad evaluates From-To paths for the
+board.  The process works as follows:
+
+1. **Endpoint discovery**: KiCad scans every footprint on the board and builds a list of pad
+   endpoints.  Each endpoint is identified by a name in the format `RefDes-PadNumber` (for example,
+   `U1-A5` or `R3-1`).  Each pad is also identified by just the parent footprint's reference
+   designator (for example, `U1`), allowing rules to match all pads of a footprint.
+
+2. **Pad matching**: The `from` and `to` arguments are matched against endpoint names using
+   wildcard comparison.  The wildcards `\*` (match any sequence of characters) and `?` (match a
+   single character) are supported.  Matching is case-insensitive.
+
+3. **Path tracing**: For each pair of matching endpoints that share the same net, KiCad traces the
+   copper connectivity to find the path between them.  The path includes all tracks, vias, and pads
+   that lie on the electrical route between the two endpoints.
+
+4. **Uniqueness check**: KiCad determines whether the path between the two pads is _unique_ --
+   that is, whether there is exactly one route between the pads.  If there are multiple paths (for
+   example, because of a ground plane or copper pour connecting the pads through more than one
+   route), the path is still found but is marked as non-unique.
+
+NOTE: If the `from` pattern matches a pad that has more than one connected pad matching the `to`
+      pattern _on the same net_, the path cannot be unambiguously determined and will not be
+      created.  Make your `from` and `to` patterns specific enough to identify exactly one pad at
+      each end.
+
+===== Pad name format
+
+Pad endpoints used in `fromTo()` follow a specific naming convention:
+
+[options="header",cols="30%,70%"]
+|====
+| Format | Description
+| `RefDes-PadNumber` | Matches a specific pad on a specific footprint. For example, `'U1-A5'`
+    matches pad A5 on U1.
+| `RefDes` | Matches _all_ pads on the given footprint.  For example, `'U1'` matches every pad
+    on U1.  This is useful when combined with a specific pad at the other end.
+| Wildcards | Both `\*` and `?` wildcards are supported.  For example, `'U1-A\*'` matches all
+    pads on U1 whose pad number starts with `A`, and `'R?-1'` matches pad 1 on all single-character
+    reference designators starting with `R` (such as R1, R2, etc.).
+|====
+
+===== Using `fromTo()` in custom DRC rules
+
+The `fromTo()` function is used in the `condition` clause of a custom DRC rule.  It takes two
+string arguments: the `from` pad identifier and the `to` pad identifier.  The function returns
+true if the object being tested (either `A` or `B`) lies on the copper path between the specified
+pads.
+
+The basic syntax is:
+
+----
+(rule <name>
+    (condition "A.fromTo('<from_pad>', '<to_pad>')")
+    (constraint <constraint_type> <arguments>))
+----
+
+The `fromTo()` function is most commonly combined with the following constraint types:
+
+[options="header",cols="30%,70%"]
+|====
+| Constraint | Use with `fromTo()`
+| `length` | Constrain the total routed length of a specific signal path, rather than the
+    entire net.
+| `skew` | Match lengths across a group of signal paths (for example, a DDR data bus) by
+    constraining the skew between paths.
+| `track_width` | Enforce specific trace widths on high-speed signal paths.
+| `clearance` | Apply tighter or looser clearance rules to specific signal paths.
+| `diff_pair_gap` | Control differential pair spacing on specific segments.
+|====
+
+===== From-To path examples
+
+====== Length-constrain a specific signal path
+
+To constrain the routed length of a specific signal path between a memory controller and a
+DRAM chip, rather than constraining the entire net:
+
+----
+# Constrain the DDR clock path from the controller to the DRAM
+(rule "DDR_CLK length"
+    (condition "A.fromTo('U1-C5', 'U2-D3')")
+    (constraint length (min 20mm) (max 25mm)))
+----
+
+====== Match lengths across a DDR data bus
+
+When designing a DDR interface, all data signals must be length-matched to each other.  Using
+`fromTo()`, you can target only the relevant path segments and combine them with a `skew`
+constraint:
+
+----
+# Match data signal lengths from memory controller to DRAM
+# Each data line has its own fromTo path; the skew constraint
+# checks that all matching paths are within tolerance
+(rule "DDR_DQ0 length"
+    (condition "A.fromTo('U1-A1', 'U2-B1')")
+    (constraint length (max 50mm)))
+
+(rule "DDR_DQ1 length"
+    (condition "A.fromTo('U1-A2', 'U2-B2')")
+    (constraint length (max 50mm)))
+
+(rule "DDR_DQ2 length"
+    (condition "A.fromTo('U1-A3', 'U2-B3')")
+    (constraint length (max 50mm)))
+
+(rule "DDR_DQ3 length"
+    (condition "A.fromTo('U1-A4', 'U2-B4')")
+    (constraint length (max 50mm)))
+
+# Constrain skew across all DQ paths
+(rule "DDR_DQ skew"
+    (condition "A.fromTo('U1-A*', 'U2-B*')")
+    (constraint skew (max 0.2mm)))
+----
+
+====== USB signal path constraints
+
+For a USB interface, you might constrain the differential pair paths from a connector to a
+controller, including both length and track width:
+
+----
+# USB data path track width
+(rule "USB track width"
+    (condition "A.fromTo('J1-D*', 'U1-H*')")
+    (constraint track_width (min 0.09mm) (opt 0.09mm) (max 0.09mm)))
+
+# USB data path length constraint
+(rule "USB path length"
+    (condition "A.fromTo('J1-D*', 'U1-H*')")
+    (constraint length (max 80mm)))
+----
+
+====== PCIe lane length matching
+
+For PCIe, each transmit and receive lane must be length-matched.  Using wildcards in `fromTo()`,
+you can write rules that cover multiple lanes:
+
+----
+# PCIe TX lane length matching from connector to controller
+(rule "PCIe TX length"
+    (condition "A.fromTo('J1-TX*', 'U1-TX*')")
+    (constraint length (min 40mm) (max 60mm)))
+
+# PCIe RX lane length matching from connector to controller
+(rule "PCIe RX length"
+    (condition "A.fromTo('J1-RX*', 'U1-RX*')")
+    (constraint length (min 40mm) (max 60mm)))
+----
+
+====== Series termination resistor paths
+
+A common high-speed topology places a series termination resistor between a driver and a receiver.
+In this case, you need separate `fromTo()` rules for each segment of the path:
+
+----
+# Segment from driver to series resistor (keep short)
+(rule "CLK driver to resistor"
+    (condition "A.fromTo('U1-C5', 'R1-1')")
+    (constraint length (max 10mm)))
+
+# Segment from series resistor to receiver (length-controlled)
+(rule "CLK resistor to receiver"
+    (condition "A.fromTo('R1-2', 'U2-D3')")
+    (constraint length (min 20mm) (max 30mm)))
+----
+
+TIP: When a net passes through a series component such as a termination resistor, the net changes
+     at the component pads.  Define separate `fromTo()` paths for each segment (driver to resistor
+     and resistor to receiver) to control each portion independently.
+
+====== Clearance between high-speed paths and other nets
+
+You can combine `fromTo()` with clearance constraints to create isolation rules for sensitive
+signal paths:
+
+----
+# Extra clearance around high-speed clock path
+(rule "CLK clearance"
+    (condition "A.fromTo('U1-C5', 'U2-D3')")
+    (constraint clearance (min 0.3mm)))
+----
 
 ==== Custom design rule examples
 
@@ -1129,9 +1769,9 @@ The following functions can be called on objects in custom rule expressions:
 (rule "copper keepout"
     (constraint disallow track via zone)
     (condition "A.intersectsArea('zone3')"))
-  
+
 (rule "minimum creepage distance for high voltage nets"
-    (condition "A.hasNetclass('HV'))
+    (condition "A.hasNetclass('HV')")
     (constraint creepage (min 5mm)))
 
 ----
@@ -1256,6 +1896,38 @@ The following functions can be called on objects in custom rule expressions:
 
 ----
 
+===== Solder mask and solder paste
+----
+# No solder mask expansion for vias
+(rule "no mask expansion on vias"
+    (constraint solder_mask_expansion (opt 0mm))
+    (condition "A.type == via"))
+
+
+# Remove solder paste from DNP footprints
+(rule remove_solder_paste_from_DNP
+    (constraint solder_paste_abs_margin (opt -50mm))
+    (condition "A.Do_not_Populate"))
+
+# Allow solder mask bridging under guard ring mask apertures
+(rule guard_ring_bridging
+    (constraint bridged_mask)
+    (condition "A.intersectsArea('guard_ring')")
+    (severity ignore))
+
+
+----
+
+===== Dangling vias
+----
+# allow dangling vias within a specific rule area named 'dangling vias allowed'
+(rule ignore_left
+    (constraint via_dangling)
+    (condition "A.enclosedByArea('dangling vias allowed')")
+    (severity ignore))
+
+----
+
 === Scripting
 
 Scripting allows you to automate tasks within KiCad using the https://www.python.org/[Python]
@@ -1267,7 +1939,7 @@ be used to create footprint creation plugins for the Footprint Editor.
 This manual covers general scripting concepts for the Board Editor's `pcbnew` API as well as for
 the footprint wizard API. Users wishing to write or modify scripts should also
 use the Doxygen documentation for these APIs located at
-https://docs.kicad.org/doxygen-python-9.0/namespaces.html[https://docs.kicad.org/doxygen-python-9.0/namespaces.html].
+https://docs.kicad.org/doxygen-python-nightly/namespaces.html[https://docs.kicad.org/doxygen-python-nightly/namespaces.html].
 
 KiCad 6 or newer requires Python 3 for scripting support. Python 2 is no longer supported.
 
@@ -1290,9 +1962,9 @@ of the `plugins` folder is by default:
 [options="header",cols="20%,80%"]
 |====
 | Platform | Path
-| Linx     | `~/.local/share/kicad/9.0/scripting/plugins`
-| macOS    | `~/Documents/KiCad/9.0/scripting/plugins`
-| Windows  | `%HOME%\Documents\KiCad\9.0\scripting\plugins`
+| Linx     | `~/.local/share/kicad/10.0/scripting/plugins`
+| macOS    | `~/Documents/KiCad/10.0/scripting/plugins`
+| Windows  | `%HOME%\Documents\KiCad\10.0\scripting\plugins`
 |====
 
 NOTE: The type of plugin is determined by the Python class it inherits from. Inheriting from
@@ -1303,11 +1975,11 @@ NOTE: The type of plugin is determined by the Python class it inherits from. Inh
 ==== `pcbnew` API overview
 
 The scripting API reflects the internal object structure inside KiCad's Board Editor. It is provided
-by the `pcbnew` module in Python. 
+by the `pcbnew` module in Python.
 
 NOTE: Because the API is tightly coupled to KiCad's internals, the API will change over time and is not
       considered stable. Consult the
-      https://docs.kicad.org/doxygen-python-9.0/namespaces.html[doxygen documentation]
+      https://docs.kicad.org/doxygen-python-nightly/namespaces.html[doxygen documentation]
       for the most up-to-date API reference, and be sure to use the documentation for the appropriate
       version of KiCad.
 
@@ -1574,7 +2246,7 @@ of the IDF utilities included with KiCad.
 ==== Specifying component models for use by the exporter
 
 IDF component models are attached to footprints using the
-<<footprint-3d-models,footprint's 3D model properties>>. The IDF exporter uses
+<<fp-3d-models,footprint's 3D model properties>>. The IDF exporter uses
 different filetypes than the 3D viewer and other 3D model exporters, so adding
 3D models for the IDF exporter does not conflict with 3D models added to a
 footprint for other purposes.

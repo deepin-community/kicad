@@ -35,14 +35,13 @@
 #include <wx/arrstr.h>
 #include <sch_io/sch_io_mgr.h>
 #include <sch_screen.h>
+#include <libraries/library_table.h>
 
 class LIB_SYMBOL;
-class SYMBOL_LIB;
+class LEGACY_SYMBOL_LIB;
 class PROGRESS_REPORTER;
 class SCH_IO;
 class SCH_BASE_FRAME;
-class SYMBOL_LIB_TABLE;
-class SYMBOL_LIB_TABLE_ROW;
 class LIB_LOGGER;
 
 
@@ -116,6 +115,9 @@ public:
      */
     bool DeleteBuffer( const SYMBOL_BUFFER& aSymbolBuf );
 
+    /// Return the deleted symbol buffers that need to be removed from the library file.
+    const std::deque<std::shared_ptr<SYMBOL_BUFFER>>& GetDeletedBuffers() const { return m_deleted; }
+
     void ClearDeletedBuffer() { m_deleted.clear(); }
 
     /// Save stored modifications using a plugin. aBuffer decides whether the changes
@@ -177,21 +179,13 @@ private:
 
 /**
  * Class to handle modifications to the symbol libraries.
+ * TODO(JE) Library tables - this class probably shouldn't exist anymore
  */
 class SYMBOL_LIBRARY_MANAGER
 {
 public:
     SYMBOL_LIBRARY_MANAGER( SCH_BASE_FRAME& aFrame );
     virtual ~SYMBOL_LIBRARY_MANAGER();
-
-    /**
-     * Preload all symbol libraries in the symbol library table using #SYMBOL_ASYNC_LOADER.
-     *
-     * Call before the first call to Sync() to get better performance.
-     *
-     * @param aReporter is used to report progress of the load
-     */
-    void Preload( PROGRESS_REPORTER& aReporter );
 
     int GetHash() const;
 
@@ -211,21 +205,16 @@ public:
      */
     wxArrayString GetLibraryNames() const;
 
-    /**
-     * Find a single library within the (aggregate) library table.
-     */
-    SYMBOL_LIB_TABLE_ROW* GetLibrary( const wxString& aLibrary ) const;
-
-    std::list<LIB_SYMBOL*> GetAliases( const wxString& aLibrary ) const;
+    std::list<LIB_SYMBOL*> EnumerateSymbols( const wxString& aLibrary ) const;
 
     /**
      * Create an empty library and adds it to the library table.
      *
      * The library file is created.
      */
-    bool CreateLibrary( const wxString& aFilePath, SYMBOL_LIB_TABLE& aTable )
+    bool CreateLibrary( const wxString& aFilePath, LIBRARY_TABLE_SCOPE aScope )
     {
-        return addLibrary( aFilePath, true, aTable );
+        return addLibrary( aFilePath, true, aScope );
     }
 
     /**
@@ -233,9 +222,9 @@ public:
      *
      * The library is added to the library table as well.
      */
-    bool AddLibrary( const wxString& aFilePath, SYMBOL_LIB_TABLE& aTable )
+    bool AddLibrary( const wxString& aFilePath, LIBRARY_TABLE_SCOPE aScope )
     {
-        return addLibrary( aFilePath, false, aTable );
+        return addLibrary( aFilePath, false, aScope );
     }
 
     /**
@@ -252,7 +241,7 @@ public:
      *
      * The old library buffer will be deleted and a new one created with the new name.
      */
-    bool UpdateSymbolAfterRename( LIB_SYMBOL* aSymbol, const wxString& oldAlias,
+    bool UpdateSymbolAfterRename( LIB_SYMBOL* aSymbol, const wxString& aOldSymbolName,
                                   const wxString& aLibrary );
 
     /**
@@ -265,13 +254,13 @@ public:
      *
      * It is required to save the library to have the symbol removed in the schematic editor.
      */
-    bool RemoveSymbol( const wxString& aName, const wxString& aLibrary );
+    bool RemoveSymbol( const wxString& aSymbolName, const wxString& aLibrary );
 
     /**
      * Return either an alias of a working LIB_SYMBOL copy, or alias of the original symbol if there
      * is no working copy.
      */
-    LIB_SYMBOL* GetAlias( const wxString& aAlias, const wxString& aLibrary ) const;
+    LIB_SYMBOL* GetSymbol( const wxString& aSymbolName, const wxString& aLibrary ) const;
 
     /**
      * Return the symbol copy from the buffer.
@@ -279,19 +268,24 @@ public:
      * In case it does not exist yet, the copy is created.  #SYMBOL_LIBRARY_MANAGER retains
      * the ownership.
      */
-    LIB_SYMBOL* GetBufferedSymbol( const wxString& aAlias, const wxString& aLibrary );
+    LIB_SYMBOL* GetBufferedSymbol( const wxString& aSymbolName, const wxString& aLibrary );
 
     /**
      * Return the screen used to edit a specific symbol. #SYMBOL_LIBRARY_MANAGER retains the
      * ownership.
      */
-    SCH_SCREEN* GetScreen( const wxString& aAlias, const wxString& aLibrary );
+    SCH_SCREEN* GetScreen( const wxString& aSymbolName, const wxString& aLibrary );
 
     /**
      * Return true if symbol with a specific alias exists in library (either original one or
      * buffered).
      */
-    bool SymbolExists( const wxString& aAlias, const wxString& aLibrary ) const;
+    bool SymbolExists( const wxString& aSymbolName, const wxString& aLibrary ) const;
+
+    /**
+     * Return true if the symbol name is already in use in the specified library.
+     */
+    bool SymbolNameInUse( const wxString& aName, const wxString& aLibrary );
 
     /**
      * Return true if library exists.
@@ -313,9 +307,9 @@ public:
     /**
      * Return true if symbol has unsaved modifications.
      */
-    bool IsSymbolModified( const wxString& aAlias, const wxString& aLibrary ) const;
+    bool IsSymbolModified( const wxString& aSymbolName, const wxString& aLibrary ) const;
 
-    void SetSymbolModified( const wxString& aAlias, const wxString& aLibrary );
+    void SetSymbolModified( const wxString& aSymbolName, const wxString& aLibrary );
 
     /**
      * Clear the modified flag for all symbols in a library.
@@ -325,7 +319,7 @@ public:
     /**
      * Clear the modified flag for a symbol.
      */
-    bool ClearSymbolModified( const wxString& aAlias, const wxString& aLibrary ) const;
+    bool ClearSymbolModified( const wxString& aSymbolName, const wxString& aLibrary ) const;
 
     /**
      * Return true if the library is stored in a read-only file.
@@ -350,7 +344,7 @@ public:
      * @return The LIB_ID of the reverted symbol (which may be different in the case
      * of a rename)
      */
-    LIB_ID RevertSymbol( const wxString& aAlias, const wxString& aLibrary );
+    LIB_ID RevertSymbol( const wxString& aSymbolName, const wxString& aLibrary );
 
     /**
      * Revert unsaved changes for a symbol library.
@@ -377,12 +371,9 @@ public:
                          SYMBOL_NAME_FILTER aFilter = SYMBOL_NAME_FILTER::ALL );
 
     /**
-     * Check if symbol \a aSymbolName in library \a aLibraryName is a root symbol that
-     * has derived symbols.
-     *
-     * @return true if \aSymbolName in \a aLibraryName has derived symbols.
+     * Fetch all of the symbols derived from a \a aSymbolName into \a aList.
      */
-    bool HasDerivedSymbols( const wxString& aSymbolName, const wxString& aLibraryName );
+    size_t GetDerivedSymbolNames( const wxString& aSymbolName, const wxString& aLibraryName, wxArrayString& aList );
 
     size_t GetLibraryCount() const;
 
@@ -393,11 +384,7 @@ protected:
     static wxString getLibraryName( const wxString& aFilePath );
 
     /// Helper function to add either existing or create new library.
-    bool addLibrary( const wxString& aFilePath, bool aCreate, SYMBOL_LIB_TABLE& aTable );
-
-
-    /// Return the current symbol library table.
-    SYMBOL_LIB_TABLE* symTable() const;
+    bool addLibrary( const wxString& aFilePath, bool aCreate, LIBRARY_TABLE_SCOPE aScope );
 
     /**
      * Return a set of #LIB_SYMBOL objects belonging to the original library.

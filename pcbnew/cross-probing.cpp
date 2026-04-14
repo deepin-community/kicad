@@ -31,8 +31,10 @@
  * Note: these ports must be enabled for firewall protection
  */
 
+#include <wx/tokenzr.h>
 #include <board.h>
 #include <board_design_settings.h>
+#include <fmt.h>
 #include <footprint.h>
 #include <pad.h>
 #include <pcb_track.h>
@@ -41,7 +43,7 @@
 #include <collectors.h>
 #include <eda_dde.h>
 #include <kiface_base.h>
-#include <kiway_express.h>
+#include <kiway_mail.h>
 #include <string_utils.h>
 #include <netlist_reader/pcb_netlist.h>
 #include <netlist_reader/board_netlist_updater.h>
@@ -53,7 +55,12 @@
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
 #include <tools/pcb_selection_tool.h>
+#include <trace_helpers.h>
 #include <netlist_reader/netlist_reader.h>
+#include <widgets/pcb_design_block_pane.h>
+#include <widgets/kistatusbar.h>
+#include <project_pcb.h>
+#include <footprint_library_adapter.h>
 #include <wx/log.h>
 
 /* Execute a remote command sent via a socket on port KICAD_PCB_PORT_SERVICE_NUMBER
@@ -71,14 +78,10 @@
 void PCB_EDIT_FRAME::ExecuteRemoteCommand( const char* cmdline )
 {
     char        line[1024];
-    wxString    msg;
-    wxString    modName;
     char*       idcmd;
     char*       text;
     int         netcode = -1;
     bool        multiHighlight = false;
-    FOOTPRINT*  footprint = nullptr;
-    PAD*        pad = nullptr;
     BOARD*      pcb = GetBoard();
 
     CROSS_PROBING_SETTINGS& crossProbingSettings = GetPcbNewSettings()->m_CrossProbing;
@@ -152,12 +155,12 @@ void PCB_EDIT_FRAME::ExecuteRemoteCommand( const char* cmdline )
         if( !crossProbingSettings.auto_highlight )
             return;
 
-        wxStringTokenizer netsTok = wxStringTokenizer( From_UTF8( text ), wxT( "," ) );
+        wxStringTokenizer netsTok = wxStringTokenizer( From_UTF8( text ), ",", wxTOKEN_STRTOK );
         bool first = true;
 
         while( netsTok.HasMoreTokens() )
         {
-            NETINFO_ITEM* netinfo = pcb->FindNet( netsTok.GetNextToken() );
+            NETINFO_ITEM* netinfo = pcb->FindNet( netsTok.GetNextToken().Trim( true ).Trim( false ) );
 
             if( netinfo )
             {
@@ -188,16 +191,7 @@ void PCB_EDIT_FRAME::ExecuteRemoteCommand( const char* cmdline )
 
     BOX2I bbox;
 
-    if( footprint )
-    {
-        bbox = footprint->GetBoundingBox( true );
-
-        if( pad )
-            m_toolManager->RunAction<BOARD_ITEM*>( PCB_ACTIONS::highlightItem, pad );
-        else
-            m_toolManager->RunAction<BOARD_ITEM*>( PCB_ACTIONS::highlightItem, footprint );
-    }
-    else if( netcode > 0 || multiHighlight )
+    if( netcode > 0 || multiHighlight )
     {
         if( !multiHighlight )
         {
@@ -266,7 +260,7 @@ std::string FormatProbeItem( BOARD_ITEM* aItem )
     case PCB_FOOTPRINT_T:
     {
         FOOTPRINT* footprint = static_cast<FOOTPRINT*>( aItem );
-        return StrPrintf( "$PART: \"%s\"", TO_UTF8( footprint->GetReference() ) );
+        return fmt::format( "$PART: \"{}\"", TO_UTF8( footprint->GetReference() ) );
     }
 
     case PCB_PAD_T:
@@ -274,9 +268,9 @@ std::string FormatProbeItem( BOARD_ITEM* aItem )
         PAD*       pad = static_cast<PAD*>( aItem );
         FOOTPRINT* footprint = pad->GetParentFootprint();
 
-        return StrPrintf( "$PART: \"%s\" $PAD: \"%s\"",
-                          TO_UTF8( footprint->GetReference() ),
-                          TO_UTF8( pad->GetNumber() ) );
+        return fmt::format( "$PART: \"{}\" $PAD: \"{}\"",
+                            TO_UTF8( footprint->GetReference() ),
+                            TO_UTF8( pad->GetNumber() ) );
     }
 
     case PCB_FIELD_T:
@@ -294,10 +288,10 @@ std::string FormatProbeItem( BOARD_ITEM* aItem )
         else
             break;
 
-        return StrPrintf( "$PART: \"%s\" %s \"%s\"",
-                          TO_UTF8( footprint->GetReference() ),
-                          text_key,
-                          TO_UTF8( field->GetText() ) );
+        return fmt::format( "$PART: \"{}\" {} \"{}\"",
+                            TO_UTF8( footprint->GetReference() ),
+                            text_key,
+                            TO_UTF8( field->GetText() ) );
     }
 
     default:
@@ -320,7 +314,6 @@ void collectItemsForSyncParts( ItemContainer& aItems, std::set<wxString>& parts 
             PCB_GROUP* group = static_cast<PCB_GROUP*>( item );
 
             collectItemsForSyncParts( group->GetItems(), parts );
-
             break;
         }
         case PCB_FOOTPRINT_T:
@@ -329,7 +322,6 @@ void collectItemsForSyncParts( ItemContainer& aItems, std::set<wxString>& parts 
             wxString   ref = footprint->GetReference();
 
             parts.emplace( wxT( "F" ) + EscapeString( ref, CTX_IPC ) );
-
             break;
         }
 
@@ -340,7 +332,6 @@ void collectItemsForSyncParts( ItemContainer& aItems, std::set<wxString>& parts 
 
             parts.emplace( wxT( "P" ) + EscapeString( ref, CTX_IPC ) + wxT( "/" )
                            + EscapeString( pad->GetNumber(), CTX_IPC ) );
-
             break;
         }
 
@@ -408,7 +399,7 @@ void PCB_EDIT_FRAME::SendSelectItemsToSch( const std::deque<EDA_ITEM*>& aItems,
 
 void PCB_EDIT_FRAME::SendCrossProbeNetName( const wxString& aNetName )
 {
-    std::string packet = StrPrintf( "$NET: \"%s\"", TO_UTF8( aNetName ) );
+    std::string packet = fmt::format( "$NET: \"{}\"", TO_UTF8( aNetName ) );
 
     if( !packet.empty() )
     {
@@ -534,7 +525,7 @@ std::vector<BOARD_ITEM*> PCB_EDIT_FRAME::FindItemsFromSyncSelection( std::string
 }
 
 
-void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
+void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
 {
     std::string& payload = mail.GetPayload();
 
@@ -565,8 +556,13 @@ void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
             }
 
             nlohmann::ordered_map<wxString, wxString> fields;
+
             for( PCB_FIELD* field : footprint->GetFields() )
+            {
+                wxCHECK2( field, continue );
+
                 fields[field->GetCanonicalName()] = field->GetText();
+            }
 
             component->SetFields( fields );
 
@@ -599,6 +595,7 @@ void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
             updater.SetLookupByTimestamp( false );
             updater.SetDeleteUnusedFootprints( false );
             updater.SetReplaceFootprints( false );
+            updater.SetTransferGroups( false );
             updater.UpdateNetlist( netlist );
 
             bool dummy;
@@ -648,7 +645,7 @@ void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
             std::vector<BOARD_ITEM*> items =
                     FindItemsFromSyncSelection( paramStr.substr( modeEnd + 1 ) );
 
-            m_probingSchToPcb = true; // recursion guard
+            m_ProbingSchToPcb = true; // recursion guard
 
             if( selectConnections )
                 GetToolManager()->RunAction( PCB_ACTIONS::syncSelectionWithNets, &items );
@@ -658,7 +655,26 @@ void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
             // Update 3D viewer highlighting
             Update3DView( false, GetPcbNewSettings()->m_Display.m_Live3DRefresh );
 
-            m_probingSchToPcb = false;
+            m_ProbingSchToPcb = false;
+
+            if( GetPcbNewSettings()->m_CrossProbing.flash_selection )
+            {
+                wxLogTrace( traceCrossProbeFlash, "MAIL_SELECTION(_FORCE) PCB: flash enabled, items=%zu", items.size() );
+                if( items.empty() )
+                {
+                    wxLogTrace( traceCrossProbeFlash, "MAIL_SELECTION(_FORCE) PCB: nothing to flash" );
+                }
+                else
+                {
+                    std::vector<BOARD_ITEM*> boardItems;
+                    std::copy( items.begin(), items.end(), std::back_inserter( boardItems ) );
+                    StartCrossProbeFlash( boardItems );
+                }
+            }
+            else
+            {
+                wxLogTrace( traceCrossProbeFlash, "MAIL_SELECTION(_FORCE) PCB: flash disabled" );
+            }
         }
 
         break;
@@ -717,6 +733,23 @@ void PCB_EDIT_FRAME::KiwayMailIn( KIWAY_EXPRESS& mail )
     case MAIL_RELOAD_PLUGINS:
         GetToolManager()->RunAction( ACTIONS::pluginsReload );
         break;
+
+    case MAIL_RELOAD_LIB:
+    {
+        m_designBlocksPane->RefreshLibs();
+
+        // Show any footprint library load errors in the status bar
+        if( KISTATUSBAR* statusBar = dynamic_cast<KISTATUSBAR*>( GetStatusBar() ) )
+        {
+            FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
+            wxString errors = adapter->GetLibraryLoadErrors();
+
+            if( !errors.IsEmpty() )
+                statusBar->SetLoadWarningMessages( errors );
+        }
+
+        break;
+    }
 
     // many many others.
     default:

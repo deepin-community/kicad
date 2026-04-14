@@ -29,6 +29,8 @@
 #include <tool/edit_points.h>
 #include <tool/selection.h>
 
+namespace KIGFX { namespace PREVIEW { class ANGLE_ITEM; } }
+
 class SCH_SELECTION_TOOL;
 class POINT_EDIT_BEHAVIOR;
 class SCH_BASE_FRAME;
@@ -105,6 +107,7 @@ private:
     /// TOOL_ACTION handlers
     int addCorner( const TOOL_EVENT& aEvent );
     int removeCorner( const TOOL_EVENT& aEvent );
+    int changeArcEditMode( const TOOL_EVENT& aEvent );
     int modifiedSelection( const TOOL_EVENT& aEvent );
 
 private:
@@ -113,11 +116,14 @@ private:
     ///< Currently edited point, NULL if there is none.
     EDIT_POINT* m_editedPoint;
 
+    ARC_EDIT_MODE m_arcEditMode;
+
     ///< Re-entrancy guards
     bool m_inPointEditor;
 
     ///< Currently available edit points.
     std::shared_ptr<EDIT_POINTS> m_editPoints;
+    std::unique_ptr<KIGFX::PREVIEW::ANGLE_ITEM> m_angleItem;
 
     ///< Current item-specific edit behavior.
     std::unique_ptr<POINT_EDIT_BEHAVIOR> m_editBehavior;

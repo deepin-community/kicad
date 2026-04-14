@@ -28,7 +28,7 @@
 
 #include <functional>
 #include <optional>
-#include <settings/json_settings_internals.h>
+#include <nlohmann/json_fwd.hpp>
 #include <json_conversions.h>
 
 #include <kicommon.h>
@@ -47,6 +47,7 @@ struct GRID;
 namespace KIGFX
 {
 class COLOR4D;
+enum class CROSS_HAIR_MODE : int;
 };
 
 #define traceSettings wxT( "KICAD_SETTINGS" )
@@ -55,6 +56,7 @@ enum class SETTINGS_LOC {
     USER,       ///< The main config directory (e.g. ~/.config/kicad/)
     PROJECT,    ///< The settings directory inside a project folder
     COLORS,     ///< The color scheme directory (e.g. ~/.config/kicad/colors/)
+    TOOLBARS,   ///< The toolbar directory (e.g. ~/.config/kicad/toolbars/)
     NESTED,     ///< Not stored in a file, but inside another JSON_SETTINGS
     NONE,       ///< No directory prepended, full path in filename (used for PROJECT_FILE)
 };
@@ -76,6 +78,11 @@ public:
                    bool aCreateIfMissing, bool aCreateIfDefault, bool aWriteFile );
 
     virtual ~JSON_SETTINGS();
+
+    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
+    // will only land us in trouble.
+    JSON_SETTINGS( const JSON_SETTINGS& ) = delete;
+    JSON_SETTINGS& operator=( const JSON_SETTINGS& ) = delete;
 
     wxString GetFilename() const { return m_filename; }
 
@@ -159,6 +166,8 @@ public:
      */
     template<typename ValueType>
     void Set( const std::string& aPath, ValueType aVal );
+
+    virtual std::map<std::string, nlohmann::json> GetFileHistories();
 
     /**
      * Migrates the schema of this settings from the version in the file to the latest version
@@ -380,5 +389,6 @@ extern template std::optional<wxPoint> JSON_SETTINGS::Get<wxPoint>( const std::s
 extern template std::optional<wxSize> JSON_SETTINGS::Get<wxSize>( const std::string& aPath ) const;
 extern template std::optional<wxRect> JSON_SETTINGS::Get<wxRect>( const std::string& aPath ) const;
 extern template std::optional<wxAuiPaneInfo> JSON_SETTINGS::Get<wxAuiPaneInfo>( const std::string& aPath ) const;
+extern template std::optional<KIGFX::CROSS_HAIR_MODE> JSON_SETTINGS::Get<KIGFX::CROSS_HAIR_MODE>( const std::string& aPath ) const;
 
 #endif

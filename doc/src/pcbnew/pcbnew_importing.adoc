@@ -1,0 +1,435 @@
+
+[[importing-boards]]
+== Importing boards from other EDA tools
+
+KiCad can import PCB designs from a wide range of third-party EDA tools.  This allows you to
+migrate existing designs into KiCad without having to recreate them from scratch.
+
+Imported boards are converted to KiCad's native format.  After import, the board can be edited,
+have its design rules adjusted, and be exported using any of KiCad's output capabilities.
+
+NOTE: Importing a board creates a new KiCad board from the foreign file.  It does not merge
+      the foreign board into an existing KiCad design.  After import, save the board to create
+      a KiCad `.kicad_pcb` file.
+
+=== Supported import formats
+
+KiCad supports importing boards from the following EDA tools and file formats:
+
+[cols="3,2,1,1",options="header"]
+|===
+| Source EDA Tool
+| File Extension(s)
+| Layer Mapping
+| Library Import
+
+| Altium Designer
+| `.PcbDoc`
+| Yes
+| Yes
+
+| Altium Circuit Maker
+| `.CMPcbDoc`
+| Yes
+| No
+
+| Altium Circuit Studio
+| `.CSPcbDoc`
+| Yes
+| No
+
+| Cadence Allegro
+| `.brd`
+| Yes
+| No
+
+| CADSTAR PCB Archive
+| `.cpa`
+| Yes
+| Yes
+
+| Eagle (Autodesk)
+| `.brd` (XML)
+| Yes
+| Yes
+
+| EasyEDA / JLCEDA Standard
+| `.json`, `.zip`
+| No
+| Yes
+
+| EasyEDA / JLCEDA Professional
+| `.epro`, `.zip`
+| No
+| Yes
+
+| Fabmaster
+| `.txt`, `.fab`
+| No
+| No
+
+| gEDA / Lepton EDA
+| `.pcb`
+| No
+| Yes
+
+| P-CAD 200x
+| `.pcb` (ASCII)
+| No
+| No
+
+| PADS (ASCII)
+| `.asc`
+| Yes
+| No
+
+| Solidworks PCB
+| `.SWPcbDoc`
+| Yes
+| No
+|===
+
+In addition, KiCad can import Specctra session files (`.ses`) to bring autorouter results back
+into an existing board.  This is a specialized workflow described <<specctra-session-import,below>>.
+
+=== How to import a board
+
+To import a board from a supported foreign format, use **File** -> **Import** -> **Non-KiCad Board File...**.
+In the file dialog, change the file type dropdown to the desired import format.
+Select the foreign board file and click **Open**.
+
+KiCad will read the foreign file and convert it to a KiCad board.  Depending on the format,
+a layer mapping dialog may appear to let you control how the source layers are mapped to
+KiCad layers.
+
+TIP: Some formats such as Eagle and Allegro share the `.brd` file extension.  KiCad will
+     automatically detect the correct format based on the file contents when you select the
+     appropriate file type filter in the open dialog.
+
+=== Layer mapping
+
+Many import formats include a layer mapping step.  When the importer encounters layers in the
+foreign file, it presents a dialog that lets you choose the corresponding KiCad layer for each
+source layer.
+
+// TODO: Add screenshot
+// image::images/pcbnew_import_layer_mapping.png[scaledwidth="70%"]
+
+The dialog shows each source layer name alongside a dropdown where you can select the target
+KiCad layer.  The importer provides a best-guess automatic mapping, but you should review it
+carefully.  Key considerations:
+
+* **Copper layers:** Verify that the source copper layers map to the correct KiCad copper layers,
+  especially for inner layers on multi-layer boards.
+* **Silkscreen, solder mask, and paste layers:** These should map to the corresponding front or
+  back layer in KiCad.
+* **Mechanical and documentation layers:** Map these to the appropriate KiCad User layers or
+  leave them unmapped if the content is not needed.
+* **Unmapped layers:** Setting a source layer to _Unassigned_ causes that layer's content to be
+  skipped during import.
+
+The formats that support layer mapping are: Altium Designer, Altium Circuit Maker, Altium
+Circuit Studio, Cadence Allegro, CADSTAR, Eagle, PADS, and Solidworks PCB.
+
+=== Post-import cleanup
+
+After importing a board from another EDA tool, review the result and perform any necessary
+cleanup.  The following steps are recommended:
+
+. **Run the Design Rule Check (DRC):**  Select **Inspect** -> **Design Rules Checker** to
+  identify any issues introduced during import.  Foreign designs may use rules or features
+  that do not have exact equivalents in KiCad.
+
+. **Review board setup:**  Open **File** -> **Board Setup** and verify the board stackup,
+  design rules, and net classes.  Import plugins translate rules on a best-effort basis, but
+  some parameters may need manual adjustment.
+
+. **Check footprints:**  Imported footprints are embedded directly in the board file.  Consider
+  replacing them with footprints from the KiCad library or your own libraries to take advantage
+  of KiCad's 3D models and updated pad shapes.
+
+. **Inspect zones:**  Zone fills may need to be recalculated after import.  Select **Edit** ->
+  **Fill All Zones** (kbd:[B]) to refill all copper zones.
+
+. **Verify net assignments:**  Confirm that net names and net classes have been imported correctly
+  by inspecting the **Nets** inspector (**Inspect** -> **Board Statistics**) or by checking net
+  properties of individual tracks and pads.
+
+. **Save as a KiCad project:**  Use **File** -> **Save As...** to save the imported board as a
+  `.kicad_pcb` file within a KiCad project directory.
+
+TIP: Some importers produce messages in the message panel at the bottom of the editor window.
+     Review these messages for warnings about unsupported features or items that could not be
+     imported.
+
+=== Format-specific notes
+
+[[import-altium-designer]]
+==== Altium Designer
+
+Altium Designer is one of the most widely used commercial EDA tools, and the KiCad importer
+provides comprehensive support for `.PcbDoc` files.
+
+**Supported features:**
+
+* Board outline and cutouts
+* Copper layers (up to 32 layers), silkscreen, solder mask, paste, and mechanical layers
+* Tracks, arcs, vias (including blind and buried vias)
+* Pads (through-hole, SMD, and custom shapes)
+* Copper fills and polygon pours
+* Component placement and footprint geometry
+* Net information
+* Design rules (partial)
+* Embedded footprint libraries (cached footprints are available after import)
+
+**Known limitations:**
+
+* Embedded OLE objects (such as images or documents) are not imported.
+* Some complex design rules may not have direct KiCad equivalents and will be simplified.
+* Differential pair rules are imported on a best-effort basis.
+* Altium-specific features like Situs autorouter data or embedded simulation configurations
+  are not supported.
+
+In addition to board import, KiCad can import Altium footprint libraries (`.PcbLib`) and
+integrated libraries (`.IntLib`) directly through the footprint library manager.
+
+[[import-altium-circuit-maker]]
+==== Altium Circuit Maker
+
+Altium Circuit Maker files (`.CMPcbDoc`) use the same underlying format as Altium Designer
+with minor variations.  The importer handles these files the same way as Altium Designer boards.
+Layer mapping is supported.
+
+[[import-altium-circuit-studio]]
+==== Altium Circuit Studio
+
+Altium Circuit Studio files (`.CSPcbDoc`) are supported similarly to Altium Designer.  The
+importer applies layer mapping and converts the board contents using the same parsing engine.
+
+[[import-cadence-allegro]]
+==== Cadence Allegro
+
+KiCad can import Cadence Allegro binary `.brd` files directly.
+
+**Supported features:**
+
+* Board outline
+* Copper layers and signal routing
+* Padstacks and vias
+* Component placement
+* Net information
+* Layer mapping with automatic suggestions
+
+**Known limitations:**
+
+* Allegro design rules and constraints are not fully imported.
+* Flex-circuit layer stackup features are not supported.
+* Some Allegro-specific pad shapes may be approximated.
+
+NOTE: Allegro `.brd` files use a binary format that is distinct from Eagle `.brd` files (which
+      are XML).  KiCad identifies the correct format automatically based on file content.
+
+[[import-cadstar]]
+==== CADSTAR PCB Archive
+
+CADSTAR PCB Archive files (`.cpa`) from Zuken's CADSTAR tool can be imported into KiCad.
+
+**Supported features:**
+
+* Board outline and templates
+* Full copper layer stackup
+* Tracks, vias, and copper pours
+* Component placement with footprint geometry
+* Net and net class information
+* Layer mapping
+* Footprint library import (footprints from the `.cpa` archive can be loaded through
+  the footprint library manager)
+
+**Known limitations:**
+
+* CADSTAR-specific template areas may be approximated or simplified.
+* Some advanced constraint features may not be converted.
+
+[[import-eagle]]
+==== Eagle (Autodesk)
+
+KiCad has mature support for importing Eagle `.brd` files in XML format (Eagle version 6.x and
+later).
+
+**Supported features:**
+
+* Board outline
+* All copper layers and signal layers
+* Tracks, vias, and polygons
+* SMD and through-hole pads with design rule-based annular ring sizing
+* Component placement and package (footprint) geometry
+* Net list and net class definitions
+* Design rules (converted to KiCad equivalents where possible)
+* Layer mapping with intelligent defaults
+* Embedded footprint libraries
+
+**Known limitations:**
+
+* Eagle's ULP scripts and CAM jobs are not imported.
+* Some Eagle-specific DRC rules (e.g., per-signal clearances) may be simplified.
+* Binary Eagle files (created before Eagle version 6.x) are not supported; these must first
+  be opened and re-saved as XML in Eagle.
+
+In addition to board import, KiCad can import Eagle footprint libraries (`.lbr`) through the
+footprint library manager.
+
+TIP: When migrating from Eagle, you can also import Eagle schematic files (`.sch`) in the
+     KiCad Schematic Editor to bring over the full design.
+
+[[import-easyeda]]
+==== EasyEDA / JLCEDA Standard
+
+KiCad can import board files from EasyEDA (also known as JLCEDA Standard edition), the free
+web-based EDA tool from JLCPCB.
+
+**Accepted file types:** `.json` and `.zip`
+
+To obtain files for import, export your design from EasyEDA using its **Export EasyEDA** option,
+which produces a JSON file or a ZIP archive containing the board data.
+
+**Supported features:**
+
+* Board outline
+* Copper layers and routing
+* Pads and vias
+* Component placement
+* Net information
+* Embedded footprint libraries
+
+**Known limitations:**
+
+* Some custom pad shapes may not convert exactly.
+* Panelization data is not imported.
+
+[[import-easyeda-pro]]
+==== EasyEDA / JLCEDA Professional
+
+KiCad can import project files from EasyEDA Professional (also known as JLCEDA Professional),
+the desktop version of JLCEDA.
+
+**Accepted file types:** `.epro` and `.zip`
+
+For multi-board projects, KiCad will present a project chooser dialog to let you select which
+board within the project to import.
+
+**Supported features:**
+
+* Board outline
+* Copper layers and routing
+* Pads and vias
+* Component placement
+* Net information
+* Footprint libraries (`.elibz` files can also be imported through the footprint library manager)
+
+**Known limitations:**
+
+* Some advanced features specific to EasyEDA Pro may not have KiCad equivalents.
+
+[[import-fabmaster]]
+==== Fabmaster
+
+KiCad can import Valor/Mentor Fabmaster files (`.txt`, `.fab`).  These files contain
+fabrication data including board geometry, component placements, and layer information.
+
+**Known limitations:**
+
+* Fabmaster files contain manufacturing-oriented data and may not include full design intent
+  (e.g., schematic connectivity).
+* Layer mapping is not interactive; layers are assigned automatically.
+* Net information may be incomplete depending on what was exported from the source tool.
+
+[[import-geda]]
+==== gEDA / Lepton EDA
+
+KiCad can import board files from gEDA PCB and Lepton EDA, the open-source EDA suite.
+
+**Accepted file types:** `.pcb`
+
+**Supported features:**
+
+* Board layers and routing
+* Vias
+* Component (element) placement
+* Net list information
+* Footprint libraries (gEDA `.fp` footprint files can be imported through the footprint
+  library manager)
+
+**Known limitations:**
+
+* gEDA's layer model is simpler than KiCad's; some layer assignments may need adjustment
+  after import.
+
+[[import-pcad]]
+==== P-CAD
+
+KiCad can import P-CAD 200x ASCII board files (`.pcb`).
+
+P-CAD was a legacy EDA tool that was acquired by Altium and eventually discontinued.  If you
+have P-CAD designs, you can bring them into KiCad using this importer.
+
+**Known limitations:**
+
+* Only the ASCII `.pcb` format is supported; the binary format is not.
+* P-CAD design rules are not imported.
+* Some P-CAD-specific features may not have KiCad equivalents.
+
+[[import-pads]]
+==== PADS
+
+KiCad supports importing boards from Siemens (Mentor Graphics) PADS in both ASCII and binary
+formats.
+
+**PADS ASCII** (`.asc`): This is the text-based export format from PADS Layout.  To generate
+this file, use the **File** -> **Export** function in PADS Layout and choose the ASCII format.
+
+**Supported features:**
+
+* Board outline
+* Board setup (layer stackup)
+* Copper layers and routing (tracks and vias)
+* Pads and footprints
+* Copper pours and zones
+* Net information
+* Text and dimensions
+* Keepout areas
+* Layer mapping with intelligent defaults
+
+**Known limitations:**
+
+* Some PADS-specific pad shapes or padstack definitions may be approximated.
+* Design rules and constraints from PADS are converted on a best-effort basis.
+* Reuse block definitions may not be fully preserved.
+
+[[import-solidworks]]
+==== Solidworks PCB
+
+KiCad can import Solidworks PCB files (`.SWPcbDoc`).  Solidworks PCB (formerly PCBWorks)
+uses a format derived from Altium, and the importer shares much of its code with the
+Altium Designer importer.
+
+Layer mapping is supported.  The same considerations that apply to Altium Designer imports
+generally apply to Solidworks PCB imports as well.
+
+[[specctra-session-import]]
+=== Importing Specctra session files
+
+The Specctra DSN/SES workflow is used with external autorouters.  Unlike the board importers
+described above, the Specctra session import does not create a new board.  Instead, it applies
+routing results from an autorouter back onto an existing KiCad board.
+
+The typical workflow is:
+
+. Export the board to Specctra DSN format: select **File** -> **Export** -> **Specctra DSN...**.
+. Run the external autorouter on the `.dsn` file to produce a session file (`.ses`).
+. Import the session file back into KiCad: select **File** -> **Import** -> **Specctra Session...**.
+
+KiCad will read the `.ses` file and add the routed tracks and vias to the board.  The board's
+footprints, nets, and board outline must match the original export for the import to succeed.
+
+NOTE: The Specctra session import only adds routing; it does not modify footprints, net lists,
+      or the board outline.

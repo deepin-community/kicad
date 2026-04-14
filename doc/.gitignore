@@ -17,3 +17,11 @@ build
 node_modules/
 package.json
 package-lock.json
+
+# Projects
+*.kicad_prl
+*-backups
+_autosave-*
+fp-info-cache
+*.lck
+.history

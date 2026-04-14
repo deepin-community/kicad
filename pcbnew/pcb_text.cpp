@@ -26,6 +26,7 @@
 #include <google/protobuf/any.pb.h>
 
 #include <advanced_config.h>
+#include <common.h>
 #include <pcb_edit_frame.h>
 #include <base_units.h>
 #include <bitmaps.h>
@@ -37,12 +38,16 @@
 #include <pcb_painter.h>
 #include <trigo.h>
 #include <string_utils.h>
+#include <dialogs/html_message_box.h>
 #include <geometry/shape_compound.h>
+#include <geometry/geometry_utils.h>
 #include <callback_gal.h>
 #include <convert_basic_shapes_to_polygon.h>
 #include <api/api_enums.h>
 #include <api/api_utils.h>
 #include <api/board/board_types.pb.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 PCB_TEXT::PCB_TEXT( BOARD_ITEM* parent, KICAD_T idtype ) :
@@ -53,23 +58,21 @@ PCB_TEXT::PCB_TEXT( BOARD_ITEM* parent, KICAD_T idtype ) :
 }
 
 
-PCB_TEXT::PCB_TEXT( FOOTPRINT* aParent, KICAD_T idtype) :
+PCB_TEXT::PCB_TEXT( FOOTPRINT* aParent, KICAD_T idtype ) :
         BOARD_ITEM( aParent, idtype ),
         EDA_TEXT( pcbIUScale )
 {
     SetKeepUpright( true );
 
-    // Set text thickness to a default value
-    SetTextThickness( pcbIUScale.mmToIU( DEFAULT_TEXT_WIDTH ) );
+    // N.B. Do not automatically set text effects
+    // These are optional in the file format and so need to be defaulted to off.
+
     SetLayer( F_SilkS );
 
     if( aParent )
     {
         SetTextPos( aParent->GetPosition() );
 
-        // N.B. Do not automatically set text effects
-        // These are optional in the file format and so need to be defaulted
-        // to off.
         if( IsBackLayer( aParent->GetLayer() ) )
             SetLayer( B_SilkS );
     }
@@ -88,7 +91,7 @@ void PCB_TEXT::CopyFrom( const BOARD_ITEM* aOther )
 }
 
 
-void PCB_TEXT::Serialize( google::protobuf::Any &aContainer ) const
+void PCB_TEXT::Serialize( google::protobuf::Any& aContainer ) const
 {
     using namespace kiapi::common;
     kiapi::board::types::BoardText boardText;
@@ -96,8 +99,7 @@ void PCB_TEXT::Serialize( google::protobuf::Any &aContainer ) const
     boardText.mutable_id()->set_value( m_Uuid.AsStdString() );
     boardText.set_layer( ToProtoEnum<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( GetLayer() ) );
     boardText.set_knockout( IsKnockout() );
-    boardText.set_locked( IsLocked() ? types::LockedState::LS_LOCKED
-                                     : types::LockedState::LS_UNLOCKED );
+    boardText.set_locked( IsLocked() ? types::LockedState::LS_LOCKED : types::LockedState::LS_UNLOCKED );
 
     google::protobuf::Any any;
     EDA_TEXT::Serialize( any );
@@ -112,7 +114,7 @@ void PCB_TEXT::Serialize( google::protobuf::Any &aContainer ) const
 }
 
 
-bool PCB_TEXT::Deserialize( const google::protobuf::Any &aContainer )
+bool PCB_TEXT::Deserialize( const google::protobuf::Any& aContainer )
 {
     using namespace kiapi::common;
     kiapi::board::types::BoardText boardText;
@@ -142,32 +144,32 @@ wxString PCB_TEXT::GetShownText( bool aAllowExtraText, int aDepth ) const
     const FOOTPRINT* parentFootprint = GetParentFootprint();
     const BOARD*     board = GetBoard();
 
-    std::function<bool( wxString* )> resolver =
-            [&]( wxString* token ) -> bool
-            {
-                if( parentFootprint && parentFootprint->ResolveTextVar( token, aDepth + 1 ) )
-                    return true;
+    std::function<bool( wxString* )> resolver = [&]( wxString* token ) -> bool
+    {
+        if( token->IsSameAs( wxT( "LAYER" ) ) )
+        {
+            *token = GetLayerName();
+            return true;
+        }
 
-                if( token->IsSameAs( wxT( "LAYER" ) ) )
-                {
-                    *token = GetLayerName();
-                    return true;
-                }
+        if( parentFootprint && parentFootprint->ResolveTextVar( token, aDepth + 1 ) )
+            return true;
 
-                // board can be null in some cases when saving a footprint in FP editor
-                if( board && board->ResolveTextVar( token, aDepth + 1 ) )
-                    return true;
+        // board can be null in some cases when saving a footprint in FP editor
+        if( board && board->ResolveTextVar( token, aDepth + 1 ) )
+            return true;
 
-                return false;
-            };
+        return false;
+    };
 
     wxString text = EDA_TEXT::GetShownText( aAllowExtraText, aDepth );
 
     if( HasTextVars() )
-    {
-        if( aDepth < ADVANCED_CFG::GetCfg().m_ResolveTextRecursionDepth )
-            text = ExpandTextVars( text, &resolver );
-    }
+        text = ResolveTextVars( text, &resolver, aDepth );
+
+    // Convert escape markers back to literal ${} and @{} for final display
+    text.Replace( wxT( "<<<ESC_DOLLAR:" ), wxT( "${" ) );
+    text.Replace( wxT( "<<<ESC_AT:" ), wxT( "@{" ) );
 
     return text;
 }
@@ -209,7 +211,7 @@ const BOX2I PCB_TEXT::ViewBBox() const
 
 std::vector<int> PCB_TEXT::ViewGetLayers() const
 {
-    if( IsLocked() )
+    if( IsLocked() || ( GetParentFootprint() && GetParentFootprint()->IsLocked() ) )
         return { GetLayer(), LAYER_LOCKED_ITEM_SHADOW };
 
     return { GetLayer() };
@@ -274,10 +276,26 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
         aList.emplace_back( _( "Footprint" ), parentFP->GetReference() );
 
     // Don't use GetShownText() here; we want to show the user the variable references
+    wxString value = GetText();
+
     if( parentFP )
-        aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    {
+        if( PCB_FIELD* field = dynamic_cast<PCB_FIELD*>( this ) )
+        {
+            wxString variant;
+
+            if( BOARD* board = parentFP->GetBoard() )
+                variant = board->GetCurrentVariant();
+
+            value = parentFP->GetFieldValueForVariant( variant, field->GetName() );
+        }
+
+        aList.emplace_back( _( "Text" ), KIUI::EllipsizeStatusText( aFrame, value ) );
+    }
     else
-        aList.emplace_back( _( "PCB Text" ), KIUI::EllipsizeStatusText( aFrame, GetText() ) );
+    {
+        aList.emplace_back( _( "PCB Text" ), KIUI::EllipsizeStatusText( aFrame, value ) );
+    }
 
     if( parentFP )
         aList.emplace_back( _( "Type" ), GetTextTypeDescription() );
@@ -292,7 +310,12 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
     aList.emplace_back( _( "Angle" ), wxString::Format( wxT( "%g" ), GetTextAngle().AsDegrees() ) );
 
     aList.emplace_back( _( "Font" ), GetFont() ? GetFont()->GetName() : _( "Default" ) );
-    aList.emplace_back( _( "Thickness" ), aFrame->MessageTextFromValue( GetTextThickness() ) );
+
+    if( GetTextThickness() )
+        aList.emplace_back( _( "Text Thickness" ), aFrame->MessageTextFromValue( GetEffectiveTextPenWidth() ) );
+    else
+        aList.emplace_back( _( "Text Thickness" ), _( "Auto" ) );
+
     aList.emplace_back( _( "Width" ), aFrame->MessageTextFromValue( GetTextWidth() ) );
     aList.emplace_back( _( "Height" ), aFrame->MessageTextFromValue( GetTextHeight() ) );
 }
@@ -300,17 +323,26 @@ void PCB_TEXT::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_IT
 
 int PCB_TEXT::getKnockoutMargin() const
 {
-    return GetKnockoutTextMargin( VECTOR2I( GetTextWidth(), GetTextHeight() ), GetTextThickness() );
+    return GetKnockoutTextMargin( VECTOR2I( GetTextWidth(), GetTextHeight() ), GetEffectiveTextPenWidth() );
 }
 
 
-void PCB_TEXT::StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings )
+void PCB_TEXT::StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings, bool aCheckSide )
 {
     SetTextSize( settings.GetTextSize( GetLayer() ) );
     SetTextThickness( settings.GetTextThickness( GetLayer() ) );
     SetItalic( settings.GetTextItalic( GetLayer() ) );
-    SetKeepUpright( settings.GetTextUpright( GetLayer() ) );
-    SetMirrored( IsBackLayer( GetLayer() ) );
+
+    if( GetParentFootprint() )
+        SetKeepUpright( settings.GetTextUpright( GetLayer() ) );
+
+    if( aCheckSide )
+    {
+        if( BOARD* board = GetBoard() )
+            SetMirrored( board->IsBackLayer( GetLayer() ) );
+        else
+            SetMirrored( IsBackLayer( GetLayer() ) );
+    }
 }
 
 
@@ -338,7 +370,7 @@ void PCB_TEXT::KeepUpright()
 const BOX2I PCB_TEXT::GetBoundingBox() const
 {
     EDA_ANGLE angle = GetDrawRotation();
-    BOX2I     rect = GetTextBox();
+    BOX2I     rect = GetTextBox( nullptr );
 
     if( IsKnockout() )
         rect.Inflate( getKnockoutMargin() );
@@ -355,7 +387,7 @@ bool PCB_TEXT::TextHitTest( const VECTOR2I& aPoint, int aAccuracy ) const
     int accuracy = aAccuracy;
 
     if( IsKnockout() )
-        accuracy += GetKnockoutTextMargin( GetTextSize(), GetTextThickness() );
+        accuracy += GetKnockoutTextMargin( GetTextSize(), GetEffectiveTextPenWidth() );
 
     return EDA_TEXT::TextHitTest( aPoint, accuracy );
 }
@@ -371,6 +403,17 @@ bool PCB_TEXT::TextHitTest( const BOX2I& aRect, bool aContains, int aAccuracy ) 
         return rect.Contains( GetBoundingBox() );
 
     return rect.Intersects( GetBoundingBox() );
+}
+
+
+bool PCB_TEXT::TextHitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const
+{
+    BOX2I rect = GetTextBox( nullptr );
+
+    if( IsKnockout() )
+        rect.Inflate( getKnockoutMargin() );
+
+    return KIGEOM::BoxHitTest( aPoly, rect, GetDrawRotation(), GetDrawPos(), aContained );
 }
 
 
@@ -390,7 +433,7 @@ void PCB_TEXT::Mirror( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 {
     // the position and justification are mirrored, but not the text itself
 
-    if( aFlipDirection == FLIP_DIRECTION::LEFT_RIGHT )
+    if( aFlipDirection == FLIP_DIRECTION::TOP_BOTTOM )
     {
         if( GetTextAngle() == ANGLE_VERTICAL )
             SetHorizJustify( (GR_TEXT_H_ALIGN_T) -GetHorizJustify() );
@@ -463,7 +506,7 @@ void PCB_TEXT::swapData( BOARD_ITEM* aImage )
 {
     assert( aImage->Type() == PCB_TEXT_T );
 
-    std::swap( *((PCB_TEXT*) this), *((PCB_TEXT*) aImage) );
+    std::swap( *( (PCB_TEXT*) this ), *( (PCB_TEXT*) aImage ) );
 }
 
 
@@ -473,17 +516,46 @@ std::shared_ptr<SHAPE> PCB_TEXT::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHIN
     {
         SHAPE_POLY_SET poly;
 
-        TransformTextToPolySet( poly, 0, GetBoard()->GetDesignSettings().m_MaxError, ERROR_INSIDE );
+        TransformTextToPolySet( poly, 0, GetMaxError(), ERROR_INSIDE );
 
-        return std::make_shared<SHAPE_POLY_SET>( poly );
+        return std::make_shared<SHAPE_POLY_SET>( std::move( poly ) );
     }
 
     return GetEffectiveTextShape();
 }
 
 
-void PCB_TEXT::buildBoundingHull( SHAPE_POLY_SET* aBuffer, const SHAPE_POLY_SET& aRenderedText,
-                                  int aClearance ) const
+SHAPE_POLY_SET PCB_TEXT::GetKnockoutCache( const KIFONT::FONT* aFont, const wxString& forResolvedText,
+                                           int aMaxError ) const
+{
+    TEXT_ATTRIBUTES attrs = GetAttributes();
+    EDA_ANGLE       drawAngle = GetDrawRotation();
+    VECTOR2I        drawPos = GetDrawPos();
+
+    if( m_knockout_cache.IsEmpty() || m_knockout_cache_text_attrs != attrs || m_knockout_cache_text != forResolvedText
+        || m_knockout_cache_angle != drawAngle )
+    {
+        m_knockout_cache.RemoveAllContours();
+
+        TransformTextToPolySet( m_knockout_cache, 0, aMaxError, ERROR_INSIDE );
+        m_knockout_cache.Fracture();
+
+        m_knockout_cache_text_attrs = attrs;
+        m_knockout_cache_angle = drawAngle;
+        m_knockout_cache_text = forResolvedText;
+        m_knockout_cache_pos = drawPos;
+    }
+    else if( m_knockout_cache_pos != drawPos )
+    {
+        m_knockout_cache.Move( drawPos - m_knockout_cache_pos );
+        m_knockout_cache_pos = drawPos;
+    }
+
+    return m_knockout_cache;
+}
+
+
+void PCB_TEXT::buildBoundingHull( SHAPE_POLY_SET* aBuffer, const SHAPE_POLY_SET& aRenderedText, int aClearance ) const
 {
     SHAPE_POLY_SET poly( aRenderedText );
 
@@ -515,7 +587,7 @@ void PCB_TEXT::TransformTextToPolySet( SHAPE_POLY_SET& aBuffer, int aClearance, 
                                        ERROR_LOC aErrorLoc ) const
 {
     KIGFX::GAL_DISPLAY_OPTIONS empty_opts;
-    KIFONT::FONT*              font = getDrawFont();
+    KIFONT::FONT*              font = GetDrawFont( nullptr );
     int                        penWidth = GetEffectiveTextPenWidth();
     TEXT_ATTRIBUTES            attrs = GetAttributes();
     wxString                   shownText = GetShownText( true );
@@ -527,7 +599,8 @@ void PCB_TEXT::TransformTextToPolySet( SHAPE_POLY_SET& aBuffer, int aClearance, 
     // Simplify shapes is not usually always efficient, but in this case it is.
     SHAPE_POLY_SET textShape;
 
-    CALLBACK_GAL callback_gal( empty_opts,
+    CALLBACK_GAL callback_gal(
+            empty_opts,
             // Stroke callback
             [&]( const VECTOR2I& aPt1, const VECTOR2I& aPt2 )
             {
@@ -574,9 +647,8 @@ void PCB_TEXT::TransformTextToPolySet( SHAPE_POLY_SET& aBuffer, int aClearance, 
 }
 
 
-void PCB_TEXT::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer,
-                                        int aClearance, int aMaxError, ERROR_LOC aErrorLoc,
-                                        bool aIgnoreLineWidth ) const
+void PCB_TEXT::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance, int aMaxError,
+                                        ERROR_LOC aErrorLoc, bool aIgnoreLineWidth ) const
 {
     SHAPE_POLY_SET poly;
 
@@ -614,6 +686,27 @@ double PCB_TEXT::Similarity( const BOARD_ITEM& aOther ) const
 }
 
 
+HTML_MESSAGE_BOX* PCB_TEXT::ShowSyntaxHelp( wxWindow* aParentWindow )
+{
+    wxString msg =
+#include "pcb_text_help_md.h"
+            ;
+
+    HTML_MESSAGE_BOX* dlg = new HTML_MESSAGE_BOX( aParentWindow, _( "Syntax Help" ) );
+    wxSize            sz( 320, 320 );
+
+    dlg->SetMinSize( dlg->ConvertDialogToPixels( sz ) );
+    dlg->SetDialogSizeInDU( sz.x, sz.y );
+
+    wxString html_txt;
+    ConvertMarkdown2Html( wxGetTranslation( msg ), html_txt );
+    dlg->AddHTML_Text( html_txt );
+    dlg->ShowModeless();
+
+    return dlg;
+}
+
+
 static struct PCB_TEXT_DESC
 {
     PCB_TEXT_DESC()
@@ -627,28 +720,25 @@ static struct PCB_TEXT_DESC
 
         propMgr.Mask( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Color" ) );
 
-        propMgr.AddProperty( new PROPERTY<PCB_TEXT, bool, BOARD_ITEM>( _HKI( "Knockout" ),
-                &BOARD_ITEM::SetIsKnockout, &BOARD_ITEM::IsKnockout ),
-                _HKI( "Text Properties" ) );
+        propMgr.AddProperty( new PROPERTY<PCB_TEXT, bool, BOARD_ITEM>( _HKI( "Knockout" ), &BOARD_ITEM::SetIsKnockout,
+                                                                       &BOARD_ITEM::IsKnockout ),
+                             _HKI( "Text Properties" ) );
 
-        propMgr.AddProperty( new PROPERTY<PCB_TEXT, bool, EDA_TEXT>( _HKI( "Keep Upright" ),
-                &PCB_TEXT::SetKeepUpright, &PCB_TEXT::IsKeepUpright ),
-                _HKI( "Text Properties" ) );
+        propMgr.AddProperty( new PROPERTY<PCB_TEXT, bool, EDA_TEXT>( _HKI( "Keep Upright" ), &PCB_TEXT::SetKeepUpright,
+                                                                     &PCB_TEXT::IsKeepUpright ),
+                             _HKI( "Text Properties" ) );
 
-        auto isFootprintText =
-                []( INSPECTABLE* aItem ) -> bool
-                {
-                    if( PCB_TEXT* text = dynamic_cast<PCB_TEXT*>( aItem ) )
-                        return text->GetParentFootprint();
+        auto isFootprintText = []( INSPECTABLE* aItem ) -> bool
+        {
+            if( PCB_TEXT* text = dynamic_cast<PCB_TEXT*>( aItem ) )
+                return text->GetParentFootprint();
 
-                    return false;
-                };
+            return false;
+        };
 
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ),
-                                      _HKI( "Keep Upright" ), isFootprintText );
+        propMgr.OverrideAvailability( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Keep Upright" ),
+                                      isFootprintText );
 
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ),
-                                      _HKI( "Hyperlink" ),
-                                      []( INSPECTABLE* aItem ) { return false; } );
+        propMgr.Mask( TYPE_HASH( PCB_TEXT ), TYPE_HASH( EDA_TEXT ), _HKI( "Hyperlink" ) );
     }
 } _PCB_TEXT_DESC;

@@ -25,6 +25,7 @@
 #define GRID_HELPER_H
 
 #include <vector>
+#include <optional>
 
 #include <geometry/point_types.h>
 #include <math/vector2d.h>
@@ -32,9 +33,10 @@
 #include <preview_items/snap_indicator.h>
 #include <preview_items/construction_geom.h>
 #include <tool/construction_manager.h>
-#include <tool/tool_manager.h>
 #include <tool/selection.h>
 #include <origin_viewitem.h>
+
+class TOOL_MANAGER; // Forward declaration to avoid hard dependency in tests
 
 class EDA_ITEM;
 
@@ -52,13 +54,32 @@ enum GRID_HELPER_GRIDS : int
 
 class GRID_HELPER
 {
+    friend void TEST_CLEAR_ANCHORS( GRID_HELPER& helper );
 public:
+    GRID_HELPER();
     GRID_HELPER( TOOL_MANAGER* aToolMgr, int aConstructionLayer );
     virtual ~GRID_HELPER();
 
     VECTOR2I GetGrid() const;
     VECTOR2D GetVisibleGrid() const;
     VECTOR2I GetOrigin() const;
+
+    /**
+     * Reset all internal state.  Used to remove any dangling pointers to items
+     * that have been deleted.
+     */
+    virtual void FullReset()
+    {
+        m_constructionGeomPreview.ClearSnapLine();
+        m_snapManager.Clear();
+        m_anchors.clear();
+    }
+
+    // Manual setters used when no TOOL_MANAGER/View is available (e.g. in tests)
+    void SetGridSize( const VECTOR2D& aGrid ) { m_manualGrid = aGrid; }
+    void SetVisibleGridSize( const VECTOR2D& aGrid ) { m_manualVisibleGrid = aGrid; }
+    void SetOrigin( const VECTOR2I& aOrigin ) { m_manualOrigin = aOrigin; }
+    void SetGridSnapping( bool aEnable ) { m_manualGridSnapping = aEnable; }
 
     void SetAuxAxes( bool aEnable, const VECTOR2I& aOrigin = VECTOR2I( 0, 0 ) );
 
@@ -115,6 +136,14 @@ public:
     bool GetUseGrid() const { return m_enableGrid; }
 
     void SetSnapLine( bool aSnap ) { m_enableSnapLine = aSnap; }
+    void SetSnapLineDirections( const std::vector<VECTOR2I>& aDirections );
+    void SetSnapLineOrigin( const VECTOR2I& aOrigin );
+    void SetSnapLineEnd( const std::optional<VECTOR2I>& aEnd );
+    void ClearSnapLine();
+    std::optional<VECTOR2I> SnapToConstructionLines( const VECTOR2I& aPoint,
+                                                     const VECTOR2I& aNearestGrid,
+                                                     const VECTOR2D& aGrid,
+                                                     double aSnapRange ) const;
 
     void SetMask( int aMask ) { m_maskTypes = aMask; }
     void SetMaskFlag( int aFlag ) { m_maskTypes |= aFlag; }
@@ -232,6 +261,12 @@ protected:
                                               //   source point
     KIGFX::SNAP_INDICATOR   m_viewSnapPoint;
     KIGFX::ORIGIN_VIEWITEM  m_viewAxis;
+
+    // Manual grid parameters used when no TOOL_MANAGER is provided
+    VECTOR2D                m_manualGrid;
+    VECTOR2D                m_manualVisibleGrid;
+    VECTOR2I                m_manualOrigin;
+    bool                    m_manualGridSnapping;
 
 private:
     /// Show construction geometry (if any) on the canvas.

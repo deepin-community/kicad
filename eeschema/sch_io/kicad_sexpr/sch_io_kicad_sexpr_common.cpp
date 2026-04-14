@@ -37,13 +37,19 @@ void formatFill( OUTPUTFORMATTER* aFormatter, FILL_T aFillMode, const COLOR4D& a
     switch( aFillMode )
     {
     default:
-    case FILL_T::NO_FILL:                  fillType = "none";       break;
-    case FILL_T::FILLED_SHAPE:             fillType = "outline";    break;
-    case FILL_T::FILLED_WITH_BG_BODYCOLOR: fillType = "background"; break;
-    case FILL_T::FILLED_WITH_COLOR:        fillType = "color";      break;
+    case FILL_T::NO_FILL:                  fillType = "none";          break;
+    case FILL_T::FILLED_SHAPE:             fillType = "outline";       break;
+    case FILL_T::FILLED_WITH_BG_BODYCOLOR: fillType = "background";    break;
+    case FILL_T::FILLED_WITH_COLOR:        fillType = "color";         break;
+    case FILL_T::HATCH:                    fillType = "hatch";         break;
+    case FILL_T::REVERSE_HATCH:            fillType = "reverse_hatch"; break;
+    case FILL_T::CROSS_HATCH:              fillType = "cross_hatch";   break;
     }
 
-    if( aFillMode == FILL_T::FILLED_WITH_COLOR )
+    if( aFillMode == FILL_T::FILLED_WITH_COLOR
+            || aFillMode == FILL_T::HATCH
+            || aFillMode == FILL_T::REVERSE_HATCH
+            || aFillMode == FILL_T::CROSS_HATCH )
     {
         aFormatter->Print( "(fill (type %s) (color %d %d %d %s))",
                            fillType,
@@ -233,7 +239,7 @@ void formatArc( OUTPUTFORMATTER* aFormatter, EDA_SHAPE* aArc, bool aIsPrivate,
     formatFill( aFormatter, aFillMode, aFillColor );
 
     if( aUuid != niluuid )
-        aFormatter->Print( "(uuid %s)", TO_UTF8( aUuid.AsString() ) );
+        aFormatter->Print( "(uuid %s)", aFormatter->Quotew( aUuid.AsString() ).c_str() );
 
     aFormatter->Print( ")" );
 }
@@ -252,7 +258,7 @@ void formatCircle( OUTPUTFORMATTER* aFormatter, EDA_SHAPE* aCircle, bool aIsPriv
     formatFill( aFormatter, aFillMode, aFillColor );
 
     if( aUuid != niluuid )
-        aFormatter->Print( "(uuid %s)", TO_UTF8( aUuid.AsString() ) );
+        aFormatter->Print( "(uuid %s)", aFormatter->Quotew( aUuid.AsString() ).c_str() );
 
     aFormatter->Print( ")" );
 }
@@ -266,11 +272,14 @@ void formatRect( OUTPUTFORMATTER* aFormatter, EDA_SHAPE* aRect, bool aIsPrivate,
                        aIsPrivate ? "private" : "",
                        formatIU( aRect->GetStart(), aInvertY ).c_str(),
                        formatIU( aRect->GetEnd(), aInvertY ).c_str() );
+    if( aRect->GetCornerRadius() > 0 )
+        aFormatter->Print( "(radius %s)",
+                           formatIU( aRect->GetCornerRadius() ).c_str() );
     aStroke.Format( aFormatter, schIUScale );
     formatFill( aFormatter, aFillMode, aFillColor );
 
     if( aUuid != niluuid )
-        aFormatter->Print( "(uuid %s)", TO_UTF8( aUuid.AsString() ) );
+        aFormatter->Print( "(uuid %s)", aFormatter->Quotew( aUuid.AsString() ).c_str() );
 
     aFormatter->Print( ")" );
 }
@@ -295,7 +304,7 @@ void formatBezier( OUTPUTFORMATTER* aFormatter, EDA_SHAPE* aBezier, bool aIsPriv
     formatFill( aFormatter, aFillMode, aFillColor );
 
     if( aUuid != niluuid )
-        aFormatter->Print( "(uuid %s)", TO_UTF8( aUuid.AsString() ) );
+        aFormatter->Print( "(uuid %s)", aFormatter->Quotew( aUuid.AsString() ).c_str() );
 
     aFormatter->Print( ")" );
 }
@@ -328,7 +337,7 @@ void formatPoly( OUTPUTFORMATTER* aFormatter, EDA_SHAPE* aPolyLine, bool aIsPriv
     formatFill( aFormatter, aFillMode, aFillColor );
 
     if( aUuid != niluuid )
-        aFormatter->Print( "(uuid %s)", TO_UTF8( aUuid.AsString() ) );
+        aFormatter->Print( "(uuid %s)", aFormatter->Quotew( aUuid.AsString() ).c_str() );
 
     aFormatter->Print( ")" );
 }

@@ -70,7 +70,6 @@ class DIALOG_FOOTPRINT_PROPERTIES_BASE : public DIALOG_SHIM
 		wxCheckBox* m_boardOnly;
 		wxCheckBox* m_excludeFromPosFiles;
 		wxCheckBox* m_excludeFromBOM;
-		wxCheckBox* m_noCourtyards;
 		wxCheckBox* m_cbDNP;
 		wxButton* m_buttonUpdate;
 		wxButton* m_buttonExchange;
@@ -88,13 +87,12 @@ class DIALOG_FOOTPRINT_PROPERTIES_BASE : public DIALOG_SHIM
 		wxStaticText* m_SolderPasteMarginLabel;
 		wxTextCtrl* m_SolderPasteMarginCtrl;
 		wxStaticText* m_SolderPasteMarginUnits;
-		wxStaticText* m_PasteMarginRatioLabel;
-		wxTextCtrl* m_PasteMarginRatioCtrl;
-		wxStaticText* m_PasteMarginRatioUnits;
 		wxStaticText* m_staticTextInfoCopper;
 		wxStaticText* m_staticTextInfoPaste;
 		wxStaticText* m_staticText16;
 		wxChoice* m_ZoneConnectionChoice;
+		wxStaticText* m_jumperGroupsLabel;
+		wxStaticText* m_jumperGroupsText;
 		wxStaticText* m_libraryIDLabel;
 		wxTextCtrl* m_tcLibraryID;
 		wxStdDialogButtonSizer* m_sdbSizerStdButtons;
@@ -105,7 +103,6 @@ class DIALOG_FOOTPRINT_PROPERTIES_BASE : public DIALOG_SHIM
 		virtual void OnInitDlg( wxInitDialogEvent& event ) { event.Skip(); }
 		virtual void OnUpdateUI( wxUpdateUIEvent& event ) { event.Skip(); }
 		virtual void OnPageChanging( wxNotebookEvent& event ) { event.Skip(); }
-		virtual void OnGridSize( wxSizeEvent& event ) { event.Skip(); }
 		virtual void OnAddField( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnDeleteField( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnText( wxCommandEvent& event ) { event.Skip(); }
@@ -116,7 +113,6 @@ class DIALOG_FOOTPRINT_PROPERTIES_BASE : public DIALOG_SHIM
 		virtual void ChangeFootprint( wxCommandEvent& event ) { event.Skip(); }
 		virtual void EditFootprint( wxCommandEvent& event ) { event.Skip(); }
 		virtual void EditLibraryFootprint( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnValuesChanged( wxCommandEvent& event ) { event.Skip(); }
 
 
 	public:

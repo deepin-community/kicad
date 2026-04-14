@@ -93,7 +93,7 @@ public:
 
     int GetWidth() const override;
 
-    void StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings ) override;
+    void StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings, bool aCheckSide ) override;
 
     /**
      * Return 4 corners for a rectangle or rotated rectangle (stored as a poly).  Unimplemented
@@ -130,6 +130,11 @@ public:
         return hitTest( aRect, aContained, aAccuracy );
     }
 
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override
+    {
+        return hitTest( aPoly, aContained );
+    }
+
     void Normalize() override;
 
     /**
@@ -149,6 +154,8 @@ public:
 
     void Scale( double aScale );
 
+    void UpdateHatching() const override;
+
     /**
      * Convert the shape to a closed polygon.  Circles and arcs are approximated by segments.
      *
@@ -162,6 +169,21 @@ public:
     void TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance,
                                   int aError, ERROR_LOC aErrorLoc,
                                   bool ignoreLineWidth = false ) const override;
+
+    /**
+     * Convert the item shape to a polyset. Circles and arcs are approximated by segments; hatched
+     * fills and details (if any) will be included.
+     *
+     * @param aBuffer a buffer to store the polygon.
+     * @param aClearance the clearance around the pad.
+     * @param aError the maximum deviation from true circle.
+     * @param aErrorLoc should the approximation error be placed outside or inside the polygon?
+     * @param aRenderSettings used to plot outlines with not solid segments like dashed lines.
+     * So it is not used by all BOARD_ITEMS. If null lines like dashed will be converted as SOLID
+     */
+    void TransformShapeToPolySet( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer,
+                                  int aClearance, int aError, ERROR_LOC aErrorLoc,
+                                  KIGFX::RENDER_SETTINGS* aRenderSettings = nullptr ) const override;
 
     wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
@@ -196,11 +218,18 @@ public:
 protected:
     void swapData( BOARD_ITEM* aImage ) override;
 
+    bool isMoving() const override { return IsMoving(); }
+
+    int getMaxError() const override;
+
+    SHAPE_POLY_SET getHatchingKnockouts() const override;
+
     struct cmp_drawings
     {
         bool operator()( const BOARD_ITEM* aFirst, const BOARD_ITEM* aSecond ) const;
     };
 
+protected:
     bool               m_hasSolderMask;
     std::optional<int> m_solderMaskMargin;
 };

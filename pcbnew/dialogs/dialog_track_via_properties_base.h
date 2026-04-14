@@ -28,7 +28,6 @@ class PCB_LAYER_BOX_SELECTOR;
 #include <wx/choice.h>
 #include <wx/gbsizer.h>
 #include <wx/bmpcbox.h>
-#include <wx/tglbtn.h>
 #include <wx/bitmap.h>
 #include <wx/image.h>
 #include <wx/icon.h>
@@ -79,6 +78,7 @@ class DIALOG_TRACK_VIA_PROPERTIES_BASE : public DIALOG_SHIM
 		wxStaticText* m_TrackLayerLabel;
 		PCB_LAYER_BOX_SELECTOR* m_TrackLayerCtrl;
 		wxStaticText* m_techLayersLabel;
+		wxStaticLine* m_staticline3;
 		wxCheckBox* m_trackHasSolderMask;
 		wxStaticText* m_trackMaskMarginLabel;
 		wxTextCtrl* m_trackMaskMarginCtrl;
@@ -111,12 +111,40 @@ class DIALOG_TRACK_VIA_PROPERTIES_BASE : public DIALOG_SHIM
 		PCB_LAYER_BOX_SELECTOR* m_ViaEndLayer;
 		wxStaticText* m_annularRingsLabel;
 		wxChoice* m_annularRingsCtrl;
-		wxStaticText* m_tentingFrontLabel;
-		wxChoice* m_tentingFrontCtrl;
-		wxBitmapToggleButton* m_btnLinkTenting;
-		wxStaticText* m_tentingBackLabel;
-		wxChoice* m_tentingBackCtrl;
+		wxStaticText* m_protectionPresetsLabel;
+		wxChoice* m_protectionFeatures;
 		wxStaticLine* m_staticline2;
+		wxStaticText* m_backdrillLabel;
+		wxChoice* m_backdrillChoice;
+		wxStaticText* m_backdrillFrontSizeLabel;
+		wxTextCtrl* m_backdrillFrontSizeCtrl;
+		wxStaticText* m_backdrillFrontSizeUnits;
+		wxStaticText* m_backdrillFrontLayerLabel;
+		PCB_LAYER_BOX_SELECTOR* m_backdrillFrontLayer;
+		wxStaticText* m_backdrillBackSizeLabel;
+		wxTextCtrl* m_backdrillBackSizeCtrl;
+		wxStaticText* m_backdrillBackSizeUnits;
+		wxStaticText* m_backdrillBackLayerLabel;
+		PCB_LAYER_BOX_SELECTOR* m_backdrillBackLayer;
+		wxStaticText* m_postMachineSectionLabel;
+		wxStaticLine* m_staticline21;
+		wxStaticText* m_topPostMachineLabel;
+		wxChoice* m_topPostMachine;
+		wxStaticText* m_topPostMachineSize1Label;
+		wxTextCtrl* m_topPostMachineSize1Ctrl;
+		wxStaticText* m_topPostMachineSize1Units;
+		wxStaticText* m_topPostMachineSize2Label;
+		wxTextCtrl* m_topPostMachineSize2Ctrl;
+		wxStaticText* m_topPostMachineSize2Units;
+		wxStaticText* m_bottomPostMachineLabel;
+		wxChoice* m_bottomPostMachine;
+		wxStaticText* m_bottomPostMachineSize1Label;
+		wxTextCtrl* m_bottomPostMachineSize1Ctrl;
+		wxStaticText* m_bottomPostMachineSize1Units;
+		wxStaticText* m_bottomPostMachineSize2Label;
+		wxTextCtrl* m_bottomPostMachineSize2Ctrl;
+		wxStaticText* m_bottomPostMachineSize2Units;
+		wxStaticLine* m_staticline4;
 		wxBoxSizer* m_legacyTeardropsWarning;
 		wxStaticBitmap* m_legacyTeardropsIcon;
 		wxStaticText* m_staticText85;
@@ -152,8 +180,9 @@ class DIALOG_TRACK_VIA_PROPERTIES_BASE : public DIALOG_SHIM
 		virtual void onPadstackModeChanged( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onEditLayerChanged( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onViaEdit( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onFrontTentingChanged( wxCommandEvent& event ) { event.Skip(); }
-		virtual void onTentingLinkToggle( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onBackdrillChange( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onTopPostMachineChange( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onBottomPostMachineChange( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onTeardropsUpdateUi( wxUpdateUIEvent& event ) { event.Skip(); }
 
 

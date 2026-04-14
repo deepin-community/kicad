@@ -18,23 +18,14 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _COMMON_SETTINGS_H
-#define _COMMON_SETTINGS_H
+#pragma once
 
+#include <memory>
+#include <mouse_drag_action.h>
 #include <settings/environment.h>
 #include <settings/json_settings.h>
 
-
-enum class MOUSE_DRAG_ACTION
-{
-    // WARNING: these are encoded as integers in the file, so don't change their values.
-    DRAG_ANY = -2,
-    DRAG_SELECTED,
-    SELECT,
-    ZOOM,
-    PAN,
-    NONE
-};
+struct COMMON_SETTINGS_INTERNALS;
 
 enum class ICON_THEME
 {
@@ -58,6 +49,8 @@ public:
         int        text_editor_zoom;
         int        toolbar_icon_size;
         bool       grid_striping;
+        bool       use_custom_cursors;
+        double     zoom_correction_factor;
     };
 
     struct AUTO_BACKUP
@@ -96,6 +89,8 @@ public:
         int scroll_modifier_pan_h;
         int scroll_modifier_pan_v;
 
+        int motion_pan_modifier;
+
         MOUSE_DRAG_ACTION drag_left;
         MOUSE_DRAG_ACTION drag_middle;
         MOUSE_DRAG_ACTION drag_right;
@@ -104,10 +99,20 @@ public:
         bool reverse_scroll_pan_h;
     };
 
+    struct SPACEMOUSE
+    {
+        int  rotate_speed;
+        int  pan_speed;
+        bool reverse_rotate;
+        bool reverse_pan_x;
+        bool reverse_pan_y;
+        bool reverse_zoom;
+    };
+
     struct GRAPHICS
     {
-        int cairo_aa_mode;
-        int opengl_aa_mode;
+        int canvas_type; ///< EDA_DRAW_PANEL_GAL::GAL_TYPE_* value, see gal_options_panel.cpp
+        int aa_mode;
     };
 
     struct SESSION
@@ -120,7 +125,8 @@ public:
 
     struct SYSTEM
     {
-        int autosave_interval;
+        bool local_history_enabled;
+        int local_history_debounce;
         wxString text_editor;
         wxString file_explorer;
         int file_history_size;
@@ -138,13 +144,6 @@ public:
         bool scaled_3d_models_warning;
         bool data_collection_prompt;
         bool update_check_prompt;
-    };
-
-    struct NETCLASS_PANEL
-    {
-        int sash_pos;
-        wxString eeschema_visible_columns;
-        wxString pcbnew_visible_columns;
     };
 
     struct PACKAGE_MANAGER
@@ -181,7 +180,10 @@ public:
 
     COMMON_SETTINGS();
 
-    virtual ~COMMON_SETTINGS() {}
+    virtual ~COMMON_SETTINGS();
+
+    COMMON_SETTINGS_INTERNALS& CsInternals()             { return *m_csInternals; }
+    const COMMON_SETTINGS_INTERNALS& CsInternals() const { return *m_csInternals; }
 
     virtual bool MigrateFromLegacy( wxConfigBase* aLegacyConfig ) override;
 
@@ -194,6 +196,8 @@ private:
     bool migrateSchema0to1();
     bool migrateSchema1to2();
     bool migrateSchema2to3();
+    bool migrateSchema3to4();
+    bool migrateSchema4to5();
 
     struct LEGACY_3D_SEARCH_PATH
     {
@@ -209,29 +213,18 @@ private:
                                   std::vector<LEGACY_3D_SEARCH_PATH>& aSearchPaths );
 
 public:
-    APPEARANCE m_Appearance;
-
-    AUTO_BACKUP m_Backup;
-
-    ENVIRONMENT m_Env;
-
-    INPUT m_Input;
-
-    GRAPHICS m_Graphics;
-
-    SESSION m_Session;
-
-    SYSTEM m_System;
-
+    APPEARANCE        m_Appearance;
+    AUTO_BACKUP       m_Backup;
+    ENVIRONMENT       m_Env;
+    INPUT             m_Input;
+    SPACEMOUSE        m_SpaceMouse;
+    GRAPHICS          m_Graphics;
+    SESSION           m_Session;
+    SYSTEM            m_System;
     DO_NOT_SHOW_AGAIN m_DoNotShowAgain;
+    PACKAGE_MANAGER   m_PackageManager;
+    GIT               m_Git;
+    API               m_Api;
 
-    NETCLASS_PANEL m_NetclassPanel;
-
-    PACKAGE_MANAGER m_PackageManager;
-
-    GIT m_Git;
-
-    API m_Api;
+    std::unique_ptr<COMMON_SETTINGS_INTERNALS> m_csInternals;
 };
-
-#endif

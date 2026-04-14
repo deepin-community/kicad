@@ -24,6 +24,8 @@
 #include <qa_utils/wx_utils/unit_test_utils.h>
 #include <boost/test/data/test_case.hpp>
 
+#include <limits>
+
 #include <convert_basic_shapes_to_polygon.h>
 #include <geometry/shape_arc.h>
 #include <geometry/shape_circle.h>
@@ -62,7 +64,7 @@ static void CheckArcGeom( const SHAPE_ARC& aArc, const ARC_PROPERTIES& aProps, c
 {
     // Angular error - note this can get quite large for very small arcs,
     // as the integral position rounding has a relatively greater effect
-    const double angle_tol_deg = 1.0;
+    const double angle_tol_deg = 2.0;
 
     // Position error - rounding to nearest integer
     const int pos_tol = 1;
@@ -88,8 +90,18 @@ static void CheckArcGeom( const SHAPE_ARC& aArc, const ARC_PROPERTIES& aProps, c
     BOOST_CHECK_PREDICATE( KI_TEST::IsWithin<double>,
             ( aArc.GetRadius() )( aProps.m_radius )( aSynErrIU ) );
 
+    // Angle normalization contracts
+    BOOST_TEST( aArc.GetStartAngle().AsDegrees() >= 0.0 );
+    BOOST_TEST( aArc.GetStartAngle().AsDegrees() <= 360.0 );
+
+    BOOST_TEST( aArc.GetEndAngle().AsDegrees() >= 0.0 );
+    BOOST_TEST( aArc.GetEndAngle().AsDegrees() <= 360.0 );
+
+    BOOST_TEST( aArc.GetCentralAngle().AsDegrees() >= -360.0 );
+    BOOST_TEST( aArc.GetCentralAngle().AsDegrees() <= 360.0 );
+
     /// Check the chord agrees
-    const auto chord = aArc.GetChord();
+    const SEG chord = aArc.GetChord();
 
     BOOST_CHECK_PREDICATE( KI_TEST::IsVecWithinTol<VECTOR2I>,
             ( chord.A )( aProps.m_start_point )( pos_tol ) );
@@ -121,7 +133,7 @@ static void CheckArc( const SHAPE_ARC& aArc, const ARC_PROPERTIES& aProps, const
     // Test the Clone function (also tests copy-ctor)
     std::unique_ptr<SHAPE> new_shape{ aArc.Clone() };
 
-    BOOST_CHECK_EQUAL( new_shape->Type(), SH_ARC );
+    BOOST_REQUIRE_EQUAL( new_shape->Type(), SH_ARC );
 
     SHAPE_ARC* new_arc = dynamic_cast<SHAPE_ARC*>( new_shape.get() );
 
@@ -155,21 +167,114 @@ BOOST_AUTO_TEST_CASE( NullCtor )
 
 
 /**
+ * Info to set up an arc by start, mid and end points
+ */
+struct ARC_START_MID_END
+{
+    VECTOR2I m_start_point;
+    VECTOR2I m_mid_point;
+    VECTOR2I m_end_point;
+};
+
+struct ARC_SME_CASE : public KI_TEST::NAMED_CASE
+{
+    /// Geom of the arc
+    ARC_START_MID_END m_geom;
+
+    /// Arc line width
+    int m_width;
+
+    /// Expected properties
+    ARC_PROPERTIES m_properties;
+};
+
+
+static const std::vector<ARC_SME_CASE> arc_sme_cases = {
+    {
+            "S(-100,0), M(0,100), E(100,0)",
+            {
+                    { -100, 0 },
+                    { 0, 100 },
+                    { 100, 0 },
+            },
+            0,
+            {
+                    { 0, 0 },
+                    { -100, 0 },
+                    { 100, 0 },
+                    180,
+                    180,
+                    0,
+                    100,
+                    { { -100, 0 }, { 200, 100 } },
+            },
+    },
+    {
+            "S(100,0), M(0,100), E(-100,0) (reversed)",
+            {
+                    { 100, 0 },
+                    { 0, 100 },
+                    { -100, 0 },
+            },
+            0,
+            {
+                    { 0, 0 },
+                    { 100, 0 },
+                    { -100, 0 },
+                    -180,
+                    0,
+                    180,
+                    100,
+                    { { -100, 0 }, { 200, 100 } },
+            },
+    },
+    {
+            // This data has a midpoint not exactly at the midway point of the arc.
+            // This should be corrected by the constructor.
+            // The mid point should be at about (-71, -71) for a 270 degree arc, with the
+            // bottom right quadrant open.
+            "S(100,0), M(-100,0), E(0,100) (bad midpoint)",
+            {
+                    { 100, 0 },
+                    { -100, 0 },
+                    { 0, 100 },
+            },
+            0,
+            {
+                    { 0, 0 },
+                    { 100, 0 },
+                    { 0, 100 },
+                    -270,
+                    0,
+                    90,
+                    100,
+                    { { -100, -100 }, { 200, 200 } },
+            },
+    }
+};
+
+
+BOOST_DATA_TEST_CASE( BasicSMEGeom, boost::unit_test::data::make( arc_sme_cases ), c )
+{
+    const SHAPE_ARC this_arc{
+        c.m_geom.m_start_point,
+        c.m_geom.m_mid_point,
+        c.m_geom.m_end_point,
+        c.m_width,
+    };
+
+    CheckArc( this_arc, c.m_properties );
+}
+
+
+/**
  * Info to set up an arc by centre, start point and angle
- *
- * In future there may be more ways to set this up, so keep it separate
  */
 struct ARC_CENTRE_PT_ANGLE
 {
     VECTOR2I m_center_point;
     VECTOR2I m_start_point;
     double   m_center_angle;
-};
-struct ARC_START_MID_END
-{
-    VECTOR2I m_start_point;
-    VECTOR2I m_mid_point;
-    VECTOR2I m_end_point;
 };
 
 
@@ -333,10 +438,12 @@ static const std::vector<ARC_CPA_CASE> arc_cases = {
 
 BOOST_DATA_TEST_CASE( BasicCPAGeom, boost::unit_test::data::make( arc_cases ), c )
 {
-
-    const auto this_arc = SHAPE_ARC{ c.m_geom.m_center_point, c.m_geom.m_start_point,
-                                        EDA_ANGLE( c.m_geom.m_center_angle, DEGREES_T ),
-                                        c.m_width };
+    const SHAPE_ARC this_arc{
+        c.m_geom.m_center_point,
+        c.m_geom.m_start_point,
+        EDA_ANGLE( c.m_geom.m_center_angle, DEGREES_T ),
+        c.m_width,
+    };
 
     CheckArc( this_arc, c.m_properties );
 }
@@ -401,7 +508,7 @@ static const std::vector<ARC_TTR_CASE> arc_ttr_cases = {
                     { 1707, 1707 },    //end on second segment
                     135,               //positive angle due to start/end
                     180,
-                    225,
+                    315,
                     1000,
                     { { 0, 1414 }, { 1707, 1000 } },
             }
@@ -670,22 +777,25 @@ struct ARC_SEG_COLLIDE_CASE : public KI_TEST::NAMED_CASE
     SEG                 m_seg;
     bool                m_exp_result;
     int                 m_exp_distance;
+    VECTOR2I            m_collide_point;
 };
 
 
 static const std::vector<ARC_SEG_COLLIDE_CASE> arc_seg_collide_cases = {
-    { "0   deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 100, 0 }, { 50, 0 } }, true, 0 },
-    { "90  deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 0, 100 }, { 0, 50 } }, true, 0 },
-    { "180 deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { -100, 0 }, { -50, 0 } }, true, 0 },
-    { "270 deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 0, -100 }, { 0, -50 } }, true, 0 },
-    { "45  deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 71, 71 }, { 35, 35 } }, true, 0 },
-    { "-45 deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 71, -71 }, { 35, -35 } }, false, -1 },
+    { "0   deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 100, 0 }, { 50, 0 } }, true, 0, { 100, 0 } },
+    { "90  deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 0, 100 }, { 0, 50 } }, true, 0, { 0, 100 } },
+    { "180 deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { -100, 0 }, { -50, 0 } }, true, 0, { -100, 0 } },
+    { "270 deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 0, -100 }, { 0, -50 } }, true, 0, { 0, -100 } },
+    { "45  deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 71, 71 }, { 35, 35 } }, true, 0, { 70, 70 } },
+    { "-45 deg    ", { { 0, 0 }, { 100, 0 }, 270.0 }, 0, { { 71, -71 }, { 35, -35 } }, false, -1, { 0, 0 } },
     { "seg inside arc start", { { 0, 0 }, { 71, -71 }, 90.0 },
-                        10, { { 90, 0 }, { -35, 0 } }, true, 10 },
+                        10, { { 90, 0 }, { -35, 0 } }, true, 10, { 100, 0 } },
     { "seg inside arc end", { { 0, 0 }, { 71, -71  }, 90.0 },
-                        10, { { -35, 0 }, { 90, 0 } }, true, 10 },
+                        10, { { -35, 0 }, { 90, 0 } }, true, 10, { 100, 0 } },
     { "large diameter arc", { { 172367922, 82282076 }, { 162530000, 92120000 }, -45.0 },
-                        433300, { { 162096732, 92331236 }, { 162096732, 78253268 } }, true, 433268 },
+                        433300, { { 162096732, 92331236 }, { 162096732, 78253268 } }, true, 433268, { 162530000, 92120000 } },
+    { "upside down collide", { { 26250000, 16520000 }, { 28360000, 16520000 }, 90.0 },
+                        0, { { 27545249, 18303444 }, { 27545249, 18114500 } }, true, 0, { 27545249, 18185662 } }
 };
 
 
@@ -714,6 +824,18 @@ BOOST_DATA_TEST_CASE( CollideSeg, boost::unit_test::data::make( arc_seg_collide_
             BOOST_CHECK_EQUAL( dist, 0 );
         else
             BOOST_CHECK_EQUAL( dist, -1 );
+    }
+
+    BOOST_TEST_CONTEXT( "Test Collide Point" )
+    {
+        VECTOR2I collide_point;
+        int dist = -1;
+
+        if( c.m_exp_result )
+        {
+            arc.Collide( c.m_seg, c.m_arc_clearance, &dist, &collide_point );
+            BOOST_CHECK_EQUAL( collide_point, c.m_collide_point );
+        }
     }
 }
 
@@ -1052,7 +1174,7 @@ BOOST_DATA_TEST_CASE( ArcToPolyline, boost::unit_test::data::make( ArcToPolyline
     BOOST_CHECK_EQUAL( chain.CPoint( 0 ), c.m_geom.m_start_point );
 
     // End point (exactly) where expected
-    BOOST_CHECK_EQUAL( chain.CPoint( -1 ), this_arc.GetP1() );
+    BOOST_CHECK_EQUAL( chain.CLastPoint(), this_arc.GetP1() );
 
     int radius = ( c.m_geom.m_center_point - c.m_geom.m_start_point ).EuclideanNorm();
 
@@ -1062,6 +1184,154 @@ BOOST_DATA_TEST_CASE( ArcToPolyline, boost::unit_test::data::make( ArcToPolyline
 
     BOOST_CHECK_PREDICATE( ArePolylineMidPointsNearCircle,
             ( chain )( c.m_geom.m_center_point )( radius )( accuracy + epsilon ) );
+}
+
+
+/**
+ * Test that TransformArcToPolygon handles shallow arcs (where the mid-point is nearly
+ * collinear with start and end points) without producing invalid geometry due to
+ * integer overflow from extremely large radii.
+ *
+ * This is a regression test for issue #22475 where shallow-radius arc segments
+ * caused polygon pour rendering artifacts.
+ */
+BOOST_AUTO_TEST_CASE( TransformShallowArcToPolygon )
+{
+    SHAPE_POLY_SET buffer;
+
+    // Create an arc where the mid-point is only slightly off the start-end line.
+    // This creates a very large radius arc that previously caused integer overflow.
+    const VECTOR2I start( 0, 0 );
+    const VECTOR2I end( 10000000, 0 );       // 10mm chord length
+    const VECTOR2I mid( 5000000, 5 );        // Mid-point only 5nm off the line
+
+    const int width = 250000;                // 0.25mm track width
+    const int aError = 5000;                 // Default error tolerance
+
+    // This should not crash or produce invalid geometry
+    TransformArcToPolygon( buffer, start, mid, end, width, aError, ERROR_INSIDE );
+
+    // Should produce at least one outline
+    BOOST_CHECK( buffer.OutlineCount() >= 1 );
+
+    // The outline should be valid (closed, has points)
+    if( buffer.OutlineCount() > 0 )
+    {
+        const SHAPE_LINE_CHAIN& outline = buffer.COutline( 0 );
+        BOOST_CHECK( outline.IsClosed() );
+        BOOST_CHECK( outline.PointCount() >= 3 );
+
+        // The bounding box should be reasonable (roughly the track width around the chord)
+        BOX2I bbox = outline.BBox();
+        BOOST_CHECK( bbox.GetWidth() <= end.x + width * 2 );
+        BOOST_CHECK( bbox.GetHeight() <= width * 2 + 100 ); // Allow some tolerance
+    }
+}
+
+
+/**
+ * Test that arcs with extremely large radii (greater than INT_MAX/2) are
+ * properly converted to line segments.
+ */
+BOOST_AUTO_TEST_CASE( TransformVeryShallowArcToPolygon )
+{
+    SHAPE_POLY_SET buffer;
+
+    // Create an arc that is effectively a straight line - mid-point essentially on the line.
+    // This should be detected by IsEffectiveLine() and handled as a line segment.
+    const VECTOR2I start( 0, 0 );
+    const VECTOR2I end( 50000000, 0 );       // 50mm chord length
+    const VECTOR2I mid( 25000000, 1 );       // Mid-point only 1nm off the line
+
+    const int width = 250000;                // 0.25mm track width
+    const int aError = 5000;
+
+    // This should not crash and should produce valid geometry
+    TransformArcToPolygon( buffer, start, mid, end, width, aError, ERROR_INSIDE );
+
+    BOOST_CHECK( buffer.OutlineCount() >= 1 );
+
+    if( buffer.OutlineCount() > 0 )
+    {
+        const SHAPE_LINE_CHAIN& outline = buffer.COutline( 0 );
+        BOOST_CHECK( outline.IsClosed() );
+        BOOST_CHECK( outline.PointCount() >= 3 );
+    }
+}
+
+
+/**
+ * Test arc with values similar to problematic arcs in issue #22475 board.
+ * These arcs have distToMid around 12-13µm with radius around 24mm.
+ */
+BOOST_AUTO_TEST_CASE( TransformIssue22475ArcToPolygon )
+{
+    SHAPE_POLY_SET buffer;
+
+    // Values approximating one of the problematic arcs from issue #22475:
+    // radius=24.35 mm, distToMid=12960 nm, chord=1.62 mm, angle=-3.8 deg
+    // Compute start, mid, end points for such an arc
+    const VECTOR2I start( 0, 0 );
+    const VECTOR2I end( 1620000, 0 );          // 1.62mm chord length
+    const VECTOR2I mid( 810000, 12960 );       // Mid-point 12960nm (12.96µm) off the line
+
+    const int width = 200000;                   // 0.2mm track width
+    const int aError = 5000;
+
+    // Before the fix, this should create a polygon with very large extent
+    // After the fix, it should create a reasonable oval-shaped polygon
+    TransformArcToPolygon( buffer, start, mid, end, width, aError, ERROR_INSIDE );
+
+    BOOST_REQUIRE( buffer.OutlineCount() >= 1 );
+
+    const SHAPE_LINE_CHAIN& outline = buffer.COutline( 0 );
+    BOOST_CHECK( outline.IsClosed() );
+    BOOST_CHECK( outline.PointCount() >= 3 );
+
+    BOX2I bbox = outline.BBox();
+
+    // The bounding box should be reasonable - roughly chord + 2*width wide, 2*width high
+    // With the fix (treating as oval), width should be ~1620000 + 2*200000 = 2020000
+    // Height should be ~2*200000 = 400000
+    // Without the fix, the height could be enormous due to the large arc radius
+
+    // Check that the polygon isn't ridiculously large
+    BOOST_CHECK_MESSAGE( bbox.GetWidth() <= 3000000,
+                         wxString::Format( "Polygon width %lld is too large (expected ~2020000)", (long long)bbox.GetWidth() ) );
+    BOOST_CHECK_MESSAGE( bbox.GetHeight() <= 1000000,
+                         wxString::Format( "Polygon height %lld is too large (expected ~400000)", (long long)bbox.GetHeight() ) );
+}
+
+
+/**
+ * Test that SHAPE_ARC::Collide handles arcs with near-INT_MAX radius without crashing.
+ * Reproduces a crash during PADS ASCII import where a near-collinear arc produced a
+ * radius exceeding INT_MAX, overflowing the CIRCLE(int) constructor and KiROUND.
+ */
+BOOST_AUTO_TEST_CASE( CollideNearlyFlatArcDoesNotOverflow )
+{
+    // Values from the core dump: a nearly-flat arc with enormous radius
+    const VECTOR2I start( 68208364, -8000 );
+    const VECTOR2I mid( 771364, 500000 );
+    const VECTOR2I end( 35224335, -7999 );
+    const int      width = 1270000;
+
+    SHAPE_ARC arc( start, mid, end, width );
+
+    // Radius should be near or above INT_MAX/2, triggering the segment fallback
+    BOOST_CHECK( arc.GetRadius() >= (double) std::numeric_limits<int>::max() / 2.0 );
+
+    // Point near the arc endpoints.  Must not crash.
+    const VECTOR2I testPt( 35224298, -5381 );
+    int            actual = 0;
+    VECTOR2I       location;
+
+    BOOST_CHECK_NO_THROW( arc.Collide( testPt, 635000, &actual, &location ) );
+
+    // Segment near the arc.  Must not crash.
+    const SEG testSeg( VECTOR2I( 35224298, -5381 ), VECTOR2I( 35696364, -32988651 ) );
+
+    BOOST_CHECK_NO_THROW( arc.Collide( testSeg, 635000, &actual, &location ) );
 }
 
 

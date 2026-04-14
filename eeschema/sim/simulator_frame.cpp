@@ -33,6 +33,7 @@
 
 #include <project/project_file.h>
 #include <sch_edit_frame.h>
+#include <widgets/wx_infobar.h>
 #include <kiway.h>
 #include <confirm.h>
 #include <bitmaps.h>
@@ -57,6 +58,8 @@
 #include <sim/simulator_reporter.h>
 #include <eeschema_settings.h>
 #include <advanced_config.h>
+#include <sim/toolbars_simulator_frame.h>
+#include <settings/settings_manager.h>
 
 #include <memory>
 
@@ -134,25 +137,25 @@ SIMULATOR_FRAME::SIMULATOR_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     m_infoBar = new WX_INFOBAR( this );
     mainSizer->Add( m_infoBar, 0, wxEXPAND, 0 );
 
-    m_toolBar = new ACTION_TOOLBAR( this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-                                    wxAUI_TB_DEFAULT_STYLE|wxAUI_TB_HORZ_LAYOUT|wxAUI_TB_PLAIN_BACKGROUND );
-   	m_toolBar->Realize();
-    mainSizer->Add( m_toolBar, 0, wxEXPAND, 5 );
+    m_tbTopMain = new ACTION_TOOLBAR( this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                                      wxAUI_TB_DEFAULT_STYLE|wxAUI_TB_HORZ_LAYOUT|wxAUI_TB_PLAIN_BACKGROUND );
+    m_tbTopMain->Realize();
+    mainSizer->Add( m_tbTopMain, 0, wxEXPAND, 5 );
 
     m_ui = new SIMULATOR_FRAME_UI( this, m_schematicFrame );
     mainSizer->Add( m_ui, 1, wxEXPAND, 5 );
 
     m_simulator = SIMULATOR::CreateInstance( "ngspice" );
-    wxASSERT( m_simulator );
+
+    if( !m_simulator )
+        throw SIMULATOR_INIT_ERR( "Failed to create simulator instance" );
 
     LoadSettings( config() );
 
-    NGSPICE_SETTINGS* settings = dynamic_cast<NGSPICE_SETTINGS*>( m_simulator->Settings().get() );
+    std::shared_ptr<NGSPICE_SETTINGS> cfg = Prj().GetProjectFile().m_SchematicSettings->m_NgspiceSettings;
 
-    wxCHECK2( settings, /* do nothing in release builds*/ );
-
-    if( settings && settings->GetWorkbookFilename().IsEmpty() )
-        settings->SetCompatibilityMode( NGSPICE_COMPATIBILITY_MODE::LT_PSPICE );
+    if( cfg->GetWorkbookFilename().IsEmpty() )
+        cfg->SetCompatibilityMode( NGSPICE_COMPATIBILITY_MODE::LT_PSPICE );
 
     m_simulator->Init();
 
@@ -164,11 +167,16 @@ SIMULATOR_FRAME::SIMULATOR_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     setupTools();
     setupUIConditions();
 
-    ReCreateHToolbar();
+    // Set the tool manager for the toolbar here, since the tool manager didn't exist when the toolbar
+    // was created.
+    m_tbTopMain->SetToolManager( m_toolManager );
+
+    m_toolbarSettings = GetToolbarSettings<SIMULATOR_TOOLBAR_SETTINGS>( "sim-toolbars" );
+    configureToolbars();
+    RecreateToolbars();
     ReCreateMenuBar();
 
-    Bind( wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler( SIMULATOR_FRAME::onExit ), this,
-          wxID_EXIT );
+    Bind( wxEVT_COMMAND_MENU_SELECTED, wxCommandEventHandler( SIMULATOR_FRAME::onExit ), this, wxID_EXIT );
 
     Bind( EVT_SIM_UPDATE, &SIMULATOR_FRAME::onUpdateSim, this );
     Bind( EVT_SIM_REPORT, &SIMULATOR_FRAME::onSimReport, this );
@@ -235,44 +243,29 @@ void SIMULATOR_FRAME::ShowChangedLanguage()
 
 void SIMULATOR_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 {
-    EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( aCfg );
-    wxASSERT( cfg );
-
-    if( cfg )
+    if( EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( aCfg ) )
     {
         EDA_BASE_FRAME::LoadSettings( cfg );
         m_ui->LoadSettings( cfg );
     }
 
-    PROJECT_FILE& project = Prj().GetProjectFile();
-
-    NGSPICE* currentSim = dynamic_cast<NGSPICE*>( m_simulator.get() );
-
-    if( currentSim )
-        m_simulator->Settings() = project.m_SchematicSettings->m_NgspiceSettings;
+    if( m_simulator )
+        m_simulator->Settings() = Prj().GetProjectFile().m_SchematicSettings->m_NgspiceSettings;
 }
 
 
 void SIMULATOR_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
 {
-    EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( aCfg );
-    wxASSERT( cfg );
-
-    if( cfg )
+    if( EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( aCfg ) )
     {
         EDA_BASE_FRAME::SaveSettings( cfg );
         m_ui->SaveSettings( cfg );
     }
 
-    PROJECT_FILE& project = Prj().GetProjectFile();
+    bool modified = Prj().GetProjectFile().m_SchematicSettings->m_NgspiceSettings->SaveToFile();
 
-    if( project.m_SchematicSettings )
-    {
-        bool modified = project.m_SchematicSettings->m_NgspiceSettings->SaveToFile();
-
-        if( m_schematicFrame && modified )
-            m_schematicFrame->OnModify();
-    }
+    if( m_schematicFrame && modified )
+        m_schematicFrame->OnModify();
 }
 
 
@@ -280,18 +273,18 @@ void SIMULATOR_FRAME::CommonSettingsChanged( int aFlags )
 {
     KIWAY_PLAYER::CommonSettingsChanged( aFlags );
 
-    auto* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( m_toolManager->GetSettings() );
-    wxASSERT( cfg != nullptr );
-    m_ui->ApplyPreferences( cfg->m_Simulator.preferences );
+    if( EESCHEMA_SETTINGS* cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" ) )
+        m_ui->ApplyPreferences( cfg->m_Simulator.preferences );
 }
 
 
 WINDOW_SETTINGS* SIMULATOR_FRAME::GetWindowSettings( APP_SETTINGS_BASE* aCfg )
 {
-    EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( aCfg );
-    wxASSERT( cfg );
+    if( EESCHEMA_SETTINGS* cfg = GetAppSettings<EESCHEMA_SETTINGS>( "eeschema" ) )
+        return &cfg->m_Simulator.window;
 
-    return cfg ? &cfg->m_Simulator.window : nullptr;
+    wxFAIL_MSG( wxT( "SIMULATOR not running with EESCHEMA_SETTINGS" ) );
+    return &aCfg->m_Window;     // non-null fail-safe
 }
 
 
@@ -321,10 +314,11 @@ int SIMULATOR_FRAME::GetCurrentOptions() const
 
 void SIMULATOR_FRAME::UpdateTitle()
 {
-    bool       unsaved = true;
-    bool       readOnly = false;
-    wxString   title;
-    wxFileName filename = Prj().AbsolutePath( m_simulator->Settings()->GetWorkbookFilename() );
+    bool                              unsaved = true;
+    bool                              readOnly = false;
+    wxString                          title;
+    std::shared_ptr<NGSPICE_SETTINGS> cfg = Prj().GetProjectFile().m_SchematicSettings->m_NgspiceSettings;
+    wxFileName                        filename = Prj().AbsolutePath( cfg->GetWorkbookFilename() );
 
     if( filename.IsOk() && filename.FileExists() )
     {
@@ -426,7 +420,7 @@ void SIMULATOR_FRAME::StartSimulation()
 
         if( tranSpicePlot.IsEmpty() )
         {
-            DisplayErrorMessage( this, _( "You must run a TRAN simulation first; its results"
+            DisplayErrorMessage( this, _( "You must run a TRAN simulation first; its results "
                                           "will be used for the fast Fourier transform." ) );
         }
         else
@@ -580,6 +574,18 @@ bool SIMULATOR_FRAME::SaveWorkbook( const wxString& aPath )
 }
 
 
+void SIMULATOR_FRAME::ToggleSimConsole()
+{
+    m_ui->ToggleSimConsole();
+}
+
+
+void SIMULATOR_FRAME::ToggleSimSidePanel()
+{
+    m_ui->ToggleSimSidePanel();
+}
+
+
 void SIMULATOR_FRAME::ToggleDarkModePlots()
 {
     m_ui->ToggleDarkModePlots();
@@ -656,7 +662,7 @@ void SIMULATOR_FRAME::doCloseWindow()
 
     SaveSettings( config() );
 
-    m_simulator->Settings() = nullptr;
+    m_simulator->Settings().reset();
 
     Destroy();
 }
@@ -728,11 +734,35 @@ void SIMULATOR_FRAME::setupUIConditions()
             };
 
     auto haveZoomRedo =
-    [this]( const SELECTION& aSel )
+            [this]( const SELECTION& aSel )
             {
                 SIM_PLOT_TAB* plotTab = dynamic_cast<SIM_PLOT_TAB*>( GetCurrentSimTab() );
                 return plotTab && plotTab->GetPlotWin()->RedoZoomStackSize() > 0;
             };
+
+    // clang-format off
+    auto isSimConsoleShown =
+            [this]( const SELECTION& aSel )
+            {
+                bool aBool = false;
+
+                if( m_simulator )
+                    return m_ui->IsSimConsoleShown();
+
+                return aBool;
+            };
+
+    auto isSimSidePanelShown =
+            [this]( const SELECTION& aSel )
+            {
+                bool aBool = false;
+
+                if( m_simulator )
+                    return m_ui->IsSimSidePanelShown();
+
+                return aBool;
+            };
+    // clang-format on
 
 #define ENABLE( x ) ACTION_CONDITIONS().Enable( x )
 #define CHECK( x )  ACTION_CONDITIONS().Check( x )
@@ -745,6 +775,9 @@ void SIMULATOR_FRAME::setupUIConditions()
     mgr->SetConditions( SCH_ACTIONS::exportPlotAsCSV,       ENABLE( havePlot ) );
     mgr->SetConditions( SCH_ACTIONS::exportPlotToClipboard, ENABLE( havePlot ) );
     mgr->SetConditions( SCH_ACTIONS::exportPlotToSchematic, ENABLE( havePlot ) );
+
+    mgr->SetConditions( SCH_ACTIONS::toggleSimSidePanel,    CHECK( isSimSidePanelShown ) );
+    mgr->SetConditions( SCH_ACTIONS::toggleSimConsole,      CHECK( isSimConsoleShown ) );
 
     mgr->SetConditions( ACTIONS::zoomUndo,                  ENABLE( haveZoomUndo ) );
     mgr->SetConditions( ACTIONS::zoomRedo,                  ENABLE( haveZoomRedo ) );

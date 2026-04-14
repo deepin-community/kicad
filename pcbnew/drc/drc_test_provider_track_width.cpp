@@ -40,20 +40,11 @@ public:
     DRC_TEST_PROVIDER_TRACK_WIDTH()
     {}
 
-    virtual ~DRC_TEST_PROVIDER_TRACK_WIDTH()
-    {}
+    virtual ~DRC_TEST_PROVIDER_TRACK_WIDTH() = default;
 
     virtual bool Run() override;
 
-    virtual const wxString GetName() const override
-    {
-        return wxT( "width" );
-    };
-
-    virtual const wxString GetDescription() const override
-    {
-        return wxT( "Tests track widths" );
-    }
+    virtual const wxString GetName() const override { return wxT( "width" ); };
 };
 
 
@@ -61,13 +52,13 @@ bool DRC_TEST_PROVIDER_TRACK_WIDTH::Run()
 {
     if( m_drcEngine->IsErrorLimitExceeded( DRCE_TRACK_WIDTH ) )
     {
-        reportAux( wxT( "Track width violations ignored. Tests not run." ) );
+        REPORT_AUX( wxT( "Track width violations ignored. Tests not run." ) );
         return true;        // continue with other tests
     }
 
     if( !m_drcEngine->HasRulesForConstraintType( TRACK_WIDTH_CONSTRAINT ) )
     {
-        reportAux( wxT( "No track width constraints found. Tests not run." ) );
+        REPORT_AUX( wxT( "No track width constraints found. Tests not run." ) );
         return true;        // continue with other tests
     }
 
@@ -127,27 +118,25 @@ bool DRC_TEST_PROVIDER_TRACK_WIDTH::Run()
                 {
                     std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_TRACK_WIDTH );
                     wxString constraintName = constraint.GetName();
-                    wxString msg;
 
                     if( fail_min )
                     {
                         if( constraint.m_ImplicitMin )
                             constraintName = _( "board setup constraints" );
 
-                        msg = formatMsg( _( "(%s min width %s; actual %s)" ),
-                                         constraintName,
-                                         constraintWidth,
-                                         actual );
+                        drcItem->SetErrorDetail( formatMsg( _( "(%s min width %s; actual %s)" ),
+                                                            constraintName,
+                                                            constraintWidth,
+                                                            actual ) );
                     }
                     else
                     {
-                        msg = formatMsg( _( "(%s max width %s; actual %s)" ),
-                                         constraintName,
-                                         constraintWidth,
-                                         actual );
+                        drcItem->SetErrorDetail( formatMsg( _( "(%s max width %s; actual %s)" ),
+                                                            constraintName,
+                                                            constraintWidth,
+                                                            actual ) );
                     }
 
-                    drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
                     drcItem->SetItems( item );
                     drcItem->SetViolatingRule( constraint.GetParentRule() );
 
@@ -168,8 +157,6 @@ bool DRC_TEST_PROVIDER_TRACK_WIDTH::Run()
         if( !checkTrackWidth( item ) )
             break;
     }
-
-    reportRuleStatistics();
 
     return !m_drcEngine->IsCancelled();
 }

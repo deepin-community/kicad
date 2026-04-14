@@ -22,6 +22,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <cstdio>
+#include <vector>
+
+#include <wx/log.h>
+#include <wx/filedlg.h>
+#include <kiplatform/ui.h>
+
 #include <kiface_base.h>
 #include <macros.h>
 #include <pcb_edit_frame.h>
@@ -32,14 +39,15 @@
 #include <pad.h>
 #include <pcb_track.h>
 #include <zone.h>
-#include <cstdio>
-#include <vector>
 #include <ki_exception.h>
 #include <locale_io.h>
 #include <reporter.h>
 #include <richio.h>
+#include <string_utils.h>
+#include <tools/board_editor_control.h>
 #include <exporters/board_exporter_base.h>
-#include <wx/log.h>
+#include <board_stackup_manager/stackup_predefined_prms.h>
+
 
 static double iu2hyp( double iu )
 {
@@ -101,8 +109,7 @@ public:
 
     bool IsEmpty() const
     {
-        LSET layerMask = LSET::AllCuMask() & m_board->GetEnabledLayers();
-        LSET outLayers = m_layers & layerMask;
+        LSET outLayers = m_layers & LSET::AllCuMask( m_board->GetCopperLayerCount() );
 
         return outLayers.none();
     }
@@ -254,7 +261,7 @@ bool HYPERLYNX_EXPORTER::generateHeaders()
 
 void HYPERLYNX_EXPORTER::writeSinglePadStack( HYPERLYNX_PAD_STACK& aStack )
 {
-    LSET layerMask = LSET::AllCuMask() & m_board->GetEnabledLayers();
+    LSET layerMask = LSET::AllCuMask( m_board->GetCopperLayerCount() );
     LSET outLayers = aStack.m_layers & layerMask;
 
     if( outLayers.none() )
@@ -286,7 +293,7 @@ bool HYPERLYNX_EXPORTER::writeBoardInfo()
 
     m_out->Print( 0, "{BOARD \"%s\"\n", (const char*) m_board->GetFileName().c_str() );
 
-    if( !m_board->GetBoardPolygonOutlines( outlines ) )
+    if( !m_board->GetBoardPolygonOutlines( outlines, false ) )
     {
         wxLogError( _( "Board outline is malformed. Run DRC for a full analysis." ) );
         return false;
@@ -301,9 +308,9 @@ bool HYPERLYNX_EXPORTER::writeBoardInfo()
             const SEG& s = outl.CSegment( i );
             m_out->Print( 1, "(PERIMETER_SEGMENT X1=%.9f Y1=%.9f X2=%.9f Y2=%.9f)\n",
                           iu2hyp( s.A.x ),
-                          iu2hyp( s.A.y ),
+                          iu2hyp( -s.A.y ),
                           iu2hyp( s.B.x ),
-                          iu2hyp( s.B.y ) );
+                          iu2hyp( -s.B.y ) );
         }
     }
 
@@ -317,10 +324,11 @@ bool HYPERLYNX_EXPORTER::writeStackupInfo()
 {
     /* Format:
      * {STACKUP
-     * (SIGNAL T=thickness [P=plating_thickness] [C=constant] L=layer_name [M=material_name]) [comment]
-     * (DIELECTRIC T=thickness [C=constant] [L=layer_name] [M=material_name]) [comment]
+     * (SIGNAL T=thickness [P=plating_thickness] [C=resistivity] L=layer_name [M=material_name])
+     * (DIELECTRIC T=thickness [C=dielectric_constant] [L=layer_name] [M=material_name])
      * }
-     * name length is <= 20 chars
+     * C parameter: bulk resistivity (ohm-m) for SIGNAL, epsilon_r for DIELECTRIC
+     * Layer name length is <= 20 chars
      */
 
     LSEQ layers = m_board->GetDesignSettings().GetEnabledLayers().CuStack();
@@ -338,7 +346,7 @@ bool HYPERLYNX_EXPORTER::writeStackupInfo()
         {
             layer_name = m_board->GetLayerName( item->GetBrdLayerId() );
             int plating_thickness = 0;
-            double resistivity = 1.724e-8;  // Good for copper
+            double resistivity = 1.724e-8;  // Copper bulk resistivity in ohm-meters
             m_out->Print( 1, "(SIGNAL T=%g P=%g C=%g L=\"%.20s\" M=COPPER)\n",
                           iu2hyp( item->GetThickness( 0 ) ),
                           iu2hyp( plating_thickness ),
@@ -364,6 +372,22 @@ bool HYPERLYNX_EXPORTER::writeStackupInfo()
                               TO_UTF8( layer_name ),
                               TO_UTF8( item->GetMaterial( idx ) ) );
             }
+        }
+        else if( item->GetType() == BS_ITEM_TYPE_SOLDERMASK )
+        {
+            // Soldermask uses its KiCad layer name directly (e.g., "F.Mask") rather than
+            // a constructed name like core dielectrics, since these names are already unique.
+            wxString maskLayerName = m_board->GetLayerName( item->GetBrdLayerId() );
+            wxString material = item->GetMaterial( 0 );
+
+            if( !IsPrmSpecified( material ) )
+                material = wxT( "Solder Mask" );
+
+            m_out->Print( 1, "(DIELECTRIC T=%g C=%g L=\"%.20s\" M=\"%.20s\")\n",
+                          iu2hyp( item->GetThickness( 0 ) ),
+                          item->GetEpsilonR( 0 ),
+                          TO_UTF8( maskLayerName ),
+                          TO_UTF8( material ) );
         }
     }
 
@@ -445,7 +469,7 @@ bool HYPERLYNX_EXPORTER::writeNetObjects( const std::vector<BOARD_ITEM*>& aObjec
 
                 m_out->Print( 1, "(PIN X=%.10f Y=%.10f R=\"%s.%s\" P=%d)\n",
                               iu2hyp( pad->GetPosition().x ),
-                              iu2hyp( pad->GetPosition().y ),
+                              iu2hyp( -pad->GetPosition().y ),
                               (const char*) ref.c_str(),
                               (const char*) padName.c_str(),
                               pstackIter->second->GetId() );
@@ -459,7 +483,7 @@ bool HYPERLYNX_EXPORTER::writeNetObjects( const std::vector<BOARD_ITEM*>& aObjec
             {
                 m_out->Print( 1, "(VIA X=%.10f Y=%.10f P=%d)\n",
                               iu2hyp( via->GetPosition().x ),
-                              iu2hyp( via->GetPosition().y ),
+                              iu2hyp( -via->GetPosition().y ),
                               pstackIter->second->GetId() );
             }
         }
@@ -469,9 +493,9 @@ bool HYPERLYNX_EXPORTER::writeNetObjects( const std::vector<BOARD_ITEM*>& aObjec
 
             m_out->Print( 1, "(SEG X1=%.10f Y1=%.10f X2=%.10f Y2=%.10f W=%.10f L=\"%s\")\n",
                           iu2hyp( track->GetStart().x ),
-                          iu2hyp( track->GetStart().y ),
+                          iu2hyp( -track->GetStart().y ),
                           iu2hyp( track->GetEnd().x ),
-                          iu2hyp( track->GetEnd().y ),
+                          iu2hyp( -track->GetEnd().y ),
                           iu2hyp( track->GetWidth() ),
                           (const char*) layerName.c_str() );
         }
@@ -481,16 +505,16 @@ bool HYPERLYNX_EXPORTER::writeNetObjects( const std::vector<BOARD_ITEM*>& aObjec
             VECTOR2I       start = arc->GetStart();
             VECTOR2I       end = arc->GetEnd();
 
-            if( arc->IsCCW() )
+            if( !arc->IsCCW() )
                 std::swap( start, end );
 
             m_out->Print( 1, "(ARC X1=%.10f Y1=%.10f X2=%.10f Y2=%.10f XC=%.10f YC=%.10f R=%.10f W=%.10f L=\"%s\")\n",
                           iu2hyp( start.x ),
-                          iu2hyp( start.y ),
+                          iu2hyp( -start.y ),
                           iu2hyp( end.x ),
-                          iu2hyp( end.y ),
+                          iu2hyp( -end.y ),
                           iu2hyp( arc->GetCenter().x ),
-                          iu2hyp( arc->GetCenter().y ),
+                          iu2hyp( -arc->GetCenter().y ),
                           iu2hyp( arc->GetRadius() ),
                           iu2hyp( arc->GetWidth() ),
                           (const char*) layerName.c_str() );
@@ -513,16 +537,16 @@ bool HYPERLYNX_EXPORTER::writeNetObjects( const std::vector<BOARD_ITEM*>& aObjec
                                   (const char*) layerName.c_str(),
                                   m_polyId,
                                   iu2hyp( p0.x ),
-                                  iu2hyp( p0.y ) );
+                                  iu2hyp( -p0.y ) );
 
                     for( int v = 0; v < outl.PointCount(); v++ )
                     {
                         m_out->Print( 2, "(LINE X=%.10f Y=%.10f)\n",
                                       iu2hyp( outl.CPoint( v ).x ),
-                                      iu2hyp( outl.CPoint( v ).y ) );
+                                      iu2hyp( -outl.CPoint( v ).y ) );
                     }
 
-                    m_out->Print( 2, "(LINE X=%.10f Y=%.10f)\n", iu2hyp( p0.x ), iu2hyp( p0.y ) );
+                    m_out->Print( 2, "(LINE X=%.10f Y=%.10f)\n", iu2hyp( p0.x ), iu2hyp( -p0.y ) );
                     m_out->Print( 1, "}\n" );
 
                     for( int h = 0; h < fill.HoleCount( i ); h++ )
@@ -533,18 +557,18 @@ bool HYPERLYNX_EXPORTER::writeNetObjects( const std::vector<BOARD_ITEM*>& aObjec
                         m_out->Print( 1, "{POLYVOID ID=%d X=%.10f Y=%.10f\n",
                                       m_polyId,
                                       iu2hyp( ph0.x ),
-                                      iu2hyp( ph0.y ) );
+                                      iu2hyp( -ph0.y ) );
 
                         for( int v = 0; v < holeShape.PointCount(); v++ )
                         {
                             m_out->Print( 2, "(LINE X=%.10f Y=%.10f)\n",
                                           iu2hyp( holeShape.CPoint( v ).x ),
-                                          iu2hyp( holeShape.CPoint( v ).y ) );
+                                          iu2hyp( -holeShape.CPoint( v ).y ) );
                         }
 
                         m_out->Print( 2, "(LINE X=%.10f Y=%.10f)\n",
                                       iu2hyp( ph0.x ),
-                                      iu2hyp( ph0.y ) );
+                                      iu2hyp( -ph0.y ) );
                         m_out->Print( 1, "}\n" );
                     }
 
@@ -661,10 +685,31 @@ bool HYPERLYNX_EXPORTER::Run()
 }
 
 
-bool ExportBoardToHyperlynx( BOARD* aBoard, const wxFileName& aPath )
+int BOARD_EDITOR_CONTROL::ExportHyperlynx( const TOOL_EVENT& aEvent )
 {
+    wxString    wildcard =  wxT( "*.hyp" );
+    BOARD*      board = m_frame->GetBoard();
+    wxFileName  fn = board->GetFileName();
+
+    fn.SetExt( wxT("hyp") );
+
+    wxFileDialog dlg( m_frame, _( "Export Hyperlynx Layout" ), fn.GetPath(), fn.GetFullName(),
+                      wildcard, wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
+    if( dlg.ShowModal() != wxID_OK )
+        return 0;
+
+    fn = dlg.GetPath();
+
+    // always enforce filename extension, user may not have entered it.
+    fn.SetExt( wxT( "hyp" ) );
+
     HYPERLYNX_EXPORTER exporter;
-    exporter.SetBoard( aBoard );
-    exporter.SetOutputFilename( aPath );
-    return exporter.Run();
+    exporter.SetBoard( board );
+    exporter.SetOutputFilename( fn );
+    exporter.Run();
+
+    return 0;
 }

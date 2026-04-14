@@ -31,6 +31,7 @@
 #include <sch_no_connect.h>
 #include <sch_commit.h>
 #include <tool/tool_manager.h>
+#include <tools/sch_line_wire_bus_tool.h>
 #include <tools/sch_selection_tool.h>
 #include <trigo.h>
 
@@ -56,6 +57,7 @@ bool SCH_EDIT_FRAME::TrimWire( SCH_COMMIT* aCommit, const VECTOR2I& aStart, cons
     std::vector<SCH_LINE*> wires;
     BOX2I                  bb( aStart );
 
+    SCH_LINE_WIRE_BUS_TOOL* lwbTool = m_toolManager->GetTool<SCH_LINE_WIRE_BUS_TOOL>();
     bb.Merge( aEnd );
 
     // We cannot modify the RTree while iterating, so push the possible
@@ -90,14 +92,14 @@ bool SCH_EDIT_FRAME::TrimWire( SCH_COMMIT* aCommit, const VECTOR2I& aStart, cons
         // Step 1: break the segment on one end.
         // Ensure that *line points to the segment containing aEnd
         SCH_LINE* new_line;
-        BreakSegment( aCommit, line, aStart, &new_line, screen );
+        lwbTool->BreakSegment( aCommit, line, aStart, &new_line, screen );
 
         if( IsPointOnSegment( new_line->GetStartPoint(), new_line->GetEndPoint(), aEnd ) )
             line = new_line;
 
         // Step 2: break the remaining segment.
         // Ensure that *line _also_ contains aStart.  This is our overlapping segment
-        BreakSegment( aCommit, line, aEnd, &new_line, screen );
+        lwbTool->BreakSegment( aCommit, line, aEnd, &new_line, screen );
 
         if( IsPointOnSegment( new_line->GetStartPoint(), new_line->GetEndPoint(), aStart ) )
             line = new_line;
@@ -109,249 +111,6 @@ bool SCH_EDIT_FRAME::TrimWire( SCH_COMMIT* aCommit, const VECTOR2I& aStart, cons
     }
 
     return false;
-}
-
-
-void SCH_EDIT_FRAME::SchematicCleanUp( SCH_COMMIT* aCommit, SCH_SCREEN* aScreen )
-{
-    SCH_SELECTION_TOOL*          selectionTool = m_toolManager->GetTool<SCH_SELECTION_TOOL>();
-    std::vector<SCH_LINE*>       lines;
-    std::vector<SCH_JUNCTION*>   junctions;
-    std::vector<SCH_NO_CONNECT*> ncs;
-    std::vector<SCH_ITEM*>       items_to_remove;
-    bool                         changed = true;
-
-    if( aScreen == nullptr )
-        aScreen = GetScreen();
-
-    auto remove_item = [&]( SCH_ITEM* aItem ) -> void
-                       {
-                           changed = true;
-
-                           if( !( aItem->GetFlags() & STRUCT_DELETED ) )
-                           {
-                               aItem->SetFlags( STRUCT_DELETED );
-
-                               if( aItem->IsSelected() )
-                                   selectionTool->RemoveItemFromSel( aItem, true /*quiet mode*/ );
-
-                               RemoveFromScreen( aItem, aScreen );
-                               aCommit->Removed( aItem, aScreen );
-                           }
-                       };
-
-    BreakSegmentsOnJunctions( aCommit, aScreen );
-
-    for( SCH_ITEM* item : aScreen->Items().OfType( SCH_JUNCTION_T ) )
-    {
-        if( !aScreen->IsExplicitJunction( item->GetPosition() ) )
-            items_to_remove.push_back( item );
-        else
-            junctions.push_back( static_cast<SCH_JUNCTION*>( item ) );
-    }
-
-    for( SCH_ITEM* item : items_to_remove )
-        remove_item( item );
-
-    for( SCH_ITEM* item : aScreen->Items().OfType( SCH_NO_CONNECT_T ) )
-        ncs.push_back( static_cast<SCH_NO_CONNECT*>( item ) );
-
-    alg::for_all_pairs( junctions.begin(), junctions.end(),
-            [&]( SCH_JUNCTION* aFirst, SCH_JUNCTION* aSecond )
-            {
-                if( ( aFirst->GetEditFlags() & STRUCT_DELETED )
-                        || ( aSecond->GetEditFlags() & STRUCT_DELETED ) )
-                {
-                    return;
-                }
-
-                if( aFirst->GetPosition() == aSecond->GetPosition() )
-                    remove_item( aSecond );
-            } );
-
-    alg::for_all_pairs( ncs.begin(), ncs.end(),
-            [&]( SCH_NO_CONNECT* aFirst, SCH_NO_CONNECT* aSecond )
-            {
-                if( ( aFirst->GetEditFlags() & STRUCT_DELETED )
-                        || ( aSecond->GetEditFlags() & STRUCT_DELETED ) )
-                {
-                    return;
-                }
-
-                if( aFirst->GetPosition() == aSecond->GetPosition() )
-                    remove_item( aSecond );
-            } );
-
-
-    auto minX = []( const SCH_LINE* l )
-                {
-                    return std::min( l->GetStartPoint().x, l->GetEndPoint().x );
-                };
-
-    auto maxX = []( const SCH_LINE* l )
-                {
-                    return std::max( l->GetStartPoint().x, l->GetEndPoint().x );
-                };
-
-    auto minY = []( const SCH_LINE* l )
-                {
-                    return std::min( l->GetStartPoint().y, l->GetEndPoint().y );
-                };
-
-    auto maxY = []( const SCH_LINE* l )
-                {
-                    return std::max( l->GetStartPoint().y, l->GetEndPoint().y );
-                };
-
-    // Would be nice to put lines in a canonical form here by swapping
-    //  start <-> end as needed but I don't know what swapping breaks.
-    while( changed )
-    {
-        changed = false;
-        lines.clear();
-
-        for( SCH_ITEM* item : aScreen->Items().OfType( SCH_LINE_T ) )
-        {
-            if( item->GetLayer() == LAYER_WIRE || item->GetLayer() == LAYER_BUS )
-                lines.push_back( static_cast<SCH_LINE*>( item ) );
-        }
-
-        // Sort by minimum X position
-        std::sort( lines.begin(), lines.end(),
-                   [&]( const SCH_LINE* a, const SCH_LINE* b )
-                   {
-                       return minX( a ) < minX( b );
-                   } );
-
-        for( auto it1 = lines.begin(); it1 != lines.end(); ++it1 )
-        {
-            SCH_LINE* firstLine = *it1;
-
-            if( firstLine->GetEditFlags() & STRUCT_DELETED )
-                continue;
-
-            if( firstLine->IsNull() )
-            {
-                remove_item( firstLine );
-                continue;
-            }
-
-            int  firstRightXEdge = maxX( firstLine );
-            auto it2 = it1;
-
-            for( ++it2; it2 != lines.end(); ++it2 )
-            {
-                SCH_LINE* secondLine = *it2;
-                int       secondLeftXEdge = minX( secondLine );
-
-                // impossible to overlap remaining lines
-                if( secondLeftXEdge > firstRightXEdge )
-                    break;
-
-                // No Y axis overlap
-                if( !( std::max( minY( firstLine ), minY( secondLine ) )
-                       <= std::min( maxY( firstLine ), maxY( secondLine ) ) ) )
-                {
-                    continue;
-                }
-
-                if( secondLine->GetFlags() & STRUCT_DELETED )
-                    continue;
-
-                if( !secondLine->IsParallel( firstLine )
-                        || !secondLine->IsStrokeEquivalent( firstLine )
-                        || secondLine->GetLayer() != firstLine->GetLayer() )
-                {
-                    continue;
-                }
-
-                // Remove identical lines
-                if( firstLine->IsEndPoint( secondLine->GetStartPoint() )
-                        && firstLine->IsEndPoint( secondLine->GetEndPoint() ) )
-                {
-                    remove_item( secondLine );
-                    continue;
-                }
-
-                // See if we can merge an overlap (or two colinear touching segments with
-                // no junction where they meet).
-                SCH_LINE* mergedLine = secondLine->MergeOverlap( aScreen, firstLine, true );
-
-                if( mergedLine != nullptr )
-                {
-                    remove_item( firstLine );
-                    remove_item( secondLine );
-
-                    AddToScreen( mergedLine, aScreen );
-                    aCommit->Added( mergedLine, aScreen );
-
-                    if( firstLine->IsSelected() || secondLine->IsSelected() )
-                        selectionTool->AddItemToSel( mergedLine, true /*quiet mode*/ );
-
-                    break;
-                }
-            }
-        }
-    }
-}
-
-
-void SCH_EDIT_FRAME::BreakSegment( SCH_COMMIT* aCommit, SCH_LINE* aSegment, const VECTOR2I& aPoint,
-                                   SCH_LINE** aNewSegment, SCH_SCREEN* aScreen )
-{
-    // Save the copy of aSegment before breaking it
-    aCommit->Modify( aSegment, aScreen );
-
-    SCH_LINE* newSegment = aSegment->BreakAt( aPoint );
-
-    aSegment->SetFlags( IS_CHANGED | IS_BROKEN );
-    newSegment->SetFlags( IS_NEW | IS_BROKEN );
-
-    AddToScreen( newSegment, aScreen );
-    aCommit->Added( newSegment, aScreen );
-
-    *aNewSegment = newSegment;
-}
-
-
-bool SCH_EDIT_FRAME::BreakSegments( SCH_COMMIT* aCommit, const VECTOR2I& aPos, SCH_SCREEN* aScreen )
-{
-    bool      brokenSegments = false;
-    SCH_LINE* new_line;
-
-    for( SCH_LINE* wire : aScreen->GetBusesAndWires( aPos, true ) )
-    {
-        BreakSegment( aCommit, wire, aPos, &new_line, aScreen );
-        brokenSegments = true;
-    }
-
-    return brokenSegments;
-}
-
-
-bool SCH_EDIT_FRAME::BreakSegmentsOnJunctions( SCH_COMMIT* aCommit, SCH_SCREEN* aScreen )
-{
-    bool brokenSegments = false;
-
-    std::set<VECTOR2I> point_set;
-
-    for( SCH_ITEM* item : aScreen->Items().OfType( SCH_JUNCTION_T ) )
-        point_set.insert( item->GetPosition() );
-
-    for( SCH_ITEM* item : aScreen->Items().OfType( SCH_BUS_WIRE_ENTRY_T ) )
-    {
-        SCH_BUS_WIRE_ENTRY* entry = static_cast<SCH_BUS_WIRE_ENTRY*>( item );
-        point_set.insert( entry->GetPosition() );
-        point_set.insert( entry->GetEnd() );
-    }
-
-    for( const VECTOR2I& pt : point_set )
-    {
-        BreakSegments( aCommit, pt, aScreen );
-        brokenSegments = true;
-    }
-
-    return brokenSegments;
 }
 
 
@@ -427,18 +186,25 @@ void SCH_EDIT_FRAME::DeleteJunction( SCH_COMMIT* aCommit, SCH_ITEM* aJunction )
     }
 }
 
-
-SCH_JUNCTION* SCH_EDIT_FRAME::AddJunction( SCH_COMMIT* aCommit, SCH_SCREEN* aScreen,
-                                           const VECTOR2I& aPos )
+void SCH_EDIT_FRAME::UpdateHopOveredWires( SCH_ITEM* aItem )
 {
-    SCH_JUNCTION* junction = new SCH_JUNCTION( aPos );
+    std::vector<KIGFX::VIEW::LAYER_ITEM_PAIR> items;
 
-    AddToScreen( junction, aScreen );
-    aCommit->Added( junction, aScreen );
+    GetCanvas()->GetView()->Query( aItem->GetBoundingBox(), items );
 
-    BreakSegments( aCommit, aPos, aScreen );
+    for( const auto& it : items )
+    {
+        if( !it.first->IsSCH_ITEM() )
+            continue;
 
-    return junction;
+        SCH_ITEM* item = static_cast<SCH_ITEM*>( it.first );
+
+        if( item == aItem )
+            continue;
+
+        if( item->IsType( { SCH_ITEM_LOCATE_WIRE_T } ) )
+        {
+            GetCanvas()->GetView()->Update( item );
+        }
+    }
 }
-
-

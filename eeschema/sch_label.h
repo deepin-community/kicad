@@ -131,17 +131,6 @@ enum FLAG_SHAPE : unsigned int
 };
 
 
-enum  GLOBALLABEL_FIELD_T
-{
-    INTERSHEET_REFS = 0,
-
-    /// The first 2 are mandatory, and must be instantiated in #SCH_SHEET.
-    GLOBALLABEL_MANDATORY_FIELD_COUNT
-};
-
-#define GLOBALLABEL_MANDATORY_FIELDS { INTERSHEET_REFS }
-
-
 class SCH_LABEL_BASE : public SCH_TEXT
 {
 public:
@@ -155,8 +144,6 @@ public:
     virtual wxString GetClass() const override = 0;
 
     bool IsType( const std::vector<KICAD_T>& aScanTypes ) const override;
-
-    void SwapData( SCH_ITEM* aItem ) override;
 
     bool CanConnect( const SCH_ITEM* aItem ) const override
     {
@@ -186,12 +173,19 @@ public:
     bool HasConnectivityChanges( const SCH_ITEM* aItem,
                                  const SCH_SHEET_PATH* aInstance = nullptr ) const override;
 
-    LABEL_FLAG_SHAPE GetShape() const        { return m_shape; }
-    void SetShape( LABEL_FLAG_SHAPE aShape ) { m_shape = aShape; }
-
     // Type-specific versions for property manager
     LABEL_SHAPE GetLabelShape() const        { return (LABEL_SHAPE) m_shape; }
-    void SetLabelShape( LABEL_SHAPE aShape ) { m_shape = (LABEL_FLAG_SHAPE) aShape; }
+    void        SetLabelShape( LABEL_SHAPE aShape );
+
+    LABEL_FLAG_SHAPE GetShape() const        { return m_shape; }
+    void SetShape( LABEL_FLAG_SHAPE aShape )
+    {
+        // Set flags directly if a flag shape
+        if( aShape >= F_FIRST )
+            m_shape = aShape;
+        else
+            SetLabelShape( (LABEL_SHAPE) aShape );
+    }
 
     COLOR4D GetLabelColor() const;
 
@@ -207,6 +201,11 @@ public:
     }
 
     static const wxString GetDefaultFieldName( const wxString& aName, bool aUseDefaultName );
+
+    /**
+     * Return the next ordinal for a user field for this label
+     */
+    int GetNextFieldOrdinal() const;
 
     virtual int GetMandatoryFieldCount()              { return 0; }
 
@@ -238,7 +237,7 @@ public:
      *
      * @param aIncrement = the increment value to add to the number ending the text.
      */
-    bool IncrementLabel( int aIncrement );
+    virtual bool IncrementLabel( int aIncrement );
 
     void Move( const VECTOR2I& aMoveVector ) override;
     void Rotate( const VECTOR2I& aCenter, bool aRotateCCW ) override;
@@ -289,7 +288,7 @@ public:
     bool HasCachedDriverName() const override;
     const wxString& GetCachedDriverName() const override;
 
-    void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction ) override;
+    void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction, RECURSE_MODE aMode ) override;
 
     INSPECT_RESULT Visit( INSPECTOR inspector, void* testData,
                           const std::vector<KICAD_T>& scanTypes ) override;
@@ -316,7 +315,7 @@ public:
     /**
      * Return the bounding box of the label only, without taking in account its fields.
      */
-    virtual const BOX2I GetBodyBoundingBox() const;
+    virtual const BOX2I GetBodyBoundingBox( const RENDER_SETTINGS* aSettings ) const;
 
     /**
      * Return the bounding box of the label including its fields.
@@ -325,6 +324,7 @@ public:
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     std::vector<VECTOR2I> GetConnectionPoints() const override;
 
@@ -340,12 +340,6 @@ public:
     std::vector<int> ViewGetLayers() const override;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
-
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& offset, bool aForceNoFill, bool aDimmed ) override;
-
-    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                          const VECTOR2I& aOffset, bool aDimmed ) override {}
 
     void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
@@ -373,6 +367,8 @@ public:
     bool operator==( const SCH_ITEM& aItem ) const override;
 
 protected:
+    void swapData( SCH_ITEM* aItem ) override;
+
     void cacheShownText() override;
 
 protected:
@@ -382,7 +378,7 @@ protected:
 
     CONNECTION_TYPE         m_connectionType;
     bool                    m_isDangling;
-    bool                    m_autoRotateOnPlacement = false;
+    bool                    m_autoRotateOnPlacement;
 
     mutable COLOR4D         m_lastResolvedColor;
 
@@ -412,7 +408,12 @@ public:
         return wxT( "SCH_LABEL" );
     }
 
-    const BOX2I GetBodyBoundingBox() const override;
+    wxString GetFriendlyName() const override
+    {
+        return _( "Label" );
+    }
+
+    const BOX2I GetBodyBoundingBox( const RENDER_SETTINGS* aSettings ) const override;
 
     bool IsConnectable() const override { return true; }
 
@@ -449,7 +450,7 @@ public:
 
     SCH_DIRECTIVE_LABEL( const SCH_DIRECTIVE_LABEL& aClassLabel );
 
-    ~SCH_DIRECTIVE_LABEL() { }
+    ~SCH_DIRECTIVE_LABEL() override;
 
     void Serialize( google::protobuf::Any &aContainer ) const override;
     bool Deserialize( const google::protobuf::Any &aContainer ) override;
@@ -464,12 +465,17 @@ public:
         return wxT( "SCH_DIRECTIVE_LABEL" );
     }
 
+    wxString GetFriendlyName() const override
+    {
+        return _( "Directive Label" );
+    }
+
     EDA_ITEM* Clone() const override
     {
         return new SCH_DIRECTIVE_LABEL( *this );
     }
 
-    void SwapData( SCH_ITEM* aItem ) override;
+    void swapData( SCH_ITEM* aItem ) override;
 
     FLAG_SHAPE GetFlagShape() const          { return (FLAG_SHAPE) m_shape; }
     void SetFlagShape( FLAG_SHAPE aShape )   { m_shape = (LABEL_FLAG_SHAPE) aShape; }
@@ -505,8 +511,13 @@ public:
     /// @brief Removes a specific rule area from the cache
     void RemoveConnectedRuleArea( SCH_RULE_AREA* aRuleArea );
 
+    const std::unordered_set<SCH_RULE_AREA*> GetConnectedRuleAreas() const;
+
     /// @brief Determines dangling state from connectivity and cached connected rule areas
     virtual bool IsDangling() const override;
+
+    /// Increment the netclass and component class labels if possible
+    bool IncrementLabel( int aIncrement ) override;
 
 private:
     int       m_pinLength;
@@ -540,12 +551,24 @@ public:
         return wxT( "SCH_GLOBALLABEL" );
     }
 
+    wxString GetFriendlyName() const override
+    {
+        return _( "Global Label" );
+    }
+
     EDA_ITEM* Clone() const override
     {
         return new SCH_GLOBALLABEL( *this );
     }
 
     int GetMandatoryFieldCount() override { return 1; }
+
+    /**
+     * Return a mandatory field in this label.  The const version will return nullptr if the
+     * field doesn't exist; the non-const version will create it.
+     */
+    SCH_FIELD* GetField( FIELD_T aFieldType );
+    const SCH_FIELD* GetField( FIELD_T aFieldNdx ) const;
 
     void SetSpinStyle( SPIN_STYLE aSpinStyle ) override;
 
@@ -588,7 +611,7 @@ public:
 
     // Do not create a copy constructor.  The one generated by the compiler is adequate.
 
-    ~SCH_HIERLABEL() { }
+    ~SCH_HIERLABEL() override = default;
 
     void Serialize( google::protobuf::Any &aContainer ) const override;
     bool Deserialize( const google::protobuf::Any &aContainer ) override;
@@ -596,6 +619,11 @@ public:
     static inline bool ClassOf( const EDA_ITEM* aItem )
     {
         return aItem && SCH_HIER_LABEL_T == aItem->Type();
+    }
+
+    wxString GetFriendlyName() const override
+    {
+        return _( "Hierarchical Label" );
     }
 
     wxString GetClass() const override
@@ -612,7 +640,7 @@ public:
     void CreateGraphicShape( const RENDER_SETTINGS* aSettings, std::vector<VECTOR2I>& aPoints,
                              const VECTOR2I& aPos, LABEL_FLAG_SHAPE aShape ) const;
 
-    const BOX2I GetBodyBoundingBox() const override;
+    const BOX2I GetBodyBoundingBox( const RENDER_SETTINGS* aSettings ) const override;
 
     bool IsConnectable() const override { return true; }
 

@@ -68,15 +68,6 @@ DIALOG_USER_DEFINED_SIGNALS::~DIALOG_USER_DEFINED_SIGNALS()
 }
 
 
-bool DIALOG_USER_DEFINED_SIGNALS::TransferDataToWindow()
-{
-    if( !wxDialog::TransferDataToWindow() )
-        return false;
-
-    return true;
-}
-
-
 void DIALOG_USER_DEFINED_SIGNALS::addGridRow( const wxString& aText, int aId )
 {
     int row = m_grid->GetNumberRows();
@@ -86,66 +77,48 @@ void DIALOG_USER_DEFINED_SIGNALS::addGridRow( const wxString& aText, int aId )
     m_grid->SetCellValue( row, 1, wxString::Format( wxS( "%d" ), aId ) );
 
     wxGridCellAttr* attr = new wxGridCellAttr;
-#if defined( __WXMSW__ )
-    // For some obscure reason, a GRID_CELL_STC_EDITOR does not work on MSW:
-    // It has a strange behavior when entering data, making it unusable.
-    // (see https://gitlab.com/kicad/code/kicad/-/issues/15837)
-    // So use a GRID_CELL_TEXT_EDITOR.
-    attr->SetEditor( new GRID_CELL_TEXT_EDITOR() );
-#else
-    attr->SetEditor( new GRID_CELL_STC_EDITOR( true,
+    attr->SetEditor( new GRID_CELL_STC_EDITOR( true, true,
             [this]( wxStyledTextEvent& aEvent, SCINTILLA_TRICKS* aScintillaTricks )
             {
                 onScintillaCharAdded( aEvent, aScintillaTricks );
             } ) );
-#endif
     m_grid->SetAttr( row, 0, attr );
 }
 
 
 void DIALOG_USER_DEFINED_SIGNALS::onAddSignal( wxCommandEvent& event )
 {
-    if( !m_grid->CommitPendingChanges() )
-        return;
+    m_grid->OnAddRow(
+            [&]() -> std::pair<int, int>
+            {
+                long newId = 0;
 
-    long newId = 0;
+                for( int ii = 0; ii < m_grid->GetNumberRows(); ++ii )
+                {
+                    long usedId;
+                    m_grid->GetCellValue( ii, 1 ).ToLong( &usedId );
 
-    for( int ii = 0; ii < m_grid->GetNumberRows(); ++ii )
-    {
-        long usedId;
-        m_grid->GetCellValue( ii, 1 ).ToLong( &usedId );
+                    if( usedId >= newId )
+                        newId = usedId + 1;
+                }
 
-        if( usedId >= newId )
-            newId = usedId + 1;
-    }
-
-    addGridRow( wxEmptyString, (int) newId );
-
-    m_grid->MakeCellVisible( m_grid->GetNumberRows() - 1, 0 );
-    m_grid->SetGridCursor( m_grid->GetNumberRows() - 1, 0 );
-
-    m_grid->EnableCellEditControl( true );
-    m_grid->ShowCellEditControl();
+                addGridRow( wxEmptyString, (int) newId );
+                return { m_grid->GetNumberRows() - 1, 0 };
+            } );
 }
 
 
 void DIALOG_USER_DEFINED_SIGNALS::onDeleteSignal( wxCommandEvent& event )
 {
-    int curRow = m_grid->GetGridCursorRow();
-
-    if( curRow < 0 || m_grid->GetNumberRows() <= curRow )
-        return;
-
-    m_grid->CommitPendingChanges( true /* silent mode; we don't care if it's valid */ );
-    m_grid->DeleteRows( curRow, 1 );
-
-    m_grid->MakeCellVisible( std::max( 0, curRow-1 ), m_grid->GetGridCursorCol() );
-    m_grid->SetGridCursor( std::max( 0, curRow-1 ), m_grid->GetGridCursorCol() );
+    m_grid->OnDeleteRows(
+            [&]( int row )
+            {
+                m_grid->DeleteRows( row, 1 );
+            } );
 }
 
 
-void DIALOG_USER_DEFINED_SIGNALS::onScintillaCharAdded( wxStyledTextEvent &aEvent,
-                                                        SCINTILLA_TRICKS* aTricks )
+void DIALOG_USER_DEFINED_SIGNALS::onScintillaCharAdded( wxStyledTextEvent &aEvent, SCINTILLA_TRICKS* aTricks )
 {
     wxStyledTextCtrl* textCtrl = aTricks->Scintilla();
     wxArrayString     tokens;
@@ -218,9 +191,12 @@ void DIALOG_USER_DEFINED_SIGNALS::onScintillaCharAdded( wxStyledTextEvent &aEven
         }
     }
 
-    wxString partial = textCtrl->GetRange( start, text_pos );
+    if( start >= 0 )    // i.e. at least one char entered
+    {
+        wxString partial = textCtrl->GetRange( start, text_pos );
+        aTricks->DoAutocomplete( partial, tokens );
+    }
 
-    aTricks->DoAutocomplete( partial, tokens );
     textCtrl->SetFocus();
 }
 

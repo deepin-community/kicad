@@ -26,6 +26,7 @@
 #define LIB_TREE_H
 
 #include <wx/panel.h>
+#include <wx/sizer.h>
 #include <wx/timer.h>
 #include <lib_tree_model_adapter.h>
 #include <widgets/html_window.h>
@@ -37,10 +38,10 @@ class wxSearchCtrl;
 class wxTimer;
 class wxTimerEvent;
 class wxPopupWindow;
+class BITMAP_BUTTON;
 class STD_BITMAP_BUTTON;
 class ACTION_MENU;
 class LIB_ID;
-class LIB_TABLE;
 
 /**
  * Widget displaying a tree of symbols with optional search text control and description panel.
@@ -71,7 +72,7 @@ public:
      * @param aDetails if not null, a custom HTML_WINDOW to hold symbol details. If null this
      *                 will be created inside the LIB_TREE.
      */
-    LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey, LIB_TABLE* aLibTable,
+    LIB_TREE( wxWindow* aParent, const wxString& aRecentSearchesKey,
               wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER>& aAdapter, int aFlags = ALL_WIDGETS,
               HTML_WINDOW* aDetails = nullptr );
 
@@ -180,6 +181,8 @@ public:
         m_previewDisabled = aBlock;
     }
 
+    void ShutdownPreviews();
+
 protected:
     /**
      * Expand or collapse a node, switching it to the opposite state.
@@ -216,6 +219,8 @@ protected:
 
         /// Current selection, might be not valid if nothing was selected.
         LIB_ID selection;
+
+        VECTOR2I scrollpos;
     };
 
     /**
@@ -232,7 +237,6 @@ protected:
 
     void showPreview( wxDataViewItem aItem );
     void hidePreview();
-    void destroyPreview();
 
     void onQueryText( wxCommandEvent& aEvent );
     void onQueryCharHook( wxKeyEvent& aEvent );
@@ -256,7 +260,7 @@ protected:
     wxObjectDataPtr<LIB_TREE_MODEL_ADAPTER> m_adapter;
 
     wxSearchCtrl*      m_query_ctrl;
-    STD_BITMAP_BUTTON* m_sort_ctrl;
+    BITMAP_BUTTON*     m_sort_ctrl;
     WX_DATAVIEWCTRL*   m_tree_ctrl;
     HTML_WINDOW*       m_details_ctrl;
     wxTimer*           m_debounceTimer;

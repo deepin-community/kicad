@@ -9,8 +9,6 @@ kicad: no-manual-page [usr/bin/_pcbnew.kiface]
 kicad: no-manual-page [usr/bin/_pl_editor.kiface]
 # Lintian doesn't check that with much intelligence.
 kicad: spelling-error-in-binary aCount account [usr/lib/kicad/_pcbnew.kiface:1]
-kicad: spelling-error-in-binary wTH with [usr/lib/kicad/_eeschema.kiface:1]
-kicad: spelling-error-in-binary wTH with [usr/lib/kicad/_pcbnew.kiface:1]
 # KiCad upstream has no dev package currently nor intend to create one
 kicad: link-to-shared-library-in-wrong-package usr/lib/*-linux-*/libkiapi.so.* [usr/lib/*-linux-*/libkiapi.so]
 kicad: link-to-shared-library-in-wrong-package usr/lib/*-linux-*/libkicad_3dsg.so.* [usr/lib/*-linux-*/libkicad_3dsg.so]

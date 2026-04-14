@@ -45,7 +45,12 @@ class LSET;
 class REPORTER;
 class SELECTION;
 class wxStaticText;
+
+#if defined(__linux__) || defined(__FreeBSD__)
+class SPNAV_2D_PLUGIN;
+#else
 class NL_GERBVIEW_PLUGIN;
+#endif
 
 
 /**
@@ -76,22 +81,7 @@ public:
     bool LoadListOfGerberAndDrillFiles( const wxString& aPath, const wxArrayString& aFilenameList,
                                         std::vector<int>* aFileType );
 
-    // Virtual basic functions:
-    void ReCreateHToolbar() override;
-    void ReCreateAuxiliaryToolbar() override;
-
-    /**
-     * Create or update the right vertical toolbar.
-     */
-    void ReCreateVToolbar() override;
-
-    /**
-     * Create or update the left vertical toolbar (option toolbar)
-     */
-    void ReCreateOptToolbar() override;
-
     void UpdateStatusBar() override;
-    void UpdateToolbarControlSizes() override;
 
     GERBVIEW_SETTINGS* gvconfig() const;
 
@@ -239,7 +229,6 @@ public:
     void OnQuit( wxCommandEvent& event );
 
     void OnUpdateSelectDCode( wxUpdateUIEvent& aEvent );
-    void OnUpdateLayerSelectBox( wxUpdateUIEvent& aEvent );
 
     /**
      * Delete the current data and loads a Gerber file selected from history list on current layer.
@@ -314,6 +303,10 @@ public:
      */
     bool LoadZipArchiveFile( const wxString& aFileName );
 
+    /**
+     * Remove all files from the file history.
+     */
+    void ClearFileHistory() override;
 
     /**
      * Load a Gerber job file, and load gerber files found in job files.
@@ -453,9 +446,12 @@ public:
         return m_gerberLayout->ViewBBox();
     }
 
+    void ClearToolbarControl( int aId ) override;
+
     DECLARE_EVENT_TABLE()
 
 protected:
+    void configureToolbars() override;
     void setupUIConditions() override;
     void doReCreateMenuBar() override;
 
@@ -532,7 +528,11 @@ private:
     wxStaticText*       m_dcodeText;        // a message on the auxiliary toolbar,
                                             // relative to the m_DCodeSelector
 
+#if defined(__linux__) || defined(__FreeBSD__)
+    std::unique_ptr<SPNAV_2D_PLUGIN> m_spaceMouse;
+#else
     std::unique_ptr<NL_GERBVIEW_PLUGIN> m_spaceMouse;
+#endif
 };
 
 #endif /* WX_GERBER_STRUCT_H */

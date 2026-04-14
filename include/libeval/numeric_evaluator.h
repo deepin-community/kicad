@@ -94,7 +94,22 @@ namespace numEval
 
 class KICOMMON_API NUMERIC_EVALUATOR
 {
-    enum class Unit { Invalid, UM, MM, CM, Inch, Mil, Degrees, SI };
+    enum class Unit
+    {
+        Invalid,
+        UM,
+        MM,
+        CM,
+        Inch,
+        Mil,
+        Degrees,
+        SI,
+        Femtoseconds,
+        Picoseconds,
+        PsPerInch,
+        PsPerCm,
+        PsPerMm
+    };
 
 public:
     NUMERIC_EVALUATOR( EDA_UNITS aUnits );
@@ -140,6 +155,11 @@ public:
 
     /* Remove all variables */
     void ClearVar() { m_varMap.clear(); }
+
+    static bool IsOldSchoolDecimalSeparator( wxUniChar ch, double* siScaler );
+    static bool IsOldSchoolDecimalSeparator( char ch, double* siScaler );
+    static bool IsDecimalSeparator( char ch, char localeSeparator, bool allowInfixNotation );
+    static bool IsDigit( char ch );
 
 protected:
     /* Token type used by the tokenizer */

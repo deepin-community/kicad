@@ -21,11 +21,13 @@
 * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
 
-#ifndef _EESCHEMA_SETTINGS_H
-#define _EESCHEMA_SETTINGS_H
+#pragma once
 
 #include <wx/aui/framemanager.h>
 
+#include <map>
+
+#include <remote_provider_settings.h>
 #include <settings/app_settings.h>
 #include <sim/sim_preferences.h>
 
@@ -36,6 +38,7 @@ extern const wxAuiPaneInfo& defaultNetNavigatorPaneInfo();
 extern const wxAuiPaneInfo& defaultPropertiesPaneInfo( wxWindow* aWindow );
 extern const wxAuiPaneInfo& defaultSchSelectionFilterPaneInfo( wxWindow* aWindow );
 extern const wxAuiPaneInfo& defaultDesignBlocksPaneInfo( wxWindow* aWindow );
+extern const wxAuiPaneInfo& defaultRemoteSymbolPaneInfo( wxWindow* aWindow );
 
 
 
@@ -49,21 +52,18 @@ enum LINE_MODE
 };
 
 
+enum class POWER_SYMBOLS
+{
+    DEFAULT = 0,
+    GLOBAL,
+    LOCAL
+};
+
 class EESCHEMA_SETTINGS : public APP_SETTINGS_BASE
 {
 public:
     struct APPEARANCE
     {
-        wxString edit_symbol_visible_columns;
-        int edit_symbol_width;
-        int edit_symbol_height;
-        wxString edit_sheet_visible_columns;
-        int edit_sheet_width;
-        int edit_sheet_height;
-        wxString edit_label_visible_columns;
-        int edit_label_width;
-        int edit_label_height;
-        int  erc_severities;
         bool footprint_preview;
         bool print_sheet_reference;
         wxString default_font;
@@ -100,6 +100,7 @@ public:
         wxSize net_nav_panel_float_size;
         bool float_net_nav_panel;
         bool show_net_nav_panel;
+        bool net_nav_search_mode_wildcard;  // true = wildcard search, false = regex search
         int  properties_panel_width;
         float properties_splitter;
         bool show_properties;
@@ -107,6 +108,10 @@ public:
         int  design_blocks_panel_docked_width;
         int  design_blocks_panel_float_width;
         int  design_blocks_panel_float_height;
+        bool remote_symbol_show;
+        int  remote_symbol_panel_docked_width;
+        int  remote_symbol_panel_float_width;
+        int  remote_symbol_panel_float_height;
     };
 
     struct AUTOPLACE_FIELDS
@@ -146,36 +151,40 @@ public:
 
     struct DRAWING
     {
-        int      default_bus_thickness;
-        int      default_junction_size;
-        int      default_line_thickness;
-        int      default_repeat_offset_x;
-        int      default_repeat_offset_y;
-        int      default_wire_thickness;
-        int      default_text_size;
-        int      pin_symbol_size;
-        double   text_offset_ratio;
-        COLOR4D  default_sheet_border_color;
-        COLOR4D  default_sheet_background_color;
-        wxString field_names;
-        int      line_mode;
-        int      repeat_label_increment;
-        bool     intersheets_ref_show;
-        bool     intersheets_ref_own_page;
-        bool     intersheets_ref_short;
-        wxString intersheets_ref_prefix;
-        wxString intersheets_ref_suffix;
-        bool     auto_start_wires;
+        int                 default_bus_thickness;
+        int                 default_junction_size;
+        int                 default_line_thickness;
+        int                 default_repeat_offset_x;
+        int                 default_repeat_offset_y;
+        int                 default_wire_thickness;
+        int                 default_text_size;
+        int                 pin_symbol_size;
+        double              text_offset_ratio;
+        COLOR4D             default_sheet_border_color;
+        COLOR4D             default_sheet_background_color;
+        POWER_SYMBOLS       new_power_symbols;
+        wxString            field_names;
+        int                 line_mode;
+        ARC_EDIT_MODE       arc_edit_mode;
+        int                 repeat_label_increment;
+        bool                intersheets_ref_show;
+        bool                intersheets_ref_own_page;
+        bool                intersheets_ref_short;
+        wxString            intersheets_ref_prefix;
+        wxString            intersheets_ref_suffix;
+        bool                auto_start_wires;
         std::vector<double> junction_size_mult_list;
 
-        // Pulldown index for user default junction dot size (e.g. smallest = 0, small = 1, etc)
-        int      junction_size_choice;
+        // Pulldown index for user default junction dot size (e.g. none = 0, smallest = 1, small = 2, etc)
+        int                 junction_size_choice;
+        int                 hop_over_size_choice;
     };
 
     struct INPUT
     {
         bool drag_is_move;
         bool esc_clears_net_highlight;
+        bool allow_unconstrained_pin_swaps;
     };
 
     struct SELECTION
@@ -187,6 +196,7 @@ public:
         bool highlight_netclass_colors;
         int    highlight_netclass_colors_thickness;
         double highlight_netclass_colors_alpha;
+        int  drag_net_collision_width;
     };
 
     struct PAGE_SETTINGS
@@ -211,11 +221,10 @@ public:
     {
         bool automatic;
         bool recursive;
+        bool regroup_units;
         int scope;
         int options;
-        int method;
         int messages_filter;
-        int sort_order;
     };
 
     struct PANEL_BOM
@@ -224,15 +233,14 @@ public:
         std::vector<BOM_PLUGIN_SETTINGS> plugins;
     };
 
-    struct PANEL_FIELD_EDITOR
+    struct PANEL_SYMBOL_FIELDS_TABLE
     {
         std::map<std::string, int> field_widths;
-        int                        width;
-        int                        height;
-        int                        page;
         wxString                   export_filename;
         int                        selection_mode;
-        int                        scope;
+        int                        sash_pos;
+        bool                       sidebar_collapsed;
+        int                        variant_sash_pos;
     };
 
     struct PANEL_LIB_VIEW
@@ -249,22 +257,6 @@ public:
         std::vector<NETLIST_PLUGIN_SETTINGS> plugins;
     };
 
-    struct PANEL_PLOT
-    {
-        bool     background_color;
-        bool     color;
-        wxString color_theme;
-        int      format;
-        bool     frame_reference;
-        int      hpgl_paper_size;
-        double   hpgl_pen_size;
-        int      hpgl_origin;
-        bool     pdf_property_popups;
-        bool     pdf_hierarchical_links;
-        bool     pdf_metadata;
-        bool     open_file_after_plot;
-    };
-
     struct PANEL_SYM_CHOOSER
     {
         int  sash_pos_h;
@@ -272,35 +264,19 @@ public:
         int  width;
         int  height;
         int  sort_mode;
-        bool keep_symbol;
-        bool place_all_units;
     };
 
-    struct PANEL_DESIGN_BLOCK_CHOOSER
+    struct DIALOG_ERC
     {
-        int  sash_pos_h;
-        int  sash_pos_v;
-        int  width;
-        int  height;
-        int  sort_mode;
-        bool repeated_placement;
-        bool place_as_sheet;
-        bool keep_annotations;
-
-        // For saving tree columns and widths
-        LIB_TREE tree;
+        bool crossprobe;
+        bool scroll_on_crossprobe;
+        bool show_all_errors;
     };
 
-    struct DIALOG_IMPORT_GRAPHICS
+    struct DIALOG_CHANGE_SYMBOLS
     {
-        bool     interactive_placement;
-        wxString last_file;
-        double   dxf_line_width;
-        int      dxf_line_width_units;
-        int      origin_units;
-        double   origin_x;
-        double   origin_y;
-        int      dxf_units;
+        bool updateReferences;
+        bool updateValues;
     };
 
     struct SIMULATOR
@@ -323,6 +299,7 @@ public:
     struct FIND_REPLACE_EXTRA
     {
         bool search_all_fields;
+        bool search_metadata;
         bool search_all_pins;
         bool search_current_sheet_only;
         bool search_selected_only;
@@ -353,46 +330,31 @@ private:
     static std::vector<NETLIST_PLUGIN_SETTINGS> netlistSettingsFromJson( const nlohmann::json& aObj );
 
 public:
-    APPEARANCE m_Appearance;
+    APPEARANCE                m_Appearance;
+    AUI_PANELS                m_AuiPanels;
+    REMOTE_PROVIDER_SETTINGS  m_RemoteSymbol;
 
-    AUTOPLACE_FIELDS m_AutoplaceFields;
+    DRAWING                   m_Drawing;
+    INPUT                     m_Input;
+    AUTOPLACE_FIELDS          m_AutoplaceFields;
+    SELECTION                 m_Selection;
 
-    AUI_PANELS m_AuiPanels;
+    PAGE_SETTINGS             m_PageSettings;
+    PANEL_ANNOTATE            m_AnnotatePanel;
+    PANEL_BOM                 m_BomPanel;
 
-    DRAWING m_Drawing;
+    PANEL_SYMBOL_FIELDS_TABLE m_FieldEditorPanel;
+    PANEL_LIB_VIEW            m_LibViewPanel;
+    PANEL_NETLIST             m_NetlistPanel;
+    PANEL_SYM_CHOOSER         m_SymChooserPanel;
 
-    FIND_REPLACE_EXTRA m_FindReplaceExtra;
+    FIND_REPLACE_EXTRA        m_FindReplaceExtra;
+    DIALOG_ERC                m_ERCDialog;
+    DIALOG_CHANGE_SYMBOLS     m_ChangeSymbols;
 
-    INPUT m_Input;
+    SIMULATOR                 m_Simulator;
 
-    PAGE_SETTINGS m_PageSettings;
+    bool                      m_RescueNeverShow;
 
-    PANEL_ANNOTATE m_AnnotatePanel;
-
-    PANEL_BOM m_BomPanel;
-
-    PANEL_FIELD_EDITOR m_FieldEditorPanel;
-
-    PANEL_LIB_VIEW m_LibViewPanel;
-
-    PANEL_NETLIST m_NetlistPanel;
-
-    PANEL_PLOT m_PlotPanel;
-
-    PANEL_SYM_CHOOSER m_SymChooserPanel;
-
-    PANEL_DESIGN_BLOCK_CHOOSER m_DesignBlockChooserPanel;
-
-    DIALOG_IMPORT_GRAPHICS m_ImportGraphics;
-
-    SELECTION m_Selection;
-
-    SIMULATOR m_Simulator;
-
-    bool m_RescueNeverShow;
-
-    wxString m_lastSymbolLibDir;
+    wxString                  m_lastSymbolLibDir;
 };
-
-
-#endif

@@ -50,6 +50,7 @@
 #include <sch_symbol.h>
 #include <sch_edit_frame.h>          // SYM_ORIENT_XXX
 #include <sch_field.h>
+#include <sch_group.h>
 #include <sch_line.h>
 #include <sch_rule_area.h>
 #include <sch_textbox.h>
@@ -85,26 +86,26 @@ SCH_IO_KICAD_SEXPR_PARSER::SCH_IO_KICAD_SEXPR_PARSER( LINE_READER* aLineReader,
         m_lineReader( aLineReader ),
         m_lastProgressLine( 0 ),
         m_lineCount( aLineCount ),
-        m_rootSheet( aRootSheet )
+        m_rootSheet( aRootSheet ),
+        m_maxError( ARC_LOW_DEF_MM * schIUScale.IU_PER_MM )
 {
 }
 
 
 void SCH_IO_KICAD_SEXPR_PARSER::checkpoint()
 {
-    const unsigned PROGRESS_DELTA = 500;
-
     if( m_progressReporter )
     {
+        unsigned progressDelta = std::max( 50u, m_lineCount / 10 );
         unsigned curLine = m_lineReader->LineNumber();
 
-        if( curLine > m_lastProgressLine + PROGRESS_DELTA )
+        if( m_lastProgressLine == 0 || curLine > m_lastProgressLine + progressDelta )
         {
             m_progressReporter->SetCurrentProgress( ( (double) curLine )
                                                             / std::max( 1U, m_lineCount ) );
 
             if( !m_progressReporter->KeepRefreshing() )
-                THROW_IO_ERROR( _( "Open cancelled by user." ) );
+                THROW_IO_ERROR( _( "Open canceled by user." ) );
 
             m_lastProgressLine = curLine;
         }
@@ -182,6 +183,9 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseLib( LIB_SYMBOL_MAP& aSymbolLibMap )
     NextTok();
     parseHeader( T_kicad_symbol_lib, SEXPR_SYMBOL_LIB_FILE_VERSION );
 
+    // Prior to this, bar was a valid string char for unquoted strings.
+    SetKnowsBar( m_requiredVersion >= 20240529 );
+
     bool versionChecked = false;
 
     auto checkVersion =
@@ -243,8 +247,25 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseLib( LIB_SYMBOL_MAP& aSymbolLibMap )
 
             m_unit = 1;
             m_bodyStyle = 1;
-            LIB_SYMBOL* symbol = parseLibSymbol( aSymbolLibMap );
-            aSymbolLibMap[symbol->GetName()] = symbol;
+
+            try
+            {
+                LIB_SYMBOL* symbol = parseLibSymbol( aSymbolLibMap );
+                aSymbolLibMap[symbol->GetName()] = symbol;
+            }
+            catch( const IO_ERROR& e )
+            {
+                // Record the error and skip to the end of this symbol block
+                wxString warning = wxString::Format(
+                        _( "Error parsing symbol at line %d: %s\nSkipping symbol and continuing." ),
+                        CurLineNumber(), e.What() );
+                m_parseWarnings.push_back( warning );
+
+                // Skip to the end of this symbol's S-expression block
+                // We're already past T_symbol, so we're inside the symbol definition
+                skipToBlockEnd( 1 );
+            }
+
             break;
         }
 
@@ -280,7 +301,8 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::ParseSymbol( LIB_SYMBOL_MAP& aSymbolLibMa
                     {
                         if( EDA_TEXT* textItem = dynamic_cast<EDA_TEXT*>( aChild ) )
                             textItem->ResolveFont( embeddedFonts );
-                    } );
+                    },
+                    RECURSE_MODE::NO_RECURSE );
         }
         else
         {
@@ -303,27 +325,15 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
     long tmp;
     wxString name;
     wxString error;
-    wxString unitDisplayName;
     SCH_ITEM* item;
     std::unique_ptr<LIB_SYMBOL> symbol = std::make_unique<LIB_SYMBOL>( wxEmptyString );
 
-    symbol->SetUnitCount( 1 );
-
-    m_fieldIDsRead.clear();
-
-    // Make sure the mandatory field IDs are reserved as already read,
-    // the field parser will set the field IDs to the correct value if
-    // the field name matches a mandatory field name
-    for( int fieldId : MANDATORY_FIELDS )
-        m_fieldIDsRead.insert( fieldId );
+    symbol->SetUnitCount( 1, true );
 
     token = NextTok();
 
     if( !IsSymbol( token ) )
-    {
-        THROW_PARSE_ERROR( _( "Invalid symbol name" ), CurSource(), CurLine(), CurLineNumber(),
-                           CurOffset() );
-    }
+        THROW_PARSE_ERROR( _( "Invalid symbol name" ), CurSource(), CurLine(), CurLineNumber(), CurOffset() );
 
     name = FromUTF8();
 
@@ -365,8 +375,22 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
         switch( token )
         {
         case T_power:
-            symbol->SetPower();
+            symbol->SetGlobalPower();
+            token = NextTok();
+
+            if( token == T_RIGHT )
+                break;
+
+            if( token == T_local )
+                symbol->SetLocalPower();
+            else if( token != T_global )
+                Expecting( "global or local" );
+
             NeedRIGHT();
+            break;
+
+        case T_body_styles:
+            parseBodyStyles( symbol );
             break;
 
         case T_pin_names:
@@ -392,6 +416,45 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
             NeedRIGHT();
             break;
 
+        case T_in_pos_files:
+            symbol->SetExcludedFromPosFiles( !parseBool() );
+            NeedRIGHT();
+            break;
+
+        case T_duplicate_pin_numbers_are_jumpers:
+            symbol->SetDuplicatePinNumbersAreJumpers( parseBool() );
+            NeedRIGHT();
+            break;
+
+        case T_jumper_pin_groups:
+        {
+            std::vector<std::set<wxString>>& groups = symbol->JumperPinGroups();
+            std::set<wxString>* currentGroup = nullptr;
+
+            for( token = NextTok(); currentGroup || token != T_RIGHT; token = NextTok() )
+            {
+                switch( static_cast<int>( token ) )
+                {
+                case T_LEFT:
+                    currentGroup = &groups.emplace_back();
+                    break;
+
+                case DSN_STRING:
+                    currentGroup->insert( FromUTF8() );
+                    break;
+
+                case T_RIGHT:
+                    currentGroup = nullptr;
+                    break;
+
+                default:
+                    Expecting( "list of pin names" );
+                }
+            }
+
+            break;
+        }
+
         case T_property:
             parseProperty( symbol );
             break;
@@ -413,15 +476,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
             // it doesn't need to be escaped.
             name.Replace( wxS( "{slash}" ), wxT( "/" ) );
 
-            auto it = aSymbolLibMap.find( name );
-
-            if( it == aSymbolLibMap.end() )
-            {
-                error.Printf( _( "No parent for extended symbol %s" ), name.c_str() );
-                THROW_PARSE_ERROR( error, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
-            }
-
-            symbol->SetParent( it->second );
+            symbol->SetParentName( name );
             NeedRIGHT();
             break;
         }
@@ -469,14 +524,14 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
 
             if( !tokenizer.GetNextToken().ToLong( &tmp ) )
             {
-                error.Printf( _( "Invalid symbol convert number %s" ), name.c_str() );
+                error.Printf( _( "Invalid symbol body style number %s" ), name.c_str() );
                 THROW_PARSE_ERROR( error, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
             }
 
             m_bodyStyle = static_cast<int>( tmp );
 
             if( m_bodyStyle > 1 )
-                symbol->SetHasAlternateBodyStyle( true, false );
+                symbol->SetBodyStyleCount( m_bodyStyle, false, false );
 
             if( m_unit > symbol->GetUnitCount() )
                 symbol->SetUnitCount( m_unit, false );
@@ -494,10 +549,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
                     token = NextTok();
 
                     if( IsSymbol( token ) )
-                    {
-                        unitDisplayName = FromUTF8();
-                        symbol->SetUnitDisplayName( m_unit, unitDisplayName );
-                    }
+                        symbol->GetUnitDisplayNames()[m_unit] = FromUTF8();
 
                     NeedRIGHT();
                     break;
@@ -562,7 +614,7 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
             }
             catch( const IO_ERROR& e )
             {
-                wxLogError( e.What() );
+                m_parseWarnings.push_back( e.What() );
             }
 
             SyncLineReaderWith( embeddedFilesParser );
@@ -578,15 +630,22 @@ LIB_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseLibSymbol( LIB_SYMBOL_MAP& aSymbolLi
     symbol->GetDrawItems().sort();
     m_symbolName.clear();
 
-    const std::vector<wxString>* embeddedFonts =
-            symbol->GetEmbeddedFiles()->UpdateFontFiles();
+    const std::vector<wxString>* embeddedFonts = symbol->GetEmbeddedFiles()->UpdateFontFiles();
 
     symbol->RunOnChildren(
             [&]( SCH_ITEM* aChild )
             {
                 if( EDA_TEXT* textItem = dynamic_cast<EDA_TEXT*>( aChild ) )
                     textItem->ResolveFont( embeddedFonts );
-            } );
+            },
+            RECURSE_MODE::NO_RECURSE );
+
+    // Before V10 we didn't store the number of body styles in a symbol, we just looked at all its
+    // drawings each time we wanted to know.
+    if( m_requiredVersion < 20250827 )
+        symbol->SetHasDeMorganBodyStyles( symbol->HasLegacyAlternateBodyStyle() );
+
+    symbol->RefreshLibraryTreeCaches();
 
     return symbol.release();
 }
@@ -668,11 +727,15 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseFill( FILL_PARAMS& aFill )
 
             switch( token )
             {
-            case T_none:       aFill.m_FillType = FILL_T::NO_FILL;                  break;
-            case T_outline:    aFill.m_FillType = FILL_T::FILLED_SHAPE;             break;
-            case T_background: aFill.m_FillType = FILL_T::FILLED_WITH_BG_BODYCOLOR; break;
-            case T_color:      aFill.m_FillType = FILL_T::FILLED_WITH_COLOR;        break;
-            default:           Expecting( "none, outline, color or background" );
+            case T_none:          aFill.m_FillType = FILL_T::NO_FILL;                  break;
+            case T_outline:       aFill.m_FillType = FILL_T::FILLED_SHAPE;             break;
+            case T_background:    aFill.m_FillType = FILL_T::FILLED_WITH_BG_BODYCOLOR; break;
+            case T_color:         aFill.m_FillType = FILL_T::FILLED_WITH_COLOR;        break;
+            case T_hatch:         aFill.m_FillType = FILL_T::HATCH;                    break;
+            case T_reverse_hatch: aFill.m_FillType = FILL_T::REVERSE_HATCH;            break;
+            case T_cross_hatch:   aFill.m_FillType = FILL_T::CROSS_HATCH;              break;
+            default:              Expecting( "none, outline, hatch, reverse_hatch, "
+                                             "cross_hatch, color or background" );
             }
 
             NeedRIGHT();
@@ -839,8 +902,12 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseEDA_TEXT( EDA_TEXT* aText, bool aConvertOve
 
 void SCH_IO_KICAD_SEXPR_PARSER::parseHeader( TSCHEMATIC_T::T aHeaderType, int aFileVersion )
 {
-    wxCHECK_RET( CurTok() == aHeaderType,
-                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a header." ) );
+    if( CurTok() != aHeaderType )
+    {
+        THROW_PARSE_ERROR( wxString::Format( _( "Cannot parse '%s' as a header." ),
+                                             GetTokenString( CurTok() ) ),
+                           CurSource(), CurLine(), CurLineNumber(), CurOffset() );
+    }
 
     NeedLEFT();
 
@@ -855,6 +922,34 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseHeader( TSCHEMATIC_T::T aHeaderType, int aF
     {
         m_requiredVersion = aFileVersion;
     }
+}
+
+
+void SCH_IO_KICAD_SEXPR_PARSER::parseBodyStyles( std::unique_ptr<LIB_SYMBOL>& aSymbol )
+{
+    wxCHECK_RET( CurTok() == T_body_styles,
+                 "Cannot parse " + GetTokenString( CurTok() ) + " as a body_styles token." );
+
+    std::vector<wxString> names;
+
+    for( T token = NextTok(); token != T_RIGHT; token = NextTok() )
+    {
+        if( token == T_demorgan )
+        {
+            aSymbol->SetHasDeMorganBodyStyles( true );
+            continue;
+        }
+        else if( !IsSymbol( token ) )
+        {
+            THROW_PARSE_ERROR( _( "Invalid property value" ), CurSource(), CurLine(), CurLineNumber(),
+                               CurOffset() );
+        }
+
+        names.push_back( FromUTF8() );
+    }
+
+    if( !names.empty() )
+        aSymbol->SetBodyStyleNames( names );
 }
 
 
@@ -955,19 +1050,17 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
                  wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a property." ) );
     wxCHECK( aSymbol, nullptr );
 
+    FIELD_T  fieldId = FIELD_T::USER;
     wxString name;
     wxString value;
-    auto field = std::make_unique<SCH_FIELD>( aSymbol.get(), aSymbol->GetNextAvailableFieldId() );
-
-    // By default, fieds are visible.
-    // Invisible fields have the hide style or keyword specified in file
-    field->SetVisible( true );
+    bool     isPrivate = false;
+    bool     isVisible = true;
 
     T token = NextTok();
 
     if( token == T_private )
     {
-        field->SetPrivate( true );
+        isPrivate = true;
         token = NextTok();
     }
 
@@ -985,18 +1078,19 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
                            CurOffset() );
     }
 
-    field->SetName( name );
-
     // Correctly set the ID based on canonical (untranslated) field name
-    // If ID is stored in the file (old versions), it will overwrite this
-    for( int fieldId : MANDATORY_FIELDS )
+    for( FIELD_T id : MANDATORY_FIELDS )
     {
-        if( name.CmpNoCase( GetCanonicalFieldName( fieldId ) ) == 0 )
+        if( name.CmpNoCase( GetCanonicalFieldName( id ) ) == 0 )
         {
-            field->SetId( fieldId );
+            fieldId = id;
             break;
         }
     }
+
+    auto field = std::make_unique<SCH_FIELD>( aSymbol.get(), fieldId, name );
+    field->SetPrivate( isPrivate );
+    field->SetVisible( isVisible );
 
     token = NextTok();
 
@@ -1007,7 +1101,11 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
     }
 
     // Empty property values are valid.
-    value = FromUTF8();
+
+    if( m_requiredVersion < 20250318 && CurStr() == "~" )
+        value = wxEmptyString;
+    else
+        value = FromUTF8();
 
     field->SetText( value );
 
@@ -1020,17 +1118,9 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
 
         switch( token )
         {
-        // I am not sure we should even support parsing these IDs any more
-        case T_id:
-        {
-            int id = parseInt( "field ID" );
-
-            // Only set an ID that isn't a MANDATORY_FIELD ID
-            if( id >= MANDATORY_FIELD_COUNT )
-                field->SetId( id );
-
+        case T_id:  // legacy token; ignore
+            parseInt( "field ID" );
             NeedRIGHT();
-        }
             break;
 
         case T_at:
@@ -1045,7 +1135,8 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
             break;
 
         case T_effects:
-            parseEDA_TEXT( static_cast<EDA_TEXT*>( field.get() ), field->GetId() == VALUE_FIELD );
+            parseEDA_TEXT( static_cast<EDA_TEXT*>( field.get() ),
+                           field->GetId() == FIELD_T::VALUE );
             break;
 
         case T_show_name:
@@ -1067,26 +1158,13 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
         }
     }
 
-    // Due to an bug when in #LIB_SYMBOL::Flatten, duplicate ids slipped through when writing
-    // files.  This section replaces duplicate #SCH_FIELD indices on load.
-    if( ( field->GetId() >= MANDATORY_FIELD_COUNT ) && m_fieldIDsRead.count( field->GetId() ) )
-    {
-        int nextAvailableId = field->GetId() + 1;
-
-        while( m_fieldIDsRead.count( nextAvailableId ) )
-            nextAvailableId += 1;
-
-        field->SetId( nextAvailableId );
-    }
-
     SCH_FIELD* existingField;
 
     if( field->IsMandatory() )
     {
-        existingField = aSymbol->GetFieldById( field->GetId() );
+        existingField = aSymbol->GetField( field->GetId() );
 
         *existingField = *field;
-        m_fieldIDsRead.insert( field->GetId() );
         return existingField;
     }
     else if( name == "ki_keywords" )
@@ -1105,7 +1183,7 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
     {
         // Not a SCH_FIELD object yet.
         wxArrayString filters;
-        wxStringTokenizer tokenizer( value );
+        wxStringTokenizer tokenizer( value, " \t\r\n", wxTOKEN_STRTOK );
 
         while( tokenizer.HasMoreTokens() )
         {
@@ -1126,7 +1204,7 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
     else
     {
         // At this point, a user field is read.
-        existingField = aSymbol->FindField( field->GetCanonicalName() );
+        existingField = aSymbol->GetField( field->GetCanonicalName() );
 
 #if 1   // Enable it to modify the name of the field to add if already existing
         // Disable it to skip the field having the same name as previous field
@@ -1142,7 +1220,7 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
                 wxString newname = base_name;
                 newname << '_' << ii;
 
-                existingField = aSymbol->FindField( newname );
+                existingField = aSymbol->GetField( newname );
 
                 if( !existingField )    // the modified name is not found, use it
                     field->SetName( newname );
@@ -1152,7 +1230,6 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseProperty( std::unique_ptr<LIB_SYMBOL>
         if( !existingField )
         {
             aSymbol->AddDrawItem( field.get(), false );
-            m_fieldIDsRead.insert( field->GetId() );
             return field.release();
         }
         else
@@ -1432,7 +1509,7 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolBezier()
         }
     }
 
-    bezier->RebuildBezierToSegmentsPointsList( bezier->GetPenWidth() / 2 );
+    bezier->RebuildBezierToSegmentsPointsList( m_maxError );
 
     return bezier.release();
 }
@@ -1559,8 +1636,6 @@ SCH_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolPin()
                  wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as a pin token." ) );
 
     T                        token;
-    wxString                 tmp;
-    wxString                 error;
     std::unique_ptr<SCH_PIN> pin = std::make_unique<SCH_PIN>( nullptr );
 
     pin->SetUnit( m_unit );
@@ -1624,7 +1699,9 @@ SCH_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolPin()
                                    CurOffset() );
             }
 
-            if( m_requiredVersion < 20210606 )
+            if( m_requiredVersion < 20250318 && CurStr() == "~" )
+                pin->SetName( wxEmptyString );
+            else if( m_requiredVersion < 20210606 )
                 pin->SetName( ConvertToNewOverbarNotation( FromUTF8() ) );
             else
                 pin->SetName( FromUTF8() );
@@ -1662,7 +1739,13 @@ SCH_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolPin()
                                    CurLineNumber(), CurOffset() );
             }
 
-            pin->SetNumber( FromUTF8() );
+            if( m_requiredVersion < 20250318 && CurStr() == "~" )
+                pin->SetNumber( wxEmptyString );
+            else if( m_requiredVersion < 20210606 )
+                pin->SetNumber( ConvertToNewOverbarNotation( FromUTF8() ) );
+            else
+                pin->SetNumber( FromUTF8() );
+
             token = NextTok();
 
             if( token != T_RIGHT )
@@ -1830,6 +1913,11 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolRectangle()
             NeedRIGHT();
             break;
 
+        case T_radius:
+            rectangle->SetCornerRadius( parseDouble( "corner radius" ) * schIUScale.IU_PER_MM );
+            NeedRIGHT();
+            break;
+
         case T_stroke:
             parseStroke( stroke );
             rectangle->SetStroke( stroke );
@@ -1904,7 +1992,7 @@ SCH_ITEM* SCH_IO_KICAD_SEXPR_PARSER::parseSymbolText()
 
     // Convert hidden symbol text (which is no longer supported) into a hidden field
     if( !text->IsVisible() )
-        return new SCH_FIELD( text.get(), -1 );
+        return new SCH_FIELD( text.get(), FIELD_T::USER );
 
     return text.release();
 }
@@ -2050,7 +2138,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parsePAGE_INFO( PAGE_INFO& aPageInfo )
                            CurOffset() );
     }
 
-    if( pageType == PAGE_INFO::Custom )
+    if( aPageInfo.GetType() == PAGE_SIZE_TYPE::User )
     {
         double width = parseDouble( "width" );
 
@@ -2227,53 +2315,67 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseSchField( SCH_ITEM* aParent )
     }
 
     // Empty property values are valid.
-    wxString value = FromUTF8();
+    wxString value;
 
-    int nextFieldId = 0;
+    if( m_requiredVersion < 20250318 && CurStr() == "~" )
+        value = wxEmptyString;
+    else
+        value = FromUTF8();
 
-    if( aParent->Type() == SCH_SYMBOL_T )
-        nextFieldId = MANDATORY_FIELD_COUNT;
-    else if( aParent->Type() == SCH_SHEET_T )
-        nextFieldId = SHEET_MANDATORY_FIELD_COUNT;
-
-    std::unique_ptr<SCH_FIELD> field = std::make_unique<SCH_FIELD>( VECTOR2I( -1, -1 ), nextFieldId,
-                                                                    aParent, name );
-    field->SetText( value );
-    field->SetVisible( true );
-    field->SetPrivate( is_private );
+    FIELD_T fieldId = FIELD_T::USER;
 
     // Correctly set the ID based on canonical (untranslated) field name
-    // If ID is stored in the file (old versions), it will overwrite this
     if( aParent->Type() == SCH_SYMBOL_T )
     {
-        for( int fieldId : MANDATORY_FIELDS )
+        for( FIELD_T id : MANDATORY_FIELDS )
         {
-            if( name == GetCanonicalFieldName( fieldId ) )
+            if( name.CmpNoCase( GetCanonicalFieldName( id ) ) == 0 )
             {
-                field->SetId( fieldId );
-                field->SetPrivate( false );
+                fieldId = id;
                 break;
             }
         }
     }
     else if( aParent->Type() == SCH_SHEET_T )
     {
-        for( int fieldId : SHEET_MANDATORY_FIELDS )
+        fieldId = FIELD_T::SHEET_USER;  // This is the default id for user fields
+
+        for( FIELD_T id : SHEET_MANDATORY_FIELDS )
         {
-            if( name == SCH_SHEET::GetDefaultFieldName( fieldId, !DO_TRANSLATE ) )
+            if( name.CmpNoCase( GetCanonicalFieldName( id ) ) == 0 )
             {
-                field->SetId( fieldId );
-                field->SetPrivate( false );
+                fieldId = id;
                 break;
             }
         }
 
         // Legacy support for old field names
         if( name.CmpNoCase( wxT( "Sheet name" ) ) == 0 )
-            field->SetId( SHEETNAME );
+            fieldId = FIELD_T::SHEET_NAME;
         else if( name.CmpNoCase( wxT( "Sheet file" ) ) == 0 )
-            field->SetId( SHEETFILENAME );
+            fieldId = FIELD_T::SHEET_FILENAME;
     }
+    else if( aParent->Type() == SCH_GLOBAL_LABEL_T )
+    {
+        for( FIELD_T id : GLOBALLABEL_MANDATORY_FIELDS )
+        {
+            if( name.CmpNoCase( GetCanonicalFieldName( id ) ) == 0 )
+            {
+                fieldId = id;
+                break;
+            }
+        }
+
+        // Legacy support for old field names
+        if( name.CmpNoCase( wxT( "Intersheet References" ) ) == 0 )
+            fieldId = FIELD_T::INTERSHEET_REFS;
+    }
+
+    std::unique_ptr<SCH_FIELD> field = std::make_unique<SCH_FIELD>( aParent, fieldId, name );
+    field->SetText( value );
+
+    if( fieldId == FIELD_T::USER )
+        field->SetPrivate( is_private );
 
     for( token = NextTok(); token != T_RIGHT; token = NextTok() )
     {
@@ -2284,17 +2386,9 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseSchField( SCH_ITEM* aParent )
 
         switch( token )
         {
-        // I am not sure we should even support parsing these IDs any more
-        case T_id:
-        {
-            int id = parseInt( "field ID" );
-
-            // Only set an ID that isn't a mandatory field ID
-            if( id >= nextFieldId )
-                field->SetId( id );
-
+        case T_id:  // legacy token; ignore
+            parseInt( "field ID" );
             NeedRIGHT();
-        }
             break;
 
         case T_at:
@@ -2309,7 +2403,8 @@ SCH_FIELD* SCH_IO_KICAD_SEXPR_PARSER::parseSchField( SCH_ITEM* aParent )
             break;
 
         case T_effects:
-            parseEDA_TEXT( static_cast<EDA_TEXT*>( field.get() ), field->GetId() == VALUE_FIELD );
+            parseEDA_TEXT( static_cast<EDA_TEXT*>( field.get() ),
+                           field->GetId() == FIELD_T::VALUE );
             break;
 
         case T_show_name:
@@ -2569,13 +2664,23 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchSymbolInstances( SCH_SCREEN* aScreen )
 
                 case T_value:
                     NeedSYMBOL();
-                    instance.m_Value = FromUTF8();
+
+                    if( m_requiredVersion < 20250318 && CurStr() == "~" )
+                        instance.m_Value = wxEmptyString;
+                    else
+                        instance.m_Value = FromUTF8();
+
                     NeedRIGHT();
                     break;
 
                 case T_footprint:
                     NeedSYMBOL();
-                    instance.m_Footprint = FromUTF8();
+
+                    if( m_requiredVersion < 20250318 && CurStr() == "~" )
+                        instance.m_Footprint = wxEmptyString;
+                    else
+                        instance.m_Footprint = FromUTF8();
+
                     NeedRIGHT();
                     break;
 
@@ -2604,6 +2709,9 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
 
     wxCHECK( screen != nullptr, /* void */ );
 
+    if( SCHEMATIC* schematic = dynamic_cast<SCHEMATIC*>( screen->GetParent() ) )
+        m_maxError = schematic->Settings().m_MaxError;
+
     if( aIsCopyableOnly )
         m_requiredVersion = aFileVersion;
 
@@ -2630,6 +2738,9 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
             Expecting( "kicad_sch" );
 
         parseHeader( T_kicad_sch, SEXPR_SCHEMATIC_FILE_VERSION );
+
+        // Prior to this, bar was a valid string char for unquoted strings.
+        SetKnowsBar( m_requiredVersion >= 20240620 );
 
         // Prior to schematic file version 20210406, schematics did not have UUIDs so we need
         // to generate one for the root schematic for instance paths.
@@ -2660,6 +2771,10 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
 
         switch( token )
         {
+        case T_group:
+            parseGroup();
+            break;
+
         case T_generator:
             // (generator "genname"); we don't care about it at the moment.
             NeedSYMBOL();
@@ -2755,7 +2870,6 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
                 {
                 case T_symbol:
                     symbol = parseLibSymbol( symbolLibMap );
-                    symbol->UpdateFieldOrdinals();
                     screen->AddLibSymbol( symbol );
                     break;
 
@@ -2814,7 +2928,13 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
             // when the item has only 2 corners, similar to a SCH_LINE
             SCH_SHAPE* poly = parseSchPolyLine();
 
-            if( poly->GetPointCount() > 2 )
+            if( poly->GetPointCount() < 2 )
+            {
+                delete poly;
+                THROW_PARSE_ERROR( _( "Schematic polyline has too few points" ), CurSource(), CurLine(),
+                                   CurLineNumber(), CurOffset() );
+            }
+            else if( poly->GetPointCount() > 2 )
             {
                 screen->Append( poly );
             }
@@ -2925,7 +3045,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
             }
             catch( const PARSE_ERROR& e )
             {
-                wxLogError( e.What() );
+                m_parseWarnings.push_back( e.What() );
             }
 
             SyncLineReaderWith( embeddedFilesParser );
@@ -2950,6 +3070,8 @@ void SCH_IO_KICAD_SEXPR_PARSER::ParseSchematic( SCH_SHEET* aSheet, bool aIsCopya
 
     screen->UpdateLocalLibSymbolLinks();
     screen->FixupEmbeddedData();
+
+    resolveGroups( screen );
 
     SCHEMATIC* schematic = screen->Schematic();
 
@@ -2982,14 +3104,6 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
 
     // We'll reset this if we find a fields_autoplaced token
     symbol->SetFieldsAutoplaced( AUTOPLACE_NONE );
-
-    m_fieldIDsRead.clear();
-
-    // Make sure the mandatory field IDs are reserved as already read,
-    // the field parser will set the field IDs to the correct value if
-    // the field name matches a mandatory field name
-    for( int fieldId : MANDATORY_FIELDS )
-        m_fieldIDsRead.insert( fieldId );
 
     for( token = NextTok(); token != T_RIGHT; token = NextTok() )
     {
@@ -3042,9 +3156,9 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             {
                 if( static_cast<int>( name.size() ) > bad_pos )
                 {
-                    wxString msg = wxString::Format(
-                            _( "Symbol %s contains invalid character '%c'" ), name,
-                            name[bad_pos] );
+                    wxString msg = wxString::Format( _( "Symbol %s contains invalid character '%c'" ),
+                                                     name,
+                                                     name[bad_pos] );
 
                     THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
                 }
@@ -3092,10 +3206,9 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             NeedRIGHT();
             break;
 
-        case T_convert:
-            // Use SetBodyStyleUnconditional() because the full symbol properties
-            // (including the corresponding LIB_SYMBOL) are not known
-            symbol->SetBodyStyleUnconditional( parseInt( "symbol body style" ) );
+        case T_convert:     // Legacy token
+        case T_body_style:
+            symbol->SetBodyStyle( parseInt( "symbol body style" ) );
             NeedRIGHT();
             break;
 
@@ -3111,6 +3224,11 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
 
         case T_on_board:
             symbol->SetExcludedFromBoard( !parseBool() );
+            NeedRIGHT();
+            break;
+
+        case T_in_pos_files:
+            symbol->SetExcludedFromPosFiles( !parseBool() );
             NeedRIGHT();
             break;
 
@@ -3157,13 +3275,23 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
 
                 case T_value:
                     NeedSYMBOL();
-                    symbol->SetValueFieldText( FromUTF8() );
+
+                    if( m_requiredVersion < 20250318 && CurStr() == "~" )
+                        symbol->SetValueFieldText( wxEmptyString );
+                    else
+                        symbol->SetValueFieldText( FromUTF8() );
+
                     NeedRIGHT();
                     break;
 
                 case T_footprint:
                     NeedSYMBOL();
-                    symbol->SetFootprintFieldText( FromUTF8() );
+
+                    if( m_requiredVersion < 20250318 && CurStr() == "~" )
+                        symbol->SetFootprintFieldText( wxEmptyString );
+                    else
+                        symbol->SetFootprintFieldText( FromUTF8() );
+
                     NeedRIGHT();
                     break;
 
@@ -3230,22 +3358,130 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
 
                         case T_value:
                             NeedSYMBOL();
-                            symbol->SetValueFieldText( FromUTF8() );
+
+                            if( m_requiredVersion < 20250318 && CurStr() == "~" )
+                                symbol->SetValueFieldText( wxEmptyString );
+                            else
+                                symbol->SetValueFieldText( FromUTF8() );
+
                             NeedRIGHT();
                             break;
 
                         case T_footprint:
                             NeedSYMBOL();
-                            symbol->SetFootprintFieldText( FromUTF8() );
+
+                            if( m_requiredVersion < 20250318 && CurStr() == "~" )
+                                symbol->SetFootprintFieldText( wxEmptyString );
+                            else
+                                symbol->SetFootprintFieldText( FromUTF8() );
+
                             NeedRIGHT();
                             break;
 
-                        default:
-                            Expecting( "reference, unit, value or footprint" );
+
+                        case T_variant:
+                        {
+                            SCH_SYMBOL_VARIANT variant;
+                            variant.InitializeAttributes( *symbol );
+
+                            for( token = NextTok(); token != T_RIGHT; token = NextTok() )
+                            {
+                                if( token != T_LEFT )
+                                    Expecting( T_LEFT );
+
+                                token = NextTok();
+
+                                switch( token )
+                                {
+                                case T_name:
+                                    NeedSYMBOL();
+                                    variant.m_Name = FromUTF8();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_dnp:
+                                    variant.m_DNP = parseBool();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_exclude_from_sim:
+                                    variant.m_ExcludedFromSim = parseBool();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_in_bom:
+                                    variant.m_ExcludedFromBOM = parseBool();
+
+                                    // This fixes the incorrect logic from prior file versions.  The "in_bom" token
+                                    // used in the file format is the positive logic.  However, in the UI the term
+                                    // excluded from BOM is used which is the inverted logic.
+                                    if( m_requiredVersion >= 20260306 )
+                                        variant.m_ExcludedFromBOM = !variant.m_ExcludedFromBOM;
+
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_on_board:
+                                    variant.m_ExcludedFromBoard = !parseBool();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_in_pos_files:
+                                    variant.m_ExcludedFromPosFiles = !parseBool();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_field:
+                                {
+                                    wxString fieldName;
+                                    wxString fieldValue;
+
+                                    for( token = NextTok(); token != T_RIGHT; token = NextTok() )
+                                    {
+                                        if( token != T_LEFT )
+                                            Expecting( T_LEFT );
+
+                                        token = NextTok();
+
+                                        switch( token )
+                                        {
+                                        case T_name:
+                                            NeedSYMBOL();
+                                            fieldName = FromUTF8();
+                                            NeedRIGHT();
+                                            break;
+
+                                        case T_value:
+                                            NeedSYMBOL();
+                                            fieldValue = FromUTF8();
+                                            NeedRIGHT();
+                                            break;
+
+                                        default:
+                                            Expecting( "name or value" );
+                                        }
+                                    }
+
+                                    variant.m_Fields[fieldName] = fieldValue;
+                                    break;
+                                }
+
+                                default:
+                                    Expecting( "dnp, exclude_from_sim, field, in_bom, in_pos_files, name, or on_board" );
+                                }
+
+                                instance.m_Variants[variant.m_Name] = variant;
+                            }
+
+                            break;
                         }
 
-                        symbol->AddHierarchicalReference( instance );
+                        default:
+                            Expecting( "reference, unit, value, footprint, or variant" );
+                        }
                     }
+
+                    symbol->AddHierarchicalReference( instance );
                 }
             }
 
@@ -3262,6 +3498,7 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD_V7 )
             {
                 symbol->SetExcludedFromSim( field->GetText() == wxS( "0" ) );
+                delete field;
                 break;
             }
 
@@ -3269,28 +3506,24 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             if( field->GetCanonicalName() == SIM_LEGACY_ENABLE_FIELD )
             {
                 symbol->SetExcludedFromSim( field->GetText() == wxS( "N" ) );
+                delete field;
                 break;
             }
 
-            if( ( field->GetId() >= MANDATORY_FIELD_COUNT ) && m_fieldIDsRead.count( field->GetId() ) )
-            {
-                int nextAvailableId = field->GetId() + 1;
+            SCH_FIELD* existing;
 
-                while( m_fieldIDsRead.count( nextAvailableId ) )
-                    nextAvailableId += 1;
+            if( field->IsMandatory() )
+                existing = symbol->GetField( field->GetId() );
+            else
+                existing = symbol->GetField( field->GetName() );
 
-                field->SetId( nextAvailableId );
-            }
-
-            if( symbol->GetFieldById( field->GetId() ) )
-                *symbol->GetFieldById( field->GetId() ) = *field;
+            if( existing )
+                *existing = *field;
             else
                 symbol->AddField( *field );
 
-            if( field->GetId() == REFERENCE_FIELD )
+            if( field->GetId() == FIELD_T::REFERENCE )
                 symbol->UpdatePrefix();
-
-            m_fieldIDsRead.insert( field->GetId() );
 
             delete field;
             break;
@@ -3342,7 +3575,7 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
         }
 
         default:
-            Expecting( "lib_id, lib_name, at, mirror, uuid, on_board, in_bom, dnp, "
+            Expecting( "lib_id, lib_name, at, mirror, uuid, exclude_from_sim, on_board, in_bom, dnp, "
                        "default_instance, property, pin, or instances" );
         }
     }
@@ -3531,24 +3764,10 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR_PARSER::parseSheet()
                 // Fortunately they only saved the sheetname and sheetfilepath (and always
                 // in that order), so we can hack in a recovery.
                 if( fields.empty() )
-                    field->SetId( SHEETNAME );
+                    field->setId( FIELD_T::SHEET_NAME );
                 else
-                    field->SetId( SHEETFILENAME );
+                    field->setId( FIELD_T::SHEET_FILENAME );
             }
-
-            // It would appear the problem persists past 20200310, but this time with the
-            // earlier ids being re-used for later (user) fields.  The easiest (and most
-            // complete) solution is to disallow multiple instances of the same id (for all
-            // files since the source of the error *might* in fact be hand-edited files).
-            //
-            // While no longer used, -1 is still a valid id for user field.  We convert it to
-            // the first available ID after the mandatory fields
-
-            if( field->GetId() < 0 )
-                field->SetId( SHEET_MANDATORY_FIELD_COUNT );
-
-            while( !fieldIDsRead.insert( field->GetId() ).second )
-                field->SetId( field->GetId() + 1 );
 
             fields.emplace_back( *field );
 
@@ -3631,8 +3850,105 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR_PARSER::parseSheet()
                             break;
                         }
 
+                        case T_variant:
+                        {
+                            SCH_SHEET_VARIANT variant;
+                            variant.InitializeAttributes( *sheet );
+
+                            for( token = NextTok(); token != T_RIGHT; token = NextTok() )
+                            {
+                                if( token != T_LEFT )
+                                    Expecting( T_LEFT );
+
+                                token = NextTok();
+
+                                switch( token )
+                                {
+                                case T_name:
+                                    NeedSYMBOL();
+                                    variant.m_Name = FromUTF8();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_dnp:
+                                    variant.m_DNP = parseBool();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_exclude_from_sim:
+                                    variant.m_ExcludedFromSim = parseBool();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_in_bom:
+                                    variant.m_ExcludedFromBOM = parseBool();
+
+                                    // This fixes the incorrect logic from prior file versions.  The "in_bom" token
+                                    // used in the file format is the positive logic.  However, in the UI the term
+                                    // excluded from BOM is used which is the inverted logic.
+                                    if( m_requiredVersion >= 20260306 )
+                                        variant.m_ExcludedFromBOM = !variant.m_ExcludedFromBOM;
+
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_on_board:
+                                    variant.m_ExcludedFromBoard = !parseBool();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_in_pos_files:
+                                    variant.m_ExcludedFromPosFiles = !parseBool();
+                                    NeedRIGHT();
+                                    break;
+
+                                case T_field:
+                                {
+                                    wxString fieldName;
+                                    wxString fieldValue;
+
+                                    for( token = NextTok(); token != T_RIGHT; token = NextTok() )
+                                    {
+                                        if( token != T_LEFT )
+                                            Expecting( T_LEFT );
+
+                                        token = NextTok();
+
+                                        switch( token )
+                                        {
+                                        case T_name:
+                                            NeedSYMBOL();
+                                            fieldName = FromUTF8();
+                                            NeedRIGHT();
+                                            break;
+
+                                        case T_value:
+                                            NeedSYMBOL();
+                                            fieldValue = FromUTF8();
+                                            NeedRIGHT();
+                                            break;
+
+                                        default:
+                                            Expecting( "name or value" );
+                                        }
+                                    }
+
+                                    variant.m_Fields[fieldName] = fieldValue;
+                                    break;
+                                }
+
+                                default:
+                                    Expecting( "dnp, exclude_from_sim, field, in_bom, in_pos_files, name, or on_board" );
+                                }
+
+                                instance.m_Variants[variant.m_Name] = variant;
+                            }
+
+                            break;
+                        }
+
                         default:
-                            Expecting( "page" );
+                            Expecting( "page or variant" );
                         }
                     }
 
@@ -3650,6 +3966,18 @@ SCH_SHEET* SCH_IO_KICAD_SEXPR_PARSER::parseSheet()
     }
 
     sheet->SetFields( fields );
+
+    if( !FindField( sheet->GetFields(), FIELD_T::SHEET_NAME ) )
+    {
+        THROW_PARSE_ERROR( _( "Missing sheet name property" ), CurSource(), CurLine(),
+                           CurLineNumber(), CurOffset() );
+    }
+
+    if( !FindField( sheet->GetFields(), FIELD_T::SHEET_FILENAME ) )
+    {
+        THROW_PARSE_ERROR( _( "Missing sheet file property" ), CurSource(), CurLine(),
+                           CurLineNumber(), CurOffset() );
+    }
 
     return sheet.release();
 }
@@ -4103,6 +4431,11 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSchRectangle()
             NeedRIGHT();
             break;
 
+        case T_radius:
+            rectangle->SetCornerRadius( parseDouble( "corner radius" ) * schIUScale.IU_PER_MM );
+            NeedRIGHT();
+            break;
+
         case T_stroke:
             parseStroke( stroke );
             rectangle->SetStroke( stroke );
@@ -4162,10 +4495,34 @@ SCH_RULE_AREA* SCH_IO_KICAD_SEXPR_PARSER::parseSchRuleArea()
             ruleArea->SetStroke( poly->GetStroke() );
             ruleArea->SetFillMode( poly->GetFillMode() );
             ruleArea->SetFillColor( poly->GetFillColor() );
+
+            // the uuid is saved to the shape but stored and saved out of the rulearea
+            const_cast<KIID&>( ruleArea->m_Uuid ) = poly->m_Uuid;
             break;
         }
+
+        case T_exclude_from_sim:
+            ruleArea->SetExcludedFromSim( parseBool() );
+            NeedRIGHT();
+            break;
+
+        case T_in_bom:
+            ruleArea->SetExcludedFromBOM( !parseBool() );
+            NeedRIGHT();
+            break;
+
+        case T_on_board:
+            ruleArea->SetExcludedFromBoard( !parseBool() );
+            NeedRIGHT();
+            break;
+
+        case T_dnp:
+            ruleArea->SetDNP( parseBool() );
+            NeedRIGHT();
+            break;
+
         default:
-            Expecting( "polyline" );
+            Expecting( "exclude_from_sim, on_board, in_bom, dnp, or polyline" );
         }
     }
 
@@ -4243,7 +4600,7 @@ SCH_SHAPE* SCH_IO_KICAD_SEXPR_PARSER::parseSchBezier()
         }
     }
 
-    bezier->RebuildBezierToSegmentsPointsList( bezier->GetPenWidth() / 2 );
+    bezier->RebuildBezierToSegmentsPointsList( m_maxError );
 
     return bezier.release();
 }
@@ -4364,7 +4721,7 @@ SCH_TEXT* SCH_IO_KICAD_SEXPR_PARSER::parseSchText()
             if( text->Type() == SCH_GLOBAL_LABEL_T )
             {
                 SCH_GLOBALLABEL* label = static_cast<SCH_GLOBALLABEL*>( text.get() );
-                SCH_FIELD*       field = &label->GetFields()[0];
+                SCH_FIELD*       field = label->GetField( FIELD_T::INTERSHEET_REFS );
 
                 field->SetTextPos( parseXY() );
                 NeedRIGHT();
@@ -4386,18 +4743,11 @@ SCH_TEXT* SCH_IO_KICAD_SEXPR_PARSER::parseSchText()
 
             SCH_FIELD* field = parseSchField( text.get() );
 
-            // If the field is a Intersheetrefs it is not handled like other fields:
-            // It always exists and is the first in list
-            if( text->Type() == SCH_GLOBAL_LABEL_T
-                && ( field->GetInternalName() == wxT( "Intersheet References" ) // old name in V6.0
-                     || field->GetInternalName() == wxT( "Intersheetrefs" ) ) ) // Current name
+            // Intersheetrefs is a mandatory field and so will already exist
+            if( text->Type() == SCH_GLOBAL_LABEL_T && field->IsMandatory() )
             {
                 SCH_GLOBALLABEL* label = static_cast<SCH_GLOBALLABEL*>( text.get() );
-                // Ensure the Id of this special and first field is 0, needed by
-                // SCH_FIELD::IsHypertext() test
-                field->SetId( 0 );
-
-                label->GetFields()[0] = *field;
+                *label->GetField( field->GetId() ) = *field;
             }
             else
             {
@@ -4706,9 +5056,21 @@ SCH_TABLE* SCH_IO_KICAD_SEXPR_PARSER::parseSchTable()
 
             break;
 
+        case T_uuid:
+            NeedSYMBOL();
+            const_cast<KIID&>( table->m_Uuid ) = parseKIID();
+            NeedRIGHT();
+            break;
+
         default:
-            Expecting( "columns, col_widths, row_heights, border, separators, header or cells" );
+            Expecting( "columns, col_widths, row_heights, border, separators, uuid, header or cells" );
         }
+    }
+
+    if( !table->GetCell( 0, 0 ) )
+    {
+        THROW_PARSE_ERROR( _( "Invalid table: no cells defined" ), CurSource(), CurLine(), CurLineNumber(),
+                           CurOffset() );
     }
 
     return table.release();
@@ -4722,7 +5084,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseBusAlias( SCH_SCREEN* aScreen )
     wxCHECK( aScreen, /* void */ );
 
     T token;
-    std::shared_ptr<BUS_ALIAS> busAlias = std::make_shared<BUS_ALIAS>( aScreen );
+    std::shared_ptr<BUS_ALIAS> busAlias = std::make_shared<BUS_ALIAS>();
     wxString alias;
     wxString member;
 
@@ -4753,7 +5115,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseBusAlias( SCH_SCREEN* aScreen )
         if( m_requiredVersion < 20210621 )
             member = ConvertToNewOverbarNotation( member );
 
-        busAlias->Members().emplace_back( member );
+        busAlias->AddMember( member );
 
         token = NextTok();
     }
@@ -4761,4 +5123,175 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseBusAlias( SCH_SCREEN* aScreen )
     NeedRIGHT();
 
     aScreen->AddBusAlias( busAlias );
+}
+
+
+void SCH_IO_KICAD_SEXPR_PARSER::parseGroupMembers( GROUP_INFO& aGroupInfo )
+{
+    T token;
+
+    while( ( token = NextTok() ) != T_RIGHT )
+    {
+        // This token is the Uuid of the item in the group.
+        // Since groups are serialized at the end of the file/footprint, the Uuid should already
+        // have been seen and exist in the board.
+        KIID uuid( CurStr() );
+        aGroupInfo.memberUuids.push_back( uuid );
+    }
+}
+
+
+void SCH_IO_KICAD_SEXPR_PARSER::parseGroup()
+{
+    wxCHECK_RET( CurTok() == T_group,
+                 wxT( "Cannot parse " ) + GetTokenString( CurTok() ) + wxT( " as PCB_GROUP." ) );
+
+    T token;
+
+    m_groupInfos.push_back( GROUP_INFO() );
+    GROUP_INFO& groupInfo = m_groupInfos.back();
+
+    while( ( token = NextTok() ) != T_LEFT )
+    {
+        if( token == T_STRING )
+            groupInfo.name = FromUTF8();
+        else
+            Expecting( "group name or locked" );
+    }
+
+    for( ; token != T_RIGHT; token = NextTok() )
+    {
+        if( token != T_LEFT )
+            Expecting( T_LEFT );
+
+        token = NextTok();
+
+        switch( token )
+        {
+        case T_uuid:
+            NextTok();
+            groupInfo.uuid = parseKIID();
+            NeedRIGHT();
+            break;
+
+        case T_lib_id:
+        {
+            token = NextTok();
+
+            if( !IsSymbol( token ) && token != T_NUMBER )
+                Expecting( "symbol|number" );
+
+            LIB_ID   libId;
+            wxString name = FromUTF8();
+            // Some symbol LIB_IDs have the '/' character escaped which can break
+            // symbol links.  The '/' character is no longer an illegal LIB_ID character so
+            // it doesn't need to be escaped.
+            name.Replace( "{slash}", "/" );
+
+            int bad_pos = groupInfo.libId.Parse( name );
+
+            if( bad_pos >= 0 )
+            {
+                if( static_cast<int>( name.size() ) > bad_pos )
+                {
+                    wxString msg = wxString::Format( _( "Group library link %s contains invalid character '%c'" ), name,
+                                                     name[bad_pos] );
+
+                    THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
+                }
+
+                THROW_PARSE_ERROR( _( "Invalid library ID" ), CurSource(), CurLine(), CurLineNumber(), CurOffset() );
+            }
+
+            NeedRIGHT();
+            break;
+        }
+
+        case T_members:
+        {
+            parseGroupMembers( groupInfo );
+            break;
+        }
+
+        default:
+            Expecting( "uuid, lib_id, members" );
+        }
+    }
+}
+
+
+void SCH_IO_KICAD_SEXPR_PARSER::resolveGroups( SCH_SCREEN* aParent )
+{
+    if( !aParent )
+        return;
+
+    auto getItem =
+            [&]( const KIID& aId )
+            {
+                SCH_ITEM* aItem = nullptr;
+
+                for( SCH_ITEM* item : aParent->Items() )
+                {
+                    if( item->m_Uuid == aId )
+                    {
+                        aItem = item;
+                        break;
+                    }
+                }
+
+                return aItem;
+            };
+
+    // Now that we've parsed the other Uuids in the file we can resolve the uuids referred
+    // to in the group declarations we saw.
+    //
+    // First add all group objects so subsequent GetItem() calls for nested groups work.
+    for( const GROUP_INFO& groupInfo : m_groupInfos )
+    {
+        SCH_GROUP* group = nullptr;
+
+        group = new SCH_GROUP( aParent );
+        group->SetName( groupInfo.name );
+
+        const_cast<KIID&>( group->m_Uuid ) = groupInfo.uuid;
+
+        if( groupInfo.libId.IsValid() )
+            group->SetDesignBlockLibId( groupInfo.libId );
+
+        aParent->Append( group );
+    }
+
+    for( const GROUP_INFO& groupInfo : m_groupInfos )
+    {
+        SCH_GROUP* group = static_cast<SCH_GROUP*>( getItem( groupInfo.uuid ) );
+
+        if( group && group->Type() == SCH_GROUP_T )
+        {
+            for( const KIID& aUuid : groupInfo.memberUuids )
+            {
+                if( SCH_ITEM* gItem = getItem( aUuid ) )
+                    group->AddItem( gItem );
+            }
+        }
+    }
+
+    aParent->GroupsSanityCheck( true );
+}
+
+
+void SCH_IO_KICAD_SEXPR_PARSER::skipToBlockEnd( int aDepth )
+{
+    // Skip tokens until we exit the current S-expression block.
+    // This is used for error recovery when parsing fails mid-symbol.
+    while( aDepth > 0 )
+    {
+        T token = NextTok();
+
+        if( token == T_EOF )
+            break;
+        else if( token == T_LEFT )
+            aDepth++;
+        else if( token == T_RIGHT )
+            aDepth--;
+    }
 }

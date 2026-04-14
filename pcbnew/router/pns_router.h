@@ -31,6 +31,11 @@
 #include "pns_sizes_settings.h"
 #include "pns_node.h"
 
+#include <layer_ids.h>
+
+
+class NETCLASS;
+
 namespace KIGFX
 {
 
@@ -104,8 +109,7 @@ enum DRAG_MODE
     virtual void DisplayRatline( const SHAPE_LINE_CHAIN& aRatline, NET_HANDLE aNetCode ) = 0;
     virtual void HideItem( ITEM* aItem ) = 0;
     virtual void Commit() = 0;
-    virtual bool       ImportSizes( SIZES_SETTINGS& aSizes, ITEM* aStartItem, NET_HANDLE aNet,
-                                    VECTOR2D aStartPosition ) = 0;
+    virtual bool ImportSizes( SIZES_SETTINGS& aSizes, ITEM* aStartItem, NET_HANDLE aNet, VECTOR2D aStartPosition ) = 0;
     virtual int  StackupHeight( int aFirstLayer, int aSecondLayer ) const = 0;
     virtual void EraseView() = 0;
     virtual int GetNetCode( NET_HANDLE aNet ) const = 0;
@@ -117,6 +121,15 @@ enum DRAG_MODE
     virtual RULE_RESOLVER* GetRuleResolver() = 0;
     virtual DEBUG_DECORATOR* GetDebugDecorator() = 0;
 
+    virtual long long int CalculateRoutedPathLength( const ITEM_SET& aLine, const SOLID* aStartPad,
+                                                     const SOLID* aEndPad, const NETCLASS* aNetClass ) = 0;
+    virtual int64_t CalculateRoutedPathDelay( const ITEM_SET& aLine, const SOLID* aStartPad, const SOLID* aEndPad,
+                                              const NETCLASS* aNetClass ) = 0;
+    virtual int64_t CalculateLengthForDelay( int64_t aDesiredDelay, int aWidth, bool aIsDiffPairCoupled,
+                                             int aDiffPairCouplingGap, int aPNSLayer, const NETCLASS* aNetClass ) = 0;
+    virtual int64_t CalculateDelayForShapeLineChain( const SHAPE_LINE_CHAIN& aShape, int aWidth,
+                                                     bool aIsDiffPairCoupled, int aDiffPairCouplingGap, int aPNSLayer,
+                                                     const NETCLASS* aNetClass ) = 0;
     virtual PCB_LAYER_ID GetBoardLayerFromPNSLayer( int aLayer ) const = 0;
     virtual int GetPNSLayerFromBoardLayer( PCB_LAYER_ID aLayer ) const = 0;
 };
@@ -227,6 +240,8 @@ public:
 
     std::vector<PNS::ITEM*> GetLastCommittedLeaderSegments();
 
+    bool GetNearestRatnestAnchor( VECTOR2I& aOtherEnd, PNS_LAYER_RANGE& aOtherEndLayers,
+                                  ITEM*& aOtherEndItem );
 private:
     bool movePlacing( const VECTOR2I& aP, ITEM* aItem );
     bool moveDragging( const VECTOR2I& aP, ITEM* aItem );
@@ -237,9 +252,6 @@ private:
 
     void markViolations( NODE* aNode, ITEM_SET& aCurrent, NODE::ITEM_VECTOR& aRemoved );
     bool isStartingPointRoutable( const VECTOR2I& aWhere, ITEM* aItem, int aLayer );
-
-    bool getNearestRatnestAnchor( VECTOR2I& aOtherEnd, PNS_LAYER_RANGE& aOtherEndLayers,
-                                  ITEM*& aOtherEndItem );
 
 
 private:

@@ -32,6 +32,7 @@
 #include <pad.h>
 #include <pcb_group.h>
 #include <board_design_settings.h>
+#include <drc/drc_engine.h>
 #include <progress_reporter.h>
 #include <widgets/wx_infobar.h>
 #include <widgets/wx_progress_reporters.h>
@@ -47,7 +48,7 @@
 #include <core/profile.h>
 
 ZONE_FILLER_TOOL::ZONE_FILLER_TOOL() :
-    PCB_TOOL_BASE( "pcbnew.ZoneFiller" ),
+    PCB_TOOL_BASE( ZONE_FILLER_TOOL_NAME ),
     m_fillInProgress( false )
 {
 }
@@ -86,7 +87,7 @@ void ZONE_FILLER_TOOL::CheckAllZones( wxWindow* aCaller, PROGRESS_REPORTER* aRep
     }
     else
     {
-        reporter = std::make_unique<WX_PROGRESS_REPORTER>( aCaller, _( "Checking Zones" ), 4 );
+        reporter = std::make_unique<WX_PROGRESS_REPORTER>( aCaller, _( "Check Zones" ), 4, PR_CAN_ABORT );
         m_filler->SetProgressReporter( reporter.get() );
     }
 
@@ -115,14 +116,17 @@ void ZONE_FILLER_TOOL::singleShotRefocus( wxIdleEvent& )
 }
 
 
-void ZONE_FILLER_TOOL::FillAllZones( wxWindow* aCaller, PROGRESS_REPORTER* aReporter )
+void ZONE_FILLER_TOOL::FillAllZones( wxWindow* aCaller, PROGRESS_REPORTER* aReporter, bool aHeadless )
 {
     if( m_fillInProgress )
         return;
 
     m_fillInProgress = true;
 
-    PCB_EDIT_FRAME*                       frame = getEditFrame<PCB_EDIT_FRAME>();
+    PCB_EDIT_FRAME*                       frame = nullptr;
+    if( !aHeadless )
+        frame = getEditFrame<PCB_EDIT_FRAME>();
+
     BOARD_COMMIT                          commit( this );
     std::unique_ptr<WX_PROGRESS_REPORTER> reporter;
     TEARDROP_MANAGER                      teardropMgr( board(), m_toolMgr );
@@ -137,11 +141,10 @@ void ZONE_FILLER_TOOL::FillAllZones( wxWindow* aCaller, PROGRESS_REPORTER* aRepo
 
     m_filler = std::make_unique<ZONE_FILLER>( board(), &commit );
 
-    if( !board()->GetDesignSettings().m_DRCEngine->RulesValid() )
+    if( !aHeadless && !board()->GetDesignSettings().m_DRCEngine->RulesValid() )
     {
         WX_INFOBAR* infobar = frame->GetInfoBar();
-        wxHyperlinkCtrl* button = new wxHyperlinkCtrl( infobar, wxID_ANY, _( "Show DRC rules" ),
-                                                       wxEmptyString );
+        wxHyperlinkCtrl* button = new wxHyperlinkCtrl( infobar, wxID_ANY, _( "Show DRC rules" ), wxEmptyString );
 
         button->Bind( wxEVT_COMMAND_HYPERLINK,
                       std::function<void( wxHyperlinkEvent& aEvent )>(
@@ -153,44 +156,51 @@ void ZONE_FILLER_TOOL::FillAllZones( wxWindow* aCaller, PROGRESS_REPORTER* aRepo
         infobar->RemoveAllButtons();
         infobar->AddButton( button );
 
-        infobar->ShowMessageFor( _( "Zone fills may be inaccurate.  DRC rules contain errors." ),
-                                 10000, wxICON_WARNING );
+        infobar->ShowMessageFor( _( "Zone fills may be inaccurate.  DRC rules contain errors." ), 10000,
+                                 wxICON_WARNING );
     }
 
     if( aReporter )
     {
         m_filler->SetProgressReporter( aReporter );
     }
-    else
+    else if( !aHeadless )
     {
-        reporter = std::make_unique<WX_PROGRESS_REPORTER>( aCaller, _( "Fill All Zones" ), 5 );
+        reporter = std::make_unique<WX_PROGRESS_REPORTER>( aCaller, _( "Fill All Zones" ), 5, PR_CAN_ABORT );
         m_filler->SetProgressReporter( reporter.get() );
     }
 
     if( m_filler->Fill( toFill ) )
     {
-        m_filler->GetProgressReporter()->AdvancePhase();
+        if( m_filler->GetProgressReporter() )
+            m_filler->GetProgressReporter()->AdvancePhase();
 
         commit.Push( _( "Fill Zone(s)" ), SKIP_CONNECTIVITY | ZONE_FILL_OP );
-        frame->m_ZoneFillsDirty = false;
+        if( !aHeadless )
+            frame->m_ZoneFillsDirty = false;
     }
     else
     {
         commit.Revert();
     }
 
-    rebuildConnectivity();
-    refresh();
+    rebuildConnectivity( aHeadless );
 
-    if( m_filler->IsDebug() )
-        frame->UpdateUserInterface();
+    if( !aHeadless )
+    {
+        refresh();
+
+        if( m_filler->IsDebug() )
+            frame->UpdateUserInterface();
+    }
 
     m_fillInProgress = false;
     m_filler.reset( nullptr );
 
-    // wxWidgets has keyboard focus issues after the progress reporter.  Re-setting the focus
-    // here doesn't work, so we delay it to an idle event.
-    canvas()->Bind( wxEVT_IDLE, &ZONE_FILLER_TOOL::singleShotRefocus, this );
+    if( !aHeadless )
+        // wxWidgets has keyboard focus issues after the progress reporter.  Re-setting the focus
+        // here doesn't work, so we delay it to an idle event.
+        canvas()->Bind( wxEVT_IDLE, &ZONE_FILLER_TOOL::singleShotRefocus, this );
 }
 
 
@@ -227,8 +237,7 @@ int ZONE_FILLER_TOOL::ZoneFillDirty( const TOOL_EVENT& aEvent )
     if( !board()->GetDesignSettings().m_DRCEngine->RulesValid() )
     {
         WX_INFOBAR* infobar = frame->GetInfoBar();
-        wxHyperlinkCtrl* button = new wxHyperlinkCtrl( infobar, wxID_ANY, _( "Show DRC rules" ),
-                                                       wxEmptyString );
+        wxHyperlinkCtrl* button = new wxHyperlinkCtrl( infobar, wxID_ANY, _( "Show DRC rules" ), wxEmptyString );
 
         button->Bind( wxEVT_COMMAND_HYPERLINK,
                       std::function<void( wxHyperlinkEvent& aLocEvent )>(
@@ -240,8 +249,8 @@ int ZONE_FILLER_TOOL::ZoneFillDirty( const TOOL_EVENT& aEvent )
         infobar->RemoveAllButtons();
         infobar->AddButton( button );
 
-        infobar->ShowMessageFor( _( "Zone fills may be inaccurate.  DRC rules contain errors." ),
-                                 10000, wxICON_WARNING );
+        infobar->ShowMessageFor( _( "Zone fills may be inaccurate.  DRC rules contain errors." ), 10000,
+                                 wxICON_WARNING );
     }
 
     for( ZONE* zone : toFill )
@@ -256,7 +265,7 @@ int ZONE_FILLER_TOOL::ZoneFillDirty( const TOOL_EVENT& aEvent )
         {
             wxString title = wxString::Format( _( "Refill %d Zones" ), (int) toFill.size() );
 
-            reporter = std::make_unique<WX_PROGRESS_REPORTER>( frame, title, 5 );
+            reporter = std::make_unique<WX_PROGRESS_REPORTER>( frame, title, 5, PR_CAN_ABORT );
             m_filler->SetProgressReporter( reporter.get() );
             break;
         }
@@ -280,14 +289,13 @@ int ZONE_FILLER_TOOL::ZoneFillDirty( const TOOL_EVENT& aEvent )
         button->Bind( wxEVT_COMMAND_HYPERLINK, std::function<void( wxHyperlinkEvent& )>(
                 [this]( wxHyperlinkEvent& )
                 {
-                    getEditFrame<PCB_EDIT_FRAME>()->ShowPreferences( _( "Editing Options" ),
-                                                                     _( "PCB Editor" ) );
+                    getEditFrame<PCB_EDIT_FRAME>()->ShowPreferences( _( "Editing Options" ), _( "PCB Editor" ) );
                 } ) );
 
         infobar->RemoveAllButtons();
         infobar->AddButton( button );
-        infobar->ShowMessageFor( _( "Automatic refill of zones can be turned off in Preferences "
-                                    "if it becomes too slow." ),
+        infobar->ShowMessageFor( _( "Automatic refill of zones can be turned off in Preferences if it becomes "
+                                    "too slow." ),
                                  10000, wxICON_INFORMATION, WX_INFOBAR::MESSAGE_TYPE::GENERIC );
     }
 
@@ -347,7 +355,7 @@ int ZONE_FILLER_TOOL::ZoneFill( const TOOL_EVENT& aEvent )
 
     m_filler = std::make_unique<ZONE_FILLER>( board(), &commit );
 
-    reporter = std::make_unique<WX_PROGRESS_REPORTER>( frame(), _( "Fill Zone" ), 5 );
+    reporter = std::make_unique<WX_PROGRESS_REPORTER>( frame(), _( "Fill Zone" ), 5, PR_CAN_ABORT );
     m_filler->SetProgressReporter( reporter.get() );
 
     if( m_filler->Fill( toFill ) )
@@ -443,11 +451,12 @@ PROGRESS_REPORTER* ZONE_FILLER_TOOL::GetProgressReporter()
 }
 
 
-void ZONE_FILLER_TOOL::rebuildConnectivity()
+void ZONE_FILLER_TOOL::rebuildConnectivity( bool aHeadless )
 {
     board()->BuildConnectivity();
     m_toolMgr->PostEvent( EVENTS::ConnectivityChangedEvent );
-    canvas()->RedrawRatsnest();
+    if( !aHeadless )
+        canvas()->RedrawRatsnest();
 }
 
 

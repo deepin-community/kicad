@@ -407,7 +407,8 @@ public:
     static SPICE_INFO SpiceInfo( TYPE aType );
 
 
-    static TYPE ReadTypeFromFields( const std::vector<SCH_FIELD>& aFields, REPORTER& aReporter );
+    static TYPE ReadTypeFromFields( const std::vector<SCH_FIELD>& aFields,
+                                    bool aResolve, int aDepth, REPORTER& aReporter );
 
     static std::unique_ptr<SIM_MODEL> Create( TYPE aType, const std::vector<SCH_PIN*>& aPins,
                                               REPORTER& aReporter );
@@ -419,18 +420,13 @@ public:
     static std::unique_ptr<SIM_MODEL> Create( const SIM_MODEL* aBaseModel,
                                               const std::vector<SCH_PIN*>& aPins,
                                               const std::vector<SCH_FIELD>& aFields,
+                                              bool aResolve, int aDepth,
                                               REPORTER& aReporter );
 
     static std::unique_ptr<SIM_MODEL> Create( const std::vector<SCH_FIELD>& aFields,
+                                              bool aResolve, int aDepth,
                                               const std::vector<SCH_PIN*>& aPins,
-                                              bool aResolved, REPORTER& aReporter );
-
-    static std::string GetFieldValue( const std::vector<SCH_FIELD>* aFields,
-                                      const wxString& aFieldName,
-                                      bool aResolve = true );
-
-    static void SetFieldValue( std::vector<SCH_FIELD>& aFields, const wxString& aFieldName,
-                               const std::string& aValue, bool aIsVisible = true );
+                                              REPORTER& aReporter );
 
     const SPICE_GENERATOR& SpiceGenerator() const { return *m_spiceGenerator; }
     const SIM_MODEL_SERIALIZER& Serializer() const { return *m_serializer; }
@@ -444,10 +440,11 @@ public:
     SIM_MODEL( SIM_MODEL&& aOther ) = default;
     SIM_MODEL& operator=(SIM_MODEL&& aOther ) = delete;
 
-    void ReadDataFields( const std::vector<SCH_FIELD>* aFields,
+    void ReadDataFields( const std::vector<SCH_FIELD>* aFields, bool aResolve, int aDepth,
                          const std::vector<SCH_PIN*>& aPins );
 
-    void WriteFields( std::vector<SCH_FIELD>& aFields ) const;
+    void WriteFields( std::vector<SCH_FIELD>& aFields, const SCH_SHEET_PATH* aSheetPath = nullptr,
+                      const wxString& aVariantName = wxEmptyString ) const;
 
     SPICE_INFO GetSpiceInfo() const { return SpiceInfo( GetType() ); }
 
@@ -511,7 +508,7 @@ public:
     virtual void SwitchSingleEndedDiff( bool aDiff ) { };
 
     template <class T>
-    static bool InferSimModel( T& aSymbol, std::vector<SCH_FIELD>* aFields, bool aResolve,
+    static bool InferSimModel( T& aSymbol, std::vector<SCH_FIELD>* aFields, bool aResolve, int aDepth,
                                SIM_VALUE_GRAMMAR::NOTATION aNotation, wxString* aDeviceType,
                                wxString* aModelType, wxString* aModelParams, wxString* aPinMap );
 

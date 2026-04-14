@@ -26,6 +26,7 @@
 
 #include <panel_fp_properties_3d_model.h>
 
+#include <algorithm>
 #include <3d_viewer/eda_3d_viewer_frame.h>
 #include <dialogs/dialog_configure_paths.h>
 #include <env_vars.h>
@@ -36,7 +37,7 @@
 #include <widgets/std_bitmap_button.h>
 #include <board.h>
 #include <footprint.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <footprint_edit_frame.h>
 #include <footprint_editor_settings.h>
 #include <dialog_footprint_properties_fp_editor.h>
@@ -65,11 +66,8 @@ PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL( PCB_BASE_EDIT_FRAME*
                                                             FOOTPRINT* aFootprint,
                                                             DIALOG_SHIM* aDialogParent,
                                                             PANEL_EMBEDDED_FILES* aFilesPanel,
-                                                            wxWindow* aParent, wxWindowID aId,
-                                                            const wxPoint& aPos,
-                                                            const wxSize& aSize, long aStyle,
-                                                            const wxString& aName ) :
-        PANEL_FP_PROPERTIES_3D_MODEL_BASE( aParent, aId, aPos, aSize, aStyle, aName ),
+                                                            wxWindow* aParent ) :
+        PANEL_FP_PROPERTIES_3D_MODEL_BASE( aParent ),
         m_parentDialog( aDialogParent ),
         m_frame( aFrame ),
         m_footprint( aFootprint ),
@@ -79,24 +77,21 @@ PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL( PCB_BASE_EDIT_FRAME*
     m_splitter1->SetSashPosition( FromDIP( m_splitter1->GetSashPosition() ) );
     m_splitter1->SetMinimumPaneSize( FromDIP( m_splitter1->GetMinimumPaneSize() ) );
 
-    m_modelsGrid->SetDefaultRowSize( m_modelsGrid->GetDefaultRowSize() + 4 );
-
     GRID_TRICKS* trick = new GRID_TRICKS( m_modelsGrid, [this]( wxCommandEvent& aEvent )
                                                         {
                                                             OnAdd3DRow( aEvent );
                                                         } );
     trick->SetTooltipEnable( COL_PROBLEM );
-
     m_modelsGrid->PushEventHandler( trick );
+    m_modelsGrid->SetupColumnAutosizer( COL_FILENAME );
 
     // Get the last 3D directory
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+    PCBNEW_SETTINGS* cfg = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
-    if( cfg->m_lastFootprint3dDir.IsEmpty() )
+    if( cfg && cfg->m_LastFootprint3dDir.IsEmpty() )
     {
         wxGetEnv( ENV_VAR::GetVersionedEnvVarName( wxS( "3DMODEL_DIR" ) ),
-                  &cfg->m_lastFootprint3dDir );
+                  &cfg->m_LastFootprint3dDir );
     }
 
     // Icon showing warning/error information
@@ -106,9 +101,26 @@ PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL( PCB_BASE_EDIT_FRAME*
 
     // Filename
     attr = new wxGridCellAttr;
-    attr->SetEditor( new GRID_CELL_PATH_EDITOR( m_parentDialog, m_modelsGrid,
-                                                &cfg->m_lastFootprint3dDir, wxT( "*.*" ), true,
-                                                m_frame->Prj().GetProjectPath() ) );
+
+    if( cfg )
+    {
+        attr->SetEditor( new GRID_CELL_PATH_EDITOR( m_parentDialog, m_modelsGrid, &cfg->m_LastFootprint3dDir,
+                                                    wxT( "*.*" ), true, m_frame->Prj().GetProjectPath(),
+                [this]( const wxString& aFile ) -> wxString
+                {
+                    EMBEDDED_FILES::EMBEDDED_FILE* result = m_filesPanel->AddEmbeddedFile( aFile );
+
+                    if( !result )
+                    {
+                        wxString msg = wxString::Format( _( "Error adding 3D model" ) );
+                        wxMessageBox( msg, _( "Error" ), wxICON_ERROR | wxOK, this );
+                        return wxString();
+                    }
+
+                    return result->GetLink();
+                } ) );
+    }
+
     m_modelsGrid->SetColAttr( COL_FILENAME, attr );
 
     // Show checkbox
@@ -121,8 +133,9 @@ PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL( PCB_BASE_EDIT_FRAME*
 
     PROJECT_PCB::Get3DCacheManager( &m_frame->Prj() )->GetResolver()->SetProgramBase( &Pgm() );
 
-    m_previewPane = new PANEL_PREVIEW_3D_MODEL( m_lowerPanel, m_frame, m_footprint,
-                                                &m_shapes3D_list );
+    m_previewPane = new PANEL_PREVIEW_3D_MODEL( m_lowerPanel, m_frame, m_footprint, &m_shapes3D_list );
+
+    m_previewPane->SetEmbeddedFilesDelegate( m_filesPanel->GetLocalFiles() );
 
     m_LowerSizer3D->Add( m_previewPane, 1, wxEXPAND, 5 );
 
@@ -131,9 +144,9 @@ PANEL_FP_PROPERTIES_3D_MODEL::PANEL_FP_PROPERTIES_3D_MODEL( PCB_BASE_EDIT_FRAME*
     m_button3DShapeBrowse->SetBitmap( KiBitmapBundle( BITMAPS::small_folder ) );
     m_button3DShapeRemove->SetBitmap( KiBitmapBundle( BITMAPS::small_trash ) );
 
+    m_modelsGrid->Bind( wxEVT_GRID_CELL_CHANGING, &PANEL_FP_PROPERTIES_3D_MODEL::on3DModelCellChanging, this );
     Bind( wxEVT_SHOW, &PANEL_FP_PROPERTIES_3D_MODEL::onShowEvent, this );
-    m_parentDialog->Bind( wxEVT_ACTIVATE, &PANEL_FP_PROPERTIES_3D_MODEL::onDialogActivateEvent,
-                          this );
+    m_parentDialog->Bind( wxEVT_ACTIVATE, &PANEL_FP_PROPERTIES_3D_MODEL::onDialogActivateEvent, this );
 }
 
 
@@ -142,6 +155,7 @@ PANEL_FP_PROPERTIES_3D_MODEL::~PANEL_FP_PROPERTIES_3D_MODEL()
     // Delete the GRID_TRICKS.
     m_modelsGrid->PopEventHandler( true );
 
+    m_modelsGrid->Unbind( wxEVT_GRID_CELL_CHANGING, &PANEL_FP_PROPERTIES_3D_MODEL::on3DModelCellChanging, this );
     // Unbind OnShowEvent to prevent unnecessary event handling.
     Unbind( wxEVT_SHOW, &PANEL_FP_PROPERTIES_3D_MODEL::onShowEvent, this );
 
@@ -201,7 +215,7 @@ void PANEL_FP_PROPERTIES_3D_MODEL::ReloadModelsFromFootprint()
     select3DModel( 0 );
 
     m_previewPane->UpdateDummyFootprint();
-    m_modelsGrid->SetColSize( COL_SHOWN, m_modelsGrid->GetVisibleWidth( COL_SHOWN, true, false ) );
+    m_modelsGrid->SetGridWidthsDirty();
 
     Layout();
 }
@@ -233,31 +247,47 @@ void PANEL_FP_PROPERTIES_3D_MODEL::On3DModelSelected( wxGridEvent& aEvent )
 }
 
 
+void PANEL_FP_PROPERTIES_3D_MODEL::cleanupFilename( wxString* aFilename )
+{
+    if( !aFilename->empty() )
+    {
+        bool               hasAlias = false;
+        FILENAME_RESOLVER* res = PROJECT_PCB::Get3DCacheManager( &m_frame->Prj() )->GetResolver();
+
+        aFilename->Replace( wxT( "\n" ), wxT( "" ) );
+        aFilename->Replace( wxT( "\r" ), wxT( "" ) );
+        aFilename->Replace( wxT( "\t" ), wxT( "" ) );
+
+        res->ValidateFileName( *aFilename, hasAlias );
+
+        // If the user has specified an alias in the name then prepend ':'
+        if( hasAlias )
+            aFilename->insert( 0, wxT( ":" ) );
+
+#ifdef __WINDOWS__
+        // In KiCad files, filenames and paths are stored using Unix notation
+        aFilename->Replace( wxT( "\\" ), wxT( "/" ) );
+#endif
+    }
+}
+
+
+void PANEL_FP_PROPERTIES_3D_MODEL::on3DModelCellChanging( wxGridEvent& aEvent )
+{
+    if( aEvent.GetCol() == COL_FILENAME )
+        updateValidateStatus( aEvent.GetRow() );
+}
+
+
 void PANEL_FP_PROPERTIES_3D_MODEL::On3DModelCellChanged( wxGridEvent& aEvent )
 {
     if( aEvent.GetCol() == COL_FILENAME )
     {
-        bool               hasAlias = false;
-        FILENAME_RESOLVER* res = PROJECT_PCB::Get3DCacheManager( &m_frame->Prj() )->GetResolver();
-        wxString           filename = m_modelsGrid->GetCellValue( aEvent.GetRow(), COL_FILENAME );
+        wxString filename = m_modelsGrid->GetCellValue( aEvent.GetRow(), COL_FILENAME );
 
-        // Perform cleanup and validation on the filename if it isn't empty
         if( !filename.empty() )
         {
-            filename.Replace( wxT( "\n" ), wxT( "" ) );
-            filename.Replace( wxT( "\r" ), wxT( "" ) );
-            filename.Replace( wxT( "\t" ), wxT( "" ) );
-
-            res->ValidateFileName( filename, hasAlias );
-
-            // If the user has specified an alias in the name then prepend ':'
-            if( hasAlias )
-                filename.insert( 0, wxT( ":" ) );
-
-#ifdef __WINDOWS__
-            // In KiCad files, filenames and paths are stored using Unix notation
-            filename.Replace( wxT( "\\" ), wxT( "/" ) );
-#endif
+            cleanupFilename( &filename );
 
             // Update the grid with the modified filename
             m_modelsGrid->SetCellValue( aEvent.GetRow(), COL_FILENAME, filename );
@@ -286,22 +316,69 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnRemove3DModel( wxCommandEvent&  )
     if( !m_modelsGrid->CommitPendingChanges() )
         return;
 
-    int idx = m_modelsGrid->GetGridCursorRow();
+    if( !m_modelsGrid->GetNumberRows() || m_shapes3D_list.empty() )
+        return;
 
-    if( idx >= 0 && m_modelsGrid->GetNumberRows() && !m_shapes3D_list.empty() )
+    wxArrayInt selectedRows = m_modelsGrid->GetSelectedRows();
+    wxGridCellCoordsArray selectedCells = m_modelsGrid->GetSelectedCells();
+    wxGridCellCoordsArray blockTopLeft = m_modelsGrid->GetSelectionBlockTopLeft();
+    wxGridCellCoordsArray blockBottomRight = m_modelsGrid->GetSelectionBlockBottomRight();
+
+    for( unsigned ii = 0; ii < selectedCells.GetCount(); ++ii )
+        selectedRows.Add( selectedCells[ii].GetRow() );
+
+    if( !blockTopLeft.IsEmpty() && !blockBottomRight.IsEmpty() )
     {
-        // Don't allow selection until we call select3DModel(), below.  Otherwise wxWidgets
-        // has a tendency to get its knickers in a knot....
-        m_inSelect = true;
+        for( int row = blockTopLeft[0].GetRow(); row <= blockBottomRight[0].GetRow(); ++row )
+            selectedRows.Add( row );
+    }
+
+    if( selectedRows.empty() && m_modelsGrid->GetGridCursorRow() >= 0 )
+        selectedRows.Add( m_modelsGrid->GetGridCursorRow() );
+
+    if( selectedRows.empty() )
+    {
+        wxBell();
+        return;
+    }
+
+    std::sort( selectedRows.begin(), selectedRows.end() );
+
+    int nextSelection = selectedRows.front();
+    int lastRow = -1;
+
+    // Don't allow selection until we call select3DModel(), below.  Otherwise wxWidgets
+    // has a tendency to get its knickers in a knot....
+    m_inSelect = true;
+
+    m_modelsGrid->ClearSelection();
+
+    for( int ii = selectedRows.size() - 1; ii >= 0; --ii )
+    {
+        int row = selectedRows[ii];
+
+        if( row == lastRow )
+            continue;
+
+        lastRow = row;
+
+        if( row < 0 || row >= (int) m_shapes3D_list.size() )
+            continue;
 
         // Not all files are embedded but this will ignore the ones that are not
-        m_filesPanel->RemoveEmbeddedFile( m_shapes3D_list[ idx ].m_Filename );
-        m_shapes3D_list.erase( m_shapes3D_list.begin() + idx );
-        m_modelsGrid->DeleteRows( idx );
-
-        select3DModel( idx );       // will clamp idx within bounds
-        m_previewPane->UpdateDummyFootprint();
+        m_filesPanel->RemoveEmbeddedFile( m_shapes3D_list[row].m_Filename );
+        m_shapes3D_list.erase( m_shapes3D_list.begin() + row );
+        m_modelsGrid->DeleteRows( row );
     }
+
+    if( m_modelsGrid->GetNumberRows() > 0 )
+        nextSelection = std::min( nextSelection, m_modelsGrid->GetNumberRows() - 1 );
+    else
+        nextSelection = 0;
+
+    select3DModel( nextSelection );       // will clamp index within bounds
+    m_previewPane->UpdateDummyFootprint();
+    m_inSelect = false;
 
     onModify();
 }
@@ -343,7 +420,6 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DModel( wxCommandEvent&  )
             filter = (int) tmp;
     }
 
-
     DIALOG_SELECT_3DMODEL dm( m_parentDialog, cache, &model, initialpath, filter );
 
     // Use QuasiModal so that Configure3DPaths (and its help window) will work
@@ -363,27 +439,18 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DModel( wxCommandEvent&  )
     if( dm.IsEmbedded3DModel() )
     {
         wxString libraryName = m_footprint->GetFPID().GetLibNickname();
-        const FP_LIB_TABLE_ROW* fpRow = nullptr;
-
         wxString footprintBasePath = wxEmptyString;
 
-        try
-        {
-            fpRow = PROJECT_PCB::PcbFootprintLibs( &m_frame->Prj() )->FindRow( libraryName, false );
-
-            if( fpRow )
-                footprintBasePath = fpRow->GetFullURI( true );
-        }
-        catch( ... )
-        {
-            // if libraryName is not found in table, do nothing
-        }
+        std::optional<LIBRARY_TABLE_ROW*> fpRow =
+                            PROJECT_PCB::FootprintLibAdapter( &m_frame->Prj() )->GetRow( libraryName );
+        if( fpRow )
+            footprintBasePath = LIBRARY_MANAGER::GetFullURI( *fpRow, true );
 
         std::vector<const EMBEDDED_FILES*> embeddedFilesStack;
         embeddedFilesStack.push_back( m_filesPanel->GetLocalFiles() );
         embeddedFilesStack.push_back( m_frame->GetBoard()->GetEmbeddedFiles() );
 
-        wxString   fullPath = res->ResolvePath( model.m_Filename, footprintBasePath, embeddedFilesStack );
+        wxString   fullPath = res->ResolvePath( model.m_Filename, footprintBasePath, std::move( embeddedFilesStack ) );
         wxFileName fname( fullPath );
 
         EMBEDDED_FILES::EMBEDDED_FILE* result = m_filesPanel->AddEmbeddedFile( fname.GetFullPath() );                                                                               ;
@@ -398,7 +465,6 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DModel( wxCommandEvent&  )
 
         model.m_Filename = result->GetLink();
     }
-
 
     prj.SetRString( PROJECT::VIEWER_3D_PATH, initialpath );
     sidx = wxString::Format( wxT( "%i" ), filter );
@@ -434,30 +500,25 @@ void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DModel( wxCommandEvent&  )
 
 void PANEL_FP_PROPERTIES_3D_MODEL::OnAdd3DRow( wxCommandEvent&  )
 {
-    if( !m_modelsGrid->CommitPendingChanges() )
-        return;
+    m_modelsGrid->OnAddRow(
+            [&]() -> std::pair<int, int>
+            {
+                FP_3DMODEL model;
 
-    FP_3DMODEL model;
+                model.m_Show = true;
+                m_shapes3D_list.push_back( model );
 
-    model.m_Show = true;
-    m_shapes3D_list.push_back( model );
+                int row = m_modelsGrid->GetNumberRows();
+                m_modelsGrid->AppendRows( 1 );
+                m_modelsGrid->SetCellValue( row, COL_SHOWN, wxT( "1" ) );
+                m_modelsGrid->SetCellValue( row, COL_PROBLEM, "" );
 
-    int row = m_modelsGrid->GetNumberRows();
-    m_modelsGrid->AppendRows( 1 );
-    m_modelsGrid->SetCellValue( row, COL_SHOWN, wxT( "1" ) );
-    m_modelsGrid->SetCellValue( row, COL_PROBLEM, "" );
+                select3DModel( row );
+                updateValidateStatus( row );
+                onModify();
 
-    select3DModel( row );
-
-    m_modelsGrid->SetFocus();
-    m_modelsGrid->MakeCellVisible( row, COL_FILENAME );
-    m_modelsGrid->SetGridCursor( row, COL_FILENAME );
-
-    m_modelsGrid->EnableCellEditControl( true );
-    m_modelsGrid->ShowCellEditControl();
-
-    updateValidateStatus( row );
-    onModify();
+                return { row, COL_FILENAME };
+            } );
 }
 
 
@@ -465,8 +526,17 @@ void PANEL_FP_PROPERTIES_3D_MODEL::updateValidateStatus( int aRow )
 {
     int icon = 0;
     wxString errStr;
+    wxString filename = m_modelsGrid->GetCellValue( aRow, COL_FILENAME );
 
-    switch( validateModelExists( m_modelsGrid->GetCellValue( aRow, COL_FILENAME) ) )
+    if( wxGridCellEditor* cellEditor = m_modelsGrid->GetCellEditor( aRow, COL_FILENAME ) )
+    {
+        if( cellEditor->IsCreated() && cellEditor->GetWindow()->IsShown() )
+            filename = cellEditor->GetValue();
+
+        cellEditor->DecRef();
+    }
+
+    switch( validateModelExists( filename ) )
     {
         case MODEL_VALIDATE_ERRORS::MODEL_NO_ERROR:
             icon   = 0;
@@ -500,8 +570,7 @@ void PANEL_FP_PROPERTIES_3D_MODEL::updateValidateStatus( int aRow )
     }
 
     m_modelsGrid->SetCellValue( aRow, COL_PROBLEM, errStr );
-    m_modelsGrid->SetCellRenderer( aRow, COL_PROBLEM,
-                                   new GRID_CELL_STATUS_ICON_RENDERER( icon ) );
+    m_modelsGrid->SetCellRenderer( aRow, COL_PROBLEM, new GRID_CELL_STATUS_ICON_RENDERER( icon ) );
 }
 
 
@@ -520,26 +589,18 @@ MODEL_VALIDATE_ERRORS PANEL_FP_PROPERTIES_3D_MODEL::validateModelExists( const w
         return MODEL_VALIDATE_ERRORS::ILLEGAL_FILENAME;
 
     wxString libraryName = m_footprint->GetFPID().GetLibNickname();
-    const FP_LIB_TABLE_ROW* fpRow = nullptr;
-    try
-    {
-        fpRow = PROJECT_PCB::PcbFootprintLibs( &m_frame->Prj() )->FindRow( libraryName, false );
-    }
-    catch( ... )
-    {
-        // if libraryName is not found in table, do nothing
-    }
-
     wxString footprintBasePath = wxEmptyString;
 
+    std::optional<LIBRARY_TABLE_ROW*> fpRow =
+                            PROJECT_PCB::FootprintLibAdapter( &m_frame->Prj() )->GetRow( libraryName );
     if( fpRow )
-        footprintBasePath = fpRow->GetFullURI( true );
+        footprintBasePath = LIBRARY_MANAGER::GetFullURI( *fpRow, true );
 
     std::vector<const EMBEDDED_FILES*> embeddedFilesStack;
     embeddedFilesStack.push_back( m_filesPanel->GetLocalFiles() );
     embeddedFilesStack.push_back( m_frame->GetBoard()->GetEmbeddedFiles() );
 
-    wxString fullPath = resolv->ResolvePath( aFilename, footprintBasePath, embeddedFilesStack );
+    wxString fullPath = resolv->ResolvePath( aFilename, footprintBasePath, std::move( embeddedFilesStack ) );
 
     if( fullPath.IsEmpty() )
         return MODEL_VALIDATE_ERRORS::RESOLVE_FAIL;
@@ -557,27 +618,6 @@ void PANEL_FP_PROPERTIES_3D_MODEL::Cfg3DPath( wxCommandEvent& event )
 
     if( dlg.ShowQuasiModal() == wxID_OK )
         m_previewPane->UpdateDummyFootprint();
-}
-
-
-void PANEL_FP_PROPERTIES_3D_MODEL::AdjustGridColumnWidths()
-{
-    // Account for scroll bars
-    int modelsWidth = KIPLATFORM::UI::GetUnobscuredSize( m_modelsGrid ).x;
-
-    int width = modelsWidth - m_modelsGrid->GetColSize( COL_SHOWN )
-                - m_modelsGrid->GetColSize( COL_PROBLEM );
-
-    if( width > 0 )
-        m_modelsGrid->SetColSize( COL_FILENAME, width );
-}
-
-
-void PANEL_FP_PROPERTIES_3D_MODEL::OnGridSize( wxSizeEvent& event )
-{
-    AdjustGridColumnWidths();
-
-    event.Skip();
 }
 
 
@@ -603,8 +643,7 @@ void PANEL_FP_PROPERTIES_3D_MODEL::onShowEvent( wxShowEvent& aEvent )
 
 void PANEL_FP_PROPERTIES_3D_MODEL::onDialogActivateEvent( wxActivateEvent& aEvent )
 {
-    postCustomPanelShownEventWithPredicate( aEvent.GetActive()
-                                            && m_previewPane->IsShownOnScreen() );
+    postCustomPanelShownEventWithPredicate( aEvent.GetActive() && m_previewPane->IsShownOnScreen() );
     aEvent.Skip();
 }
 

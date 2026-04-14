@@ -24,7 +24,7 @@
  */
 
 #include <cstdint>
-#include <gal/opengl/kiglew.h>    // Must be included first
+#include <kicad_gl/kiglad.h>    // Must be included first
 
 #include "plugins/3dapi/xv3d_types.h"
 #include "render_3d_opengl.h"
@@ -32,7 +32,7 @@
 #include "common_ogl/ogl_utils.h"
 #include <board.h>
 #include <footprint.h>
-#include <gal/opengl/gl_context_mgr.h>
+#include <kicad_gl/gl_context_mgr.h>
 #include <3d_math.h>
 #include <glm/geometric.hpp>
 #include <lset.h>
@@ -44,13 +44,34 @@
 
 #include <base_units.h>
 
+#include <glm/gtc/type_ptr.hpp>
+
+/**
+ * Attempt to control the transparency based on the gray value of the color.
+ * This function applies a non-linear transformation that reduces transparency
+ * for darker colors while preserving copper visibility through the solder mask.
+ *
+ * @param aGrayColorValue - diffuse gray value (0.0 to 1.0)
+ * @param aTransparency - base transparency value (0.0 opaque to 1.0 transparent)
+ * @return transparency to use in material
+ */
+static float TransparencyControl( float aGrayColorValue, float aTransparency )
+{
+    const float aaa = aTransparency * aTransparency * aTransparency;
+
+    // 1.00-1.05*(1.0-x)^3
+    float ca = 1.0f - aTransparency;
+    ca       = 1.00f - 1.05f * ca * ca * ca;
+
+    return glm::clamp( aGrayColorValue * ca + aaa, 0.0f, 1.0f );
+}
+
 /**
  * Scale conversion from 3d model units to pcb units
  */
 #define UNITS3D_TO_UNITSPCB ( pcbIUScale.IU_PER_MM )
 
-RENDER_3D_OPENGL::RENDER_3D_OPENGL( EDA_3D_CANVAS* aCanvas, BOARD_ADAPTER& aAdapter,
-                                    CAMERA& aCamera ) :
+RENDER_3D_OPENGL::RENDER_3D_OPENGL( EDA_3D_CANVAS* aCanvas, BOARD_ADAPTER& aAdapter, CAMERA& aCamera ) :
         RENDER_3D_BASE( aAdapter, aCamera ),
         m_canvas( aCanvas )
 {
@@ -71,16 +92,21 @@ RENDER_3D_OPENGL::RENDER_3D_OPENGL( EDA_3D_CANVAS* aCanvas, BOARD_ADAPTER& aAdap
     m_outerThroughHoles = nullptr;
     m_outerThroughHoleRings = nullptr;
     m_outerViaThroughHoles = nullptr;
-    m_vias = nullptr;
+    m_microviaHoles = nullptr;
     m_padHoles = nullptr;
+    m_viaFrontCover = nullptr;
+    m_viaBackCover = nullptr;
 
     m_circleTexture = 0;
     m_grid = 0;
     m_lastGridType = GRID3D_TYPE::NONE;
     m_currentRollOverItem = nullptr;
     m_boardWithHoles = nullptr;
+    m_postMachinePlugs = nullptr;
 
     m_3dModelMap.clear();
+
+    m_spheres_gizmo = new SPHERES_GIZMO( 4, 4 );
 }
 
 
@@ -91,6 +117,8 @@ RENDER_3D_OPENGL::~RENDER_3D_OPENGL()
     freeAllLists();
 
     glDeleteTextures( 1, &m_circleTexture );
+
+    delete m_spheres_gizmo;
 }
 
 
@@ -104,9 +132,13 @@ void RENDER_3D_OPENGL::SetCurWindowSize( const wxSize& aSize )
 {
     if( m_windowSize != aSize )
     {
+        int viewport[4];
+        int fbWidth, fbHeight;
+        glGetIntegerv( GL_VIEWPORT, viewport );
+
         m_windowSize = aSize;
         glViewport( 0, 0, m_windowSize.x, m_windowSize.y );
-
+        setGizmoViewport( 0, 0, m_windowSize.x, m_windowSize.y );
         // Initialize here any screen dependent data here
     }
 }
@@ -139,42 +171,33 @@ void RENDER_3D_OPENGL::setLightBottom( bool enabled )
 }
 
 
-void RENDER_3D_OPENGL::render3dArrows()
+void RENDER_3D_OPENGL::resetSelectedGizmoSphere()
 {
-    const float arrow_size = RANGE_SCALE_3D * 0.30f;
+    m_spheres_gizmo->resetSelectedGizmoSphere();
+}
 
-    glDisable( GL_CULL_FACE );
 
-    // YxY squared view port, this is on propose
-    glViewport( 4, 4, m_windowSize.y / 8 , m_windowSize.y / 8 );
-    glClear( GL_DEPTH_BUFFER_BIT );
+SPHERES_GIZMO::GizmoSphereSelection RENDER_3D_OPENGL::getSelectedGizmoSphere() const
+{
+    return m_spheres_gizmo->getSelectedGizmoSphere();
+}
 
-    glMatrixMode( GL_PROJECTION );
-    glLoadIdentity();
-    gluPerspective( 45.0f, 1.0f, 0.001f, RANGE_SCALE_3D );
 
-    glMatrixMode( GL_MODELVIEW );
-    glLoadIdentity();
+void RENDER_3D_OPENGL::setGizmoViewport( int x, int y, int width, int height )
+{
+    m_spheres_gizmo->setViewport( x, y, width, height );
+}
 
-    const glm::mat4 TranslationMatrix =
-            glm::translate( glm::mat4( 1.0f ), SFVEC3F( 0.0f, 0.0f, -( arrow_size * 2.75f ) ) );
 
-    const glm::mat4 ViewMatrix = TranslationMatrix * m_camera.GetRotationMatrix();
+std::tuple<int, int, int, int> RENDER_3D_OPENGL::getGizmoViewport() const
+{
+    return m_spheres_gizmo->getViewport();
+}
 
-    glLoadMatrixf( glm::value_ptr( ViewMatrix ) );
 
-    setArrowMaterial();
-
-    glColor3f( 0.9f, 0.0f, 0.0f );
-    DrawRoundArrow( SFVEC3F( 0.0f, 0.0f, 0.0f ), SFVEC3F( arrow_size, 0.0f, 0.0f ), 0.275f );
-
-    glColor3f( 0.0f, 0.9f, 0.0f );
-    DrawRoundArrow( SFVEC3F( 0.0f, 0.0f, 0.0f ), SFVEC3F( 0.0f, arrow_size, 0.0f ), 0.275f );
-
-    glColor3f( 0.0f, 0.0f, 0.9f );
-    DrawRoundArrow( SFVEC3F( 0.0f, 0.0f, 0.0f ), SFVEC3F( 0.0f, 0.0f, arrow_size ), 0.275f );
-
-    glEnable( GL_CULL_FACE );
+void RENDER_3D_OPENGL::handleGizmoMouseInput( int mouseX, int mouseY )
+{
+    m_spheres_gizmo->handleMouseInput( mouseX, mouseY );
 }
 
 
@@ -254,7 +277,8 @@ void RENDER_3D_OPENGL::setupMaterials()
     m_materials.m_SilkSBot.m_Shininess = 0.078125f * 128.0f;
     m_materials.m_SilkSBot.m_Emissive  = SFVEC3F( 0.0f, 0.0f, 0.0f );
 
-    m_materials.m_SolderMask.m_Shininess    = 0.8f * 128.0f;
+    // Shininess is computed dynamically in setLayerMaterial() based on color darkness
+    m_materials.m_SolderMask.m_Shininess    = 0.85f * 128.0f;
     m_materials.m_SolderMask.m_Emissive     = SFVEC3F( 0.0f, 0.0f, 0.0f );
 
     // Epoxy material
@@ -293,13 +317,28 @@ void RENDER_3D_OPENGL::setLayerMaterial( PCB_LAYER_ID aLayerID )
 
         m_materials.m_SolderMask.m_Diffuse = layerColor;
 
-        // Convert Opacity to Transparency
-        m_materials.m_SolderMask.m_Transparency = 1.0f - layerColor.a;
+        // Compute gray value for material property adjustments based on color darkness
+        const float solderMask_gray = ( layerColor.r + layerColor.g + layerColor.b ) / 3.0f;
+
+        // Use TransparencyControl to make darker colors more opaque, preventing copper
+        // show-through on dark solder masks
+        const float baseTransparency = 1.0f - layerColor.a;
+        m_materials.m_SolderMask.m_Transparency = TransparencyControl( solderMask_gray,
+                                                                       baseTransparency );
 
         m_materials.m_SolderMask.m_Ambient = m_materials.m_SolderMask.m_Diffuse * 0.3f;
 
-        m_materials.m_SolderMask.m_Specular = m_materials.m_SolderMask.m_Diffuse
-                                                * m_materials.m_SolderMask.m_Diffuse;
+        // Darker solder masks need a higher specular floor to avoid washed-out appearance
+        const SFVEC3F baseSpecular = m_materials.m_SolderMask.m_Diffuse
+                                     * m_materials.m_SolderMask.m_Diffuse;
+        m_materials.m_SolderMask.m_Specular = glm::max( baseSpecular, SFVEC3F( 0.30f ) );
+
+        // Darker colors get higher shininess for a tighter specular highlight, matching
+        // how dark solder masks appear in real life
+        const float minSolderMaskShininess = 0.85f * 128.0f;
+        const float maxSolderMaskShininess = 512.0f;
+        m_materials.m_SolderMask.m_Shininess = minSolderMaskShininess
+                + ( maxSolderMaskShininess - minSolderMaskShininess ) * ( 1.0f - solderMask_gray );
 
         OglSetMaterial( m_materials.m_SolderMask, 1.0f );
         break;
@@ -482,6 +521,16 @@ void RENDER_3D_OPENGL::renderBoardBody( bool aSkipRenderHoles )
         ogl_disp_list->SetItIsTransparent( true );
         ogl_disp_list->DrawAll();
     }
+
+    // Also render post-machining plugs (board material that remains after backdrill/counterbore/countersink)
+    if( !aSkipRenderHoles && m_postMachinePlugs )
+    {
+        m_postMachinePlugs->ApplyScalePosition( -m_boardAdapter.GetBoardBodyThickness() / 2.0f,
+                                                m_boardAdapter.GetBoardBodyThickness() );
+
+        m_postMachinePlugs->SetItIsTransparent( true );
+        m_postMachinePlugs->DrawAll();
+    }
 }
 
 
@@ -595,15 +644,15 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
 
     bool skipThickness = aIsMoving && cfg.opengl_thickness_disableOnMove;
     bool skipRenderHoles = aIsMoving && cfg.opengl_holes_disableOnMove;
-    bool skipRenderVias = aIsMoving && cfg.opengl_vias_disableOnMove;
+    bool skipRenderMicroVias = aIsMoving && cfg.opengl_microvias_disableOnMove;
     bool showThickness = !skipThickness;
 
     std::bitset<LAYER_3D_END> layerFlags = m_boardAdapter.GetVisibleLayers();
 
     setLayerMaterial( B_Cu );
 
-    if( !( skipRenderVias || skipRenderHoles ) && m_vias )
-        m_vias->DrawAll();
+    if( !( skipRenderMicroVias || skipRenderHoles ) && m_microviaHoles )
+        m_microviaHoles->DrawAll();
 
     if( !skipRenderHoles && m_padHoles )
         m_padHoles->DrawAll();
@@ -686,10 +735,6 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
 
             unsetDepthOffset();
         }
-        else if( isPasteLayer && skipRenderHoles )
-        {
-            // Do not render paste layers when skipRenderHoles is enabled or we get z-fight issues
-        }
         else
         {
             setLayerMaterial( layer );
@@ -698,10 +743,13 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
             OPENGL_RENDER_LIST* anti_board = nullptr;
             OPENGL_RENDER_LIST* solder_mask = nullptr;
 
-            if( isSilkLayer && cfg.clip_silk_on_via_annuli )
-                throughHolesOuter = m_outerThroughHoleRings;
-            else
-                throughHolesOuter = m_outerThroughHoles;
+            if( !skipRenderHoles )
+            {
+                if( isSilkLayer && cfg.clip_silk_on_via_annuli )
+                    throughHolesOuter = m_outerThroughHoleRings;
+                else
+                    throughHolesOuter = m_outerThroughHoles;
+            }
 
             if( isSilkLayer && cfg.show_off_board_silk )
                 anti_board = nullptr;
@@ -827,8 +875,8 @@ bool RENDER_3D_OPENGL::Redraw( bool aIsMoving, REPORTER* aStatusReporter,
     }
 
     // Render 3D arrows
-    if( cfg.show_axis )
-        render3dArrows();
+    if( cfg.show_navigator )
+        m_spheres_gizmo->render3dSpheresGizmo( m_camera.GetRotationMatrix() );
 
     // Return back to the original viewport (this is important if we want
     // to take a screenshot after the render)
@@ -942,14 +990,17 @@ void RENDER_3D_OPENGL::freeAllLists()
 
     DELETE_AND_FREE( m_board )
     DELETE_AND_FREE( m_boardWithHoles )
+    DELETE_AND_FREE( m_postMachinePlugs )
     DELETE_AND_FREE( m_antiBoard )
 
     DELETE_AND_FREE( m_outerThroughHoles )
     DELETE_AND_FREE( m_outerViaThroughHoles )
     DELETE_AND_FREE( m_outerThroughHoleRings )
 
-    DELETE_AND_FREE( m_vias )
+    DELETE_AND_FREE( m_microviaHoles )
     DELETE_AND_FREE( m_padHoles )
+    DELETE_AND_FREE( m_viaFrontCover )
+    DELETE_AND_FREE( m_viaBackCover )
 }
 
 
@@ -971,6 +1022,17 @@ void RENDER_3D_OPENGL::renderSolderMaskLayer( PCB_LAYER_ID aLayerID, float aZPos
         setLayerMaterial( aLayerID );
         m_board->SetItIsTransparent( true );
         m_board->DrawCulled( aShowThickness, solder_mask, via_holes );
+
+        if( aLayerID == F_Mask && m_viaFrontCover )
+        {
+            m_viaFrontCover->ApplyScalePosition( aZPos, 4 * m_boardAdapter.GetNonCopperLayerThickness() );
+            m_viaFrontCover->DrawTop();
+        }
+        else if( aLayerID == B_Mask && m_viaBackCover )
+        {
+            m_viaBackCover->ApplyScalePosition( aZPos, 4 * m_boardAdapter.GetNonCopperLayerThickness() );
+            m_viaBackCover->DrawBot();
+        }
     }
 }
 
@@ -1005,7 +1067,7 @@ void RENDER_3D_OPENGL::get3dModelsSelected( std::list<MODELTORENDER> &aDstRender
 
         if( !fp->Models().empty() )
         {
-            if( m_boardAdapter.IsFootprintShown( (FOOTPRINT_ATTR_T) fp->GetAttributes() ) )
+            if( m_boardAdapter.IsFootprintShown( fp ) )
             {
                 const bool isFlipped = fp->IsFlipped();
 

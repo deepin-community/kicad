@@ -47,6 +47,7 @@ public:
     ARRAY_OPTIONS( ARRAY_TYPE_T aType ) :
         m_type( aType ),
         m_shouldNumber( false ),
+        m_arrangeSelection( false ),
         m_reannotateFootprints( false ),
         m_numberingStartIsSpecified( false )
     {
@@ -99,6 +100,19 @@ public:
     }
 
     /**
+     * @return true if arranging selection, false if creating an array of copies
+     */
+    bool ShouldArrangeSelection() const
+    {
+        return m_arrangeSelection;
+    }
+
+    void SetShouldArrangeSelection( bool aShouldArrange )
+    {
+        m_arrangeSelection = aShouldArrange;
+    }
+
+    /**
      * @return are the footprints in this array reannotated to be unique (true), or do they
      * keep the original annotation (false)?
      */
@@ -133,6 +147,10 @@ protected:
 
     /// True if this array numbers the new items
     bool m_shouldNumber;
+
+    /// True if this array should arrange the selected items instead of creating
+    /// an array of copies of the selection
+    bool m_arrangeSelection;
 
     /// True if this array will rename any footprints to be unique
     bool m_reannotateFootprints;
@@ -185,6 +203,8 @@ struct KICOMMON_API ARRAY_CIRCULAR_OPTIONS : public ARRAY_OPTIONS
             : ARRAY_OPTIONS( ARRAY_CIRCULAR ),
               m_nPts( 0 ),
               m_angle( ANGLE_0 ),
+              m_angleOffset( ANGLE_0 ),
+              m_clockwise( false ),
               m_rotateItems( false )
     {
     }
@@ -194,6 +214,8 @@ struct KICOMMON_API ARRAY_CIRCULAR_OPTIONS : public ARRAY_OPTIONS
 
     /// angle between points, or 0 for each point separated by this value (decideg)
     EDA_ANGLE        m_angle;
+    EDA_ANGLE        m_angleOffset;
+    bool             m_clockwise;
     VECTOR2I         m_centre;
     bool             m_rotateItems;
     ARRAY_AXIS       m_axis;

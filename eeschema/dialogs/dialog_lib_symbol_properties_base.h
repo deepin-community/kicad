@@ -30,9 +30,10 @@ class WX_GRID;
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
 #include <wx/combobox.h>
-#include <wx/spinctrl.h>
 #include <wx/checkbox.h>
 #include <wx/panel.h>
+#include <wx/spinctrl.h>
+#include <wx/radiobut.h>
 #include <wx/listbox.h>
 #include <wx/notebook.h>
 #include <wx/dialog.h>
@@ -63,11 +64,8 @@ class DIALOG_LIB_SYMBOL_PROPERTIES_BASE : public DIALOG_SHIM
 		wxStaticText* m_inheritsStaticText;
 		wxComboBox* m_inheritanceSelectCombo;
 		wxBoxSizer* bSizerLowerBasicPanel;
-		wxStaticText* m_staticTextNbUnits;
-		wxSpinCtrl* m_SelNumberOfUnits;
-		wxCheckBox* m_OptionPartsInterchangeable;
-		wxCheckBox* m_hasAlternateBodyStyles;
 		wxCheckBox* m_OptionPower;
+		wxCheckBox* m_OptionLocalPower;
 		wxCheckBox* m_ShowPinNumButt;
 		wxCheckBox* m_ShowPinNameButt;
 		wxCheckBox* m_PinsNameInsideButt;
@@ -77,12 +75,34 @@ class DIALOG_LIB_SYMBOL_PROPERTIES_BASE : public DIALOG_SHIM
 		wxCheckBox* m_excludeFromSimCheckBox;
 		wxCheckBox* m_excludeFromBomCheckBox;
 		wxCheckBox* m_excludeFromBoardCheckBox;
-		wxPanel* m_PanelFootprintFilter;
+		wxCheckBox* m_excludeFromPosFilesCheckBox;
+		wxPanel* m_PanelUnitsAndBodyStyles;
+		wxStaticText* m_staticTextNbUnits;
+		wxSpinCtrl* m_unitSpinCtrl;
+		wxCheckBox* m_OptionPartsInterchangeable;
+		wxStaticText* m_unitNamesLabel;
+		WX_GRID* m_unitNamesGrid;
+		wxRadioButton* m_radioSingle;
+		wxRadioButton* m_radioDeMorgan;
+		wxRadioButton* m_radioCustom;
+		WX_GRID* m_bodyStyleNamesGrid;
+		wxBoxSizer* bButtonSize1;
+		STD_BITMAP_BUTTON* m_bpAddBodyStyle;
+		STD_BITMAP_BUTTON* m_bpMoveUpBodyStyle;
+		STD_BITMAP_BUTTON* m_bpMoveDownBodyStyle;
+		STD_BITMAP_BUTTON* m_bpDeleteBodyStyle;
+		wxPanel* m_PanelFootprintFilters;
 		wxStaticText* m_staticTextFootprints;
 		wxListBox* m_FootprintFilterListBox;
 		STD_BITMAP_BUTTON* m_addFilterButton;
 		STD_BITMAP_BUTTON* m_editFilterButton;
 		STD_BITMAP_BUTTON* m_deleteFilterButton;
+		wxPanel* m_PanelPinConnections;
+		wxCheckBox* m_cbDuplicatePinsAreJumpers;
+		wxStaticText* m_jumperGroupsLabel;
+		WX_GRID* m_jumperGroupsGrid;
+		STD_BITMAP_BUTTON* m_bpAddJumperGroup;
+		STD_BITMAP_BUTTON* m_bpRemoveJumperGroup;
 		wxButton* m_spiceFieldsButton;
 		wxStdDialogButtonSizer* m_stdSizerButton;
 		wxButton* m_stdSizerButtonOK;
@@ -91,7 +111,6 @@ class DIALOG_LIB_SYMBOL_PROPERTIES_BASE : public DIALOG_SHIM
 		// Virtual event handlers, override them in your derived class
 		virtual void OnUpdateUI( wxUpdateUIEvent& event ) { event.Skip(); }
 		virtual void OnPageChanging( wxNotebookEvent& event ) { event.Skip(); }
-		virtual void OnSizeGrid( wxSizeEvent& event ) { event.Skip(); }
 		virtual void OnAddField( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnMoveUp( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnMoveDown( wxCommandEvent& event ) { event.Skip(); }
@@ -100,13 +119,22 @@ class DIALOG_LIB_SYMBOL_PROPERTIES_BASE : public DIALOG_SHIM
 		virtual void OnSymbolNameText( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnText( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnCombobox( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnSpinCtrl( wxSpinEvent& event ) { event.Skip(); }
-		virtual void OnSpinCtrlText( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnCheckBox( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onPowerCheckBox( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnCheckBox( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnUnitSpinCtrlKillFocus( wxFocusEvent& event ) { event.Skip(); }
+		virtual void OnUnitSpinCtrl( wxSpinEvent& event ) { event.Skip(); }
+		virtual void OnUnitSpinCtrlText( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnUnitSpinCtrlEnter( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnBodyStyle( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnAddBodyStyle( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnBodyStyleMoveUp( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnBodyStyleMoveDown( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnDeleteBodyStyle( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnFpFilterDClick( wxMouseEvent& event ) { event.Skip(); }
 		virtual void OnEditFootprintFilter( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnAddFootprintFilter( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnAddJumperGroup( wxCommandEvent& event ) { event.Skip(); }
+		virtual void OnRemoveJumperGroup( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnEditSpiceModel( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnCancelButtonClick( wxCommandEvent& event ) { event.Skip(); }
 

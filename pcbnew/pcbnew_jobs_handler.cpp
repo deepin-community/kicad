@@ -18,14 +18,25 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <wx/crt.h>
 #include <wx/dir.h>
+#include <wx/zipstrm.h>
+#include <wx/filename.h>
+#include <wx/tokenzr.h>
+#include <wx/wfstream.h>
+
+#include <nlohmann/json.hpp>
+
 #include "pcbnew_jobs_handler.h"
 #include <board_commit.h>
 #include <board_design_settings.h>
+#include <drc/drc_engine.h>
+#include <board_statistics_report.h>
 #include <drc/drc_item.h>
 #include <drc/drc_report.h>
 #include <drawing_sheet/ds_data_model.h>
 #include <drawing_sheet/ds_proxy_view_item.h>
+#include <footprint.h>
 #include <jobs/job_fp_export_svg.h>
 #include <jobs/job_fp_upgrade.h>
 #include <jobs/job_export_pcb_ipc2581.h>
@@ -33,15 +44,22 @@
 #include <jobs/job_export_pcb_odb.h>
 #include <jobs/job_export_pcb_gerber.h>
 #include <jobs/job_export_pcb_gerbers.h>
+#include <jobs/job_export_pcb_hpgl.h>
 #include <jobs/job_export_pcb_drill.h>
 #include <jobs/job_export_pcb_dxf.h>
 #include <jobs/job_export_pcb_gencad.h>
 #include <jobs/job_export_pcb_pdf.h>
 #include <jobs/job_export_pcb_pos.h>
+#include <jobs/job_export_pcb_ps.h>
+#include <jobs/job_export_pcb_stats.h>
 #include <jobs/job_export_pcb_svg.h>
 #include <jobs/job_export_pcb_3d.h>
 #include <jobs/job_pcb_render.h>
 #include <jobs/job_pcb_drc.h>
+#include <jobs/job_pcb_import.h>
+#include <jobs/job_pcb_upgrade.h>
+#include <eda_units.h>
+#include <footprint_library_adapter.h>
 #include <lset.h>
 #include <cli/exit_codes.h>
 #include <exporters/place_file_exporter.h>
@@ -54,14 +72,13 @@
 #include <filename_resolver.h>
 #include <gerber_jobfile_writer.h>
 #include "gerber_placefile_writer.h"
-#include <gendrill_Excellon_writer.h>
+#include <gendrill_excellon_writer.h>
 #include <gendrill_gerber_writer.h>
 #include <kiface_base.h>
 #include <macros.h>
 #include <pad.h>
 #include <pcb_marker.h>
 #include <project/project_file.h>
-#include <exporters/export_svg.h>
 #include <exporters/export_gencad_writer.h>
 #include <exporters/export_d356.h>
 #include <kiface_ids.h>
@@ -70,16 +87,18 @@
 #include <pcbnew_settings.h>
 #include <pcbplot.h>
 #include <pcb_plotter.h>
+#include <pcb_edit_frame.h>
+#include <pcb_track.h>
 #include <pgm_base.h>
 #include <3d_rendering/raytracing/render_3d_raytrace_ram.h>
 #include <3d_rendering/track_ball.h>
 #include <project_pcb.h>
 #include <pcb_io/kicad_sexpr/pcb_io_kicad_sexpr.h>
 #include <reporter.h>
+#include <progress_reporter.h>
 #include <wildcards_and_files_ext.h>
 #include <export_vrml.h>
-#include <wx/wfstream.h>
-#include <wx/zipstrm.h>
+#include <kiplatform/io.h>
 #include <settings/settings_manager.h>
 #include <dialogs/dialog_gendrill.h>
 #include <dialogs/dialog_gen_footprint_position.h>
@@ -89,10 +108,14 @@
 #include <dialogs/dialog_plot.h>
 #include <dialogs/dialog_drc_job_config.h>
 #include <dialogs/dialog_render_job.h>
+#include <dialogs/dialog_gencad_export_options.h>
+#include <dialogs/dialog_board_stats_job.h>
 #include <paths.h>
+#include <tools/zone_filler_tool.h>
 
 #include "pcbnew_scripting_helpers.h"
 #include <locale_io.h>
+#include <confirm.h>
 
 
 #ifdef _WIN32
@@ -104,15 +127,16 @@
 
 PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
         JOB_DISPATCHER( aKiway ),
-        m_cliBoard( nullptr )
+        m_cliBoard( nullptr ),
+        m_toolManager( nullptr )
 {
     Register( "3d", std::bind( &PCBNEW_JOBS_HANDLER::JobExportStep, this, std::placeholders::_1 ),
               [aKiway]( JOB* job, wxWindow* aParent ) -> bool
               {
                   JOB_EXPORT_PCB_3D* svgJob = dynamic_cast<JOB_EXPORT_PCB_3D*>( job );
 
-                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( svgJob && editFrame, false );
 
@@ -123,16 +147,30 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
               std::bind( &PCBNEW_JOBS_HANDLER::JobExportRender, this, std::placeholders::_1 ),
               []( JOB* job, wxWindow* aParent ) -> bool
               {
-                  DIALOG_RENDER_JOB dlg( aParent, dynamic_cast<JOB_PCB_RENDER*>( job ) );
+                  JOB_PCB_RENDER* renderJob = dynamic_cast<JOB_PCB_RENDER*>( job );
+
+                  wxCHECK( renderJob, false );
+
+                  DIALOG_RENDER_JOB dlg( aParent, renderJob );
                   return dlg.ShowModal() == wxID_OK;
+              } );
+    Register( "upgrade", std::bind( &PCBNEW_JOBS_HANDLER::JobUpgrade, this, std::placeholders::_1 ),
+              []( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  return true;
+              } );
+    Register( "pcb_import", std::bind( &PCBNEW_JOBS_HANDLER::JobImport, this, std::placeholders::_1 ),
+              []( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  return true;
               } );
     Register( "svg", std::bind( &PCBNEW_JOBS_HANDLER::JobExportSvg, this, std::placeholders::_1 ),
               [aKiway]( JOB* job, wxWindow* aParent ) -> bool
               {
                   JOB_EXPORT_PCB_SVG* svgJob = dynamic_cast<JOB_EXPORT_PCB_SVG*>( job );
 
-                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( svgJob && editFrame, false );
 
@@ -141,17 +179,25 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
               } );
     Register( "gencad",
               std::bind( &PCBNEW_JOBS_HANDLER::JobExportGencad, this, std::placeholders::_1 ),
-              []( JOB* job, wxWindow* aParent ) -> bool
+              [aKiway]( JOB* job, wxWindow* aParent ) -> bool
               {
-                  return true;
+                  JOB_EXPORT_PCB_GENCAD* gencadJob = dynamic_cast<JOB_EXPORT_PCB_GENCAD*>( job );
+
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
+
+                  wxCHECK( gencadJob && editFrame, false );
+
+                  DIALOG_GENCAD_EXPORT_OPTIONS dlg( editFrame, gencadJob->GetSettingsDialogTitle(), gencadJob );
+                  return dlg.ShowModal() == wxID_OK;
               } );
     Register( "dxf", std::bind( &PCBNEW_JOBS_HANDLER::JobExportDxf, this, std::placeholders::_1 ),
               [aKiway]( JOB* job, wxWindow* aParent ) -> bool
               {
                   JOB_EXPORT_PCB_DXF* dxfJob = dynamic_cast<JOB_EXPORT_PCB_DXF*>( job );
 
-                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( dxfJob && editFrame, false );
 
@@ -163,12 +209,48 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
               {
                   JOB_EXPORT_PCB_PDF* pdfJob = dynamic_cast<JOB_EXPORT_PCB_PDF*>( job );
 
-                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( pdfJob && editFrame, false );
 
                   DIALOG_PLOT dlg( editFrame, aParent, pdfJob );
+                  return dlg.ShowModal() == wxID_OK;
+              } );
+    Register( "ps", std::bind( &PCBNEW_JOBS_HANDLER::JobExportPs, this, std::placeholders::_1 ),
+              [aKiway]( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  JOB_EXPORT_PCB_PS* psJob = dynamic_cast<JOB_EXPORT_PCB_PS*>( job );
+
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
+
+                  wxCHECK( psJob && editFrame, false );
+
+                  DIALOG_PLOT dlg( editFrame, aParent, psJob );
+                  return dlg.ShowModal() == wxID_OK;
+              } );
+    Register( "stats",
+              std::bind( &PCBNEW_JOBS_HANDLER::JobExportStats, this, std::placeholders::_1 ),
+              [aKiway]( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  JOB_EXPORT_PCB_STATS* statsJob = dynamic_cast<JOB_EXPORT_PCB_STATS*>( job );
+
+                  PCB_EDIT_FRAME* editFrame =
+                          dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR, false ) );
+
+                  wxCHECK( statsJob && editFrame, false );
+
+                  if( statsJob->m_filename.IsEmpty() && editFrame->GetBoard() )
+                  {
+                      wxFileName boardName = editFrame->GetBoard()->GetFileName();
+                      statsJob->m_filename = boardName.GetFullPath();
+                  }
+
+                  wxWindow* parent = aParent ? aParent : static_cast<wxWindow*>( editFrame );
+
+                  DIALOG_BOARD_STATS_JOB dlg( parent, statsJob );
+
                   return dlg.ShowModal() == wxID_OK;
               } );
     Register( "gerber",
@@ -177,8 +259,8 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
               {
                   JOB_EXPORT_PCB_GERBER* gJob = dynamic_cast<JOB_EXPORT_PCB_GERBER*>( job );
 
-                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( gJob && editFrame, false );
 
@@ -191,13 +273,31 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
               {
                   JOB_EXPORT_PCB_GERBERS* gJob = dynamic_cast<JOB_EXPORT_PCB_GERBERS*>( job );
 
-                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( gJob && editFrame, false );
 
                   DIALOG_PLOT dlg( editFrame, aParent, gJob );
                   return dlg.ShowModal() == wxID_OK;
+              } );
+    Register( "hpgl",
+              [&]( JOB* aJob )
+              {
+                  m_reporter->Report( _( "Plotting to HPGL is no longer supported as of KiCad 10.0.\n" ),
+                                      RPT_SEVERITY_ERROR );
+                  return CLI::EXIT_CODES::ERR_ARGS;
+              },
+              [aKiway]( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
+
+                  wxCHECK( editFrame, false );
+
+                  DisplayErrorMessage( editFrame,
+                                       _( "Plotting to HPGL is no longer supported as of KiCad 10.0." ) );
+                  return false;
               } );
     Register( "drill",
               std::bind( &PCBNEW_JOBS_HANDLER::JobExportDrill, this, std::placeholders::_1 ),
@@ -205,8 +305,8 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
               {
                   JOB_EXPORT_PCB_DRILL* drillJob = dynamic_cast<JOB_EXPORT_PCB_DRILL*>( job );
 
-                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( drillJob && editFrame, false );
 
@@ -218,8 +318,8 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
 			  {
 				  JOB_EXPORT_PCB_POS* posJob = dynamic_cast<JOB_EXPORT_PCB_POS*>( job );
 
-				  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+				  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( posJob && editFrame, false );
 
@@ -241,8 +341,11 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
     Register( "drc", std::bind( &PCBNEW_JOBS_HANDLER::JobExportDrc, this, std::placeholders::_1 ),
               []( JOB* job, wxWindow* aParent ) -> bool
               {
-                  DIALOG_DRC_JOB_CONFIG dlg( aParent, dynamic_cast<JOB_PCB_DRC*>( job ) );
+                  JOB_PCB_DRC* drcJob = dynamic_cast<JOB_PCB_DRC*>( job );
 
+                  wxCHECK( drcJob, false );
+
+                  DIALOG_DRC_JOB_CONFIG dlg( aParent, drcJob );
                   return dlg.ShowModal() == wxID_OK;
               } );
     Register( "ipc2581",
@@ -251,8 +354,8 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
               {
                   JOB_EXPORT_PCB_IPC2581* ipcJob = dynamic_cast<JOB_EXPORT_PCB_IPC2581*>( job );
 
-                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( ipcJob && editFrame, false );
 
@@ -271,14 +374,45 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
               {
                   JOB_EXPORT_PCB_ODB* odbJob = dynamic_cast<JOB_EXPORT_PCB_ODB*>( job );
 
-                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>(
-                          aKiway->Player( FRAME_PCB_EDITOR, false ) );
+                  PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR,
+                                                                                             false ) );
 
                   wxCHECK( odbJob && editFrame, false );
 
                   DIALOG_EXPORT_ODBPP dlg( odbJob, editFrame, aParent );
                   return dlg.ShowModal() == wxID_OK;
               } );
+}
+
+
+PCBNEW_JOBS_HANDLER::~PCBNEW_JOBS_HANDLER()
+{
+}
+
+
+TOOL_MANAGER* PCBNEW_JOBS_HANDLER::getToolManager( BOARD* aBrd )
+{
+    TOOL_MANAGER* toolManager = nullptr;
+    if( Pgm().IsGUI() )
+    {
+        // we assume the PCB we are working on here is the one in the frame
+        // so use the frame's tool manager
+        PCB_EDIT_FRAME* editFrame = (PCB_EDIT_FRAME*) m_kiway->Player( FRAME_PCB_EDITOR, false );
+        if( editFrame )
+            toolManager = editFrame->GetToolManager();
+    }
+    else
+    {
+        if( m_toolManager == nullptr )
+        {
+            m_toolManager = std::make_unique<TOOL_MANAGER>();
+        }
+
+        toolManager = m_toolManager.get();
+
+        toolManager->SetEnvironment( aBrd, nullptr, nullptr, Kiface().KifaceSettings(), nullptr );
+    }
+    return toolManager;
 }
 
 
@@ -324,20 +458,21 @@ BOARD* PCBNEW_JOBS_HANDLER::getBoard( const wxString& aPath )
 
 LSEQ PCBNEW_JOBS_HANDLER::convertLayerArg( wxString& aLayerString, BOARD* aBoard ) const
 {
+    std::map<wxString, LSET> layerUserMasks;
     std::map<wxString, LSET> layerMasks;
     std::map<wxString, LSET> layerGuiMasks;
 
     // Build list of layer names and their layer mask:
-    for( PCB_LAYER_ID layer : LSET::AllLayersMask().Seq() )
+    for( PCB_LAYER_ID layer : LSET::AllLayersMask() )
     {
+        // Add user layer name
+        if( aBoard )
+            layerUserMasks[ aBoard->GetLayerName( layer ) ] = LSET( { layer } );
+
         // Add layer name used in pcb files
         layerMasks[ LSET::Name( layer ) ] = LSET( { layer } );
         // Add layer name using GUI canonical layer name
         layerGuiMasks[ LayerName( layer ) ] = LSET( { layer } );
-
-        // Add user layer name
-        if( aBoard )
-            layerGuiMasks[ aBoard->GetLayerName( layer ) ] = LSET( { layer } );
     }
 
     // Add list of grouped layer names used in pcb files
@@ -359,31 +494,29 @@ LSEQ PCBNEW_JOBS_HANDLER::convertLayerArg( wxString& aLayerString, BOARD* aBoard
 
     LSEQ layerMask;
 
+    auto pushLayers =
+            [&]( const LSET& layerSet )
+            {
+                for( PCB_LAYER_ID layer : layerSet.Seq() )
+                    layerMask.push_back( layer );
+            };
+
     if( !aLayerString.IsEmpty() )
     {
         wxStringTokenizer layerTokens( aLayerString, "," );
 
         while( layerTokens.HasMoreTokens() )
         {
-            std::string token = TO_UTF8( layerTokens.GetNextToken() );
+            std::string token = TO_UTF8( layerTokens.GetNextToken().Trim( true ).Trim( false ) );
 
-            // Search for a layer name in canonical layer name used in .kicad_pcb files:
-            if( layerMasks.count( token ) )
-            {
-                for( PCB_LAYER_ID layer : layerMasks.at( token ).Seq() )
-                    layerMask.push_back( layer );
-            }
-            // Search for a layer name in canonical layer name used in GUI (not translated):
+            if( layerUserMasks.contains( token ) )
+                pushLayers( layerUserMasks.at( token ) );
+            else if( layerMasks.count( token ) )
+                pushLayers( layerMasks.at( token ) );
             else if( layerGuiMasks.count( token ) )
-            {
-                for( PCB_LAYER_ID layer : layerGuiMasks.at( token ).Seq() )
-                    layerMask.push_back( layer );
-            }
+                pushLayers( layerGuiMasks.at( token ) );
             else
-            {
-                m_reporter->Report( wxString::Format( _( "Invalid layer name \"%s\"\n" ),
-                                                      token ) );
-            }
+                m_reporter->Report( wxString::Format( _( "Invalid layer name '%s'\n" ), token ) );
         }
     }
 
@@ -403,9 +536,8 @@ int PCBNEW_JOBS_HANDLER::JobExportStep( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-    brd->GetProject()->ApplyTextVars( aJob->GetVarOverrides() );
-    brd->SynchronizeProperties();
+    if( !aStepJob->m_variant.IsEmpty() )
+        brd->SetCurrentVariant( aStepJob->m_variant );
 
     if( aStepJob->GetConfiguredOutputPath().IsEmpty() )
     {
@@ -421,6 +553,8 @@ int PCBNEW_JOBS_HANDLER::JobExportStep( JOB* aJob )
         case JOB_EXPORT_PCB_3D::FORMAT::GLB:  fn.SetExt( FILEEXT::GltfBinaryFileExtension ); break;
         case JOB_EXPORT_PCB_3D::FORMAT::PLY:  fn.SetExt( FILEEXT::PlyFileExtension );        break;
         case JOB_EXPORT_PCB_3D::FORMAT::STL:  fn.SetExt( FILEEXT::StlFileExtension );        break;
+        case JOB_EXPORT_PCB_3D::FORMAT::U3D:  fn.SetExt( FILEEXT::U3DFileExtension );        break;
+        case JOB_EXPORT_PCB_3D::FORMAT::PDF:  fn.SetExt( FILEEXT::PdfFileExtension );        break;
         default:
             m_reporter->Report( _( "Unknown export format" ), RPT_SEVERITY_ERROR );
             return CLI::EXIT_CODES::ERR_UNKNOWN; // shouldnt have gotten here
@@ -429,7 +563,7 @@ int PCBNEW_JOBS_HANDLER::JobExportStep( JOB* aJob )
         aStepJob->SetWorkingOutputPath( fn.GetFullName() );
     }
 
-    wxString outPath = aStepJob->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd );
 
     if( !PATHS::EnsurePathExists( outPath, true ) )
     {
@@ -457,7 +591,7 @@ int PCBNEW_JOBS_HANDLER::JobExportStep( JOB* aJob )
 
         if( !aStepJob->m_hasUserOrigin )
         {
-            BOX2I bbox = brd->ComputeBoundingBox( true );
+            BOX2I bbox = brd->ComputeBoundingBox( true, true );
             originX = pcbIUScale.IUTomm( bbox.GetCenter().x );
             originY = pcbIUScale.IUTomm( bbox.GetCenter().y );
         }
@@ -492,30 +626,21 @@ int PCBNEW_JOBS_HANDLER::JobExportStep( JOB* aJob )
 
         switch( aStepJob->m_format )
         {
-        case JOB_EXPORT_PCB_3D::FORMAT::STEP:
-            params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::STEP;
-            break;
-        case JOB_EXPORT_PCB_3D::FORMAT::BREP:
-            params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::BREP;
-            break;
-        case JOB_EXPORT_PCB_3D::FORMAT::XAO:
-            params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::XAO;
-            break;
-        case JOB_EXPORT_PCB_3D::FORMAT::GLB:
-            params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::GLB;
-            break;
-        case JOB_EXPORT_PCB_3D::FORMAT::PLY:
-            params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::PLY;
-            break;
-        case JOB_EXPORT_PCB_3D::FORMAT::STL:
-            params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::STL;
-            break;
+        case JOB_EXPORT_PCB_3D::FORMAT::STEP:  params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::STEP;  break;
+        case JOB_EXPORT_PCB_3D::FORMAT::STEPZ: params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::STEPZ; break;
+        case JOB_EXPORT_PCB_3D::FORMAT::BREP:  params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::BREP;  break;
+        case JOB_EXPORT_PCB_3D::FORMAT::XAO:   params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::XAO;   break;
+        case JOB_EXPORT_PCB_3D::FORMAT::GLB:   params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::GLB;   break;
+        case JOB_EXPORT_PCB_3D::FORMAT::PLY:   params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::PLY;   break;
+        case JOB_EXPORT_PCB_3D::FORMAT::STL:   params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::STL;   break;
+        case JOB_EXPORT_PCB_3D::FORMAT::U3D:   params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::U3D;   break;
+        case JOB_EXPORT_PCB_3D::FORMAT::PDF:   params.m_Format = EXPORTER_STEP_PARAMS::FORMAT::PDF;   break;
         default:
             m_reporter->Report( _( "Unknown export format" ), RPT_SEVERITY_ERROR );
             return CLI::EXIT_CODES::ERR_UNKNOWN; // shouldnt have gotten here
         }
 
-        EXPORTER_STEP stepExporter( brd, params );
+        EXPORTER_STEP stepExporter( brd, params, m_reporter );
         stepExporter.m_outputFile = aStepJob->GetFullOutputPath( brd->GetProject() );
 
         if( !stepExporter.Export() )
@@ -546,10 +671,6 @@ int PCBNEW_JOBS_HANDLER::JobExportRender( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-    brd->GetProject()->ApplyTextVars( aJob->GetVarOverrides() );
-    brd->SynchronizeProperties();
-
     if( aRenderJob->GetConfiguredOutputPath().IsEmpty() )
     {
         wxFileName fn = brd->GetFileName();
@@ -571,7 +692,7 @@ int PCBNEW_JOBS_HANDLER::JobExportRender( JOB* aJob )
         aRenderJob->SetWorkingOutputPath( fn.GetFullName() );
     }
 
-    wxString outPath = aRenderJob->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd );
 
     if( !PATHS::EnsurePathExists( outPath, true ) )
     {
@@ -583,83 +704,118 @@ int PCBNEW_JOBS_HANDLER::JobExportRender( JOB* aJob )
 
     boardAdapter.SetBoard( brd );
     boardAdapter.m_IsBoardView = false;
-    boardAdapter.m_IsPreviewer = true; // Force display 3D models, regardless of 3D viewer options
 
-    SETTINGS_MANAGER&       mgr = Pgm().GetSettingsManager();
-    EDA_3D_VIEWER_SETTINGS* cfg = mgr.GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" );
+    EDA_3D_VIEWER_SETTINGS cfg;
+
+    if( EDA_3D_VIEWER_SETTINGS* userCfg = GetAppSettings<EDA_3D_VIEWER_SETTINGS>( "3d_viewer" ) )
+    {
+        cfg.m_Render = userCfg->m_Render;
+        cfg.m_Camera = userCfg->m_Camera;
+        cfg.m_LayerPresets = userCfg->m_LayerPresets;
+    }
+
+    if( aRenderJob->m_appearancePreset.empty() )
+    {
+        // Force display 3D models
+        cfg.m_Render.show_footprints_not_in_posfile = true;
+        cfg.m_Render.show_footprints_dnp = true;
+        cfg.m_Render.show_footprints_insert = true;
+        cfg.m_Render.show_footprints_normal = true;
+        cfg.m_Render.show_footprints_virtual = true;
+    }
 
     if( aRenderJob->m_quality == JOB_PCB_RENDER::QUALITY::BASIC )
     {
         // Silkscreen is pixelated without antialiasing
-        cfg->m_Render.raytrace_anti_aliasing = true;
+        cfg.m_Render.raytrace_anti_aliasing = true;
 
-        cfg->m_Render.raytrace_backfloor = false;
-        cfg->m_Render.raytrace_post_processing = false;
+        cfg.m_Render.raytrace_backfloor = aRenderJob->m_floor;
+        cfg.m_Render.raytrace_post_processing = aRenderJob->m_floor;
 
-        cfg->m_Render.raytrace_procedural_textures = false;
-        cfg->m_Render.raytrace_reflections = false;
-        cfg->m_Render.raytrace_shadows = false;
+        cfg.m_Render.raytrace_procedural_textures = false;
+        cfg.m_Render.raytrace_reflections = false;
+        cfg.m_Render.raytrace_shadows = aRenderJob->m_floor;
 
         // Better colors
-        cfg->m_Render.differentiate_plated_copper = true;
+        cfg.m_Render.differentiate_plated_copper = true;
 
         // Tracks below soldermask are not visible without refractions
-        cfg->m_Render.raytrace_refractions = true;
-        cfg->m_Render.raytrace_recursivelevel_refractions = 1;
+        cfg.m_Render.raytrace_refractions = true;
+        cfg.m_Render.raytrace_recursivelevel_refractions = 1;
     }
     else if( aRenderJob->m_quality == JOB_PCB_RENDER::QUALITY::HIGH )
     {
-        cfg->m_Render.raytrace_anti_aliasing = true;
-        cfg->m_Render.raytrace_backfloor = true;
-        cfg->m_Render.raytrace_post_processing = true;
-        cfg->m_Render.raytrace_procedural_textures = true;
-        cfg->m_Render.raytrace_reflections = true;
-        cfg->m_Render.raytrace_shadows = true;
-        cfg->m_Render.raytrace_refractions = true;
-        cfg->m_Render.differentiate_plated_copper = true;
+        cfg.m_Render.raytrace_anti_aliasing = true;
+        cfg.m_Render.raytrace_backfloor = true;
+        cfg.m_Render.raytrace_post_processing = true;
+        cfg.m_Render.raytrace_procedural_textures = true;
+        cfg.m_Render.raytrace_reflections = true;
+        cfg.m_Render.raytrace_shadows = true;
+        cfg.m_Render.raytrace_refractions = true;
+        cfg.m_Render.differentiate_plated_copper = true;
     }
-
-    if( aRenderJob->m_floor )
+    else if( aRenderJob->m_quality == JOB_PCB_RENDER::QUALITY::JOB_SETTINGS )
     {
-        cfg->m_Render.raytrace_backfloor = true;
-        cfg->m_Render.raytrace_shadows = true;
-        cfg->m_Render.raytrace_post_processing = true;
+        cfg.m_Render.raytrace_anti_aliasing = aRenderJob->m_antiAlias;
+        cfg.m_Render.raytrace_backfloor = aRenderJob->m_floor;
+        cfg.m_Render.raytrace_post_processing = aRenderJob->m_postProcess;
+        cfg.m_Render.raytrace_procedural_textures = aRenderJob->m_proceduralTextures;
     }
 
-    cfg->m_Render.raytrace_lightColorTop = COLOR4D(aRenderJob->m_lightTopIntensity.x,
+    cfg.m_Render.raytrace_lightColorTop = COLOR4D( aRenderJob->m_lightTopIntensity.x,
                                                    aRenderJob->m_lightTopIntensity.y,
-                                                   aRenderJob->m_lightTopIntensity.z, 1.0);
+                                                   aRenderJob->m_lightTopIntensity.z, 1.0 );
 
-    cfg->m_Render.raytrace_lightColorBottom = COLOR4D(aRenderJob->m_lightBottomIntensity.x,
+    cfg.m_Render.raytrace_lightColorBottom = COLOR4D( aRenderJob->m_lightBottomIntensity.x,
                                                       aRenderJob->m_lightBottomIntensity.y,
-                                                      aRenderJob->m_lightBottomIntensity.z, 1.0);
+                                                      aRenderJob->m_lightBottomIntensity.z, 1.0 );
 
-    cfg->m_Render.raytrace_lightColorCamera = COLOR4D( aRenderJob->m_lightCameraIntensity.x,
-                                                       aRenderJob->m_lightCameraIntensity.y,
-                                                       aRenderJob->m_lightCameraIntensity.z, 1.0 );
+    cfg.m_Render.raytrace_lightColorCamera = COLOR4D( aRenderJob->m_lightCameraIntensity.x,
+                                                      aRenderJob->m_lightCameraIntensity.y,
+                                                      aRenderJob->m_lightCameraIntensity.z, 1.0 );
 
     COLOR4D lightColor( aRenderJob->m_lightSideIntensity.x,
                         aRenderJob->m_lightSideIntensity.y,
                         aRenderJob->m_lightSideIntensity.z, 1.0 );
 
-    cfg->m_Render.raytrace_lightColor = {
+    cfg.m_Render.raytrace_lightColor = {
         lightColor, lightColor, lightColor, lightColor,
         lightColor, lightColor, lightColor, lightColor,
     };
 
     int sideElevation = aRenderJob->m_lightSideElevation;
 
-    cfg->m_Render.raytrace_lightElevation = {
+    cfg.m_Render.raytrace_lightElevation = {
         sideElevation,  sideElevation,  sideElevation,  sideElevation,
         -sideElevation, -sideElevation, -sideElevation, -sideElevation,
     };
 
-    cfg->m_Render.raytrace_lightAzimuth = {
+    cfg.m_Render.raytrace_lightAzimuth = {
         45, 135, 225, 315, 45, 135, 225, 315,
     };
 
-    cfg->m_CurrentPreset = aRenderJob->m_colorPreset;
-    boardAdapter.m_Cfg = cfg;
+    cfg.m_CurrentPreset = aRenderJob->m_appearancePreset;
+    cfg.m_UseStackupColors = aRenderJob->m_useBoardStackupColors;
+    boardAdapter.m_Cfg = &cfg;
+
+    // Apply the preset's layer visibility and colors to the render settings
+    if( !aRenderJob->m_appearancePreset.empty() )
+    {
+        wxString presetName = wxString::FromUTF8( aRenderJob->m_appearancePreset );
+
+        if( presetName == FOLLOW_PCB || presetName == FOLLOW_PLOT_SETTINGS )
+        {
+            boardAdapter.SetVisibleLayers( boardAdapter.GetVisibleLayers() );
+        }
+        else if( LAYER_PRESET_3D* preset = cfg.FindPreset( presetName ) )
+        {
+            boardAdapter.SetVisibleLayers( preset->layers );
+            boardAdapter.SetLayerColors( preset->colors );
+
+            if( preset->name.Lower() == _( "legacy colors" ) )
+                cfg.m_UseStackupColors = false;
+        }
+    }
 
     if( aRenderJob->m_bgStyle == JOB_PCB_RENDER::BG_STYLE::TRANSPARENT
         || ( aRenderJob->m_bgStyle == JOB_PCB_RENDER::BG_STYLE::DEFAULT
@@ -701,13 +857,11 @@ int PCBNEW_JOBS_HANDLER::JobExportRender( JOB* aJob )
             // First redraw resets lookat point to the board center, so set up the camera here
             camera.ViewCommand_T1( s_viewCmdMap[aRenderJob->m_side] );
 
-            camera.SetLookAtPos_T1(
-                    camera.GetLookAtPos_T1()
-                    + SFVEC3F( aRenderJob->m_pivot.x, aRenderJob->m_pivot.y, aRenderJob->m_pivot.z )
-                              * cmTo3D );
+            camera.SetLookAtPos_T1( camera.GetLookAtPos_T1() + SFVEC3F( aRenderJob->m_pivot.x,
+                                                                        aRenderJob->m_pivot.y,
+                                                                        aRenderJob->m_pivot.z ) * cmTo3D );
 
-            camera.Pan_T1(
-                    SFVEC3F( aRenderJob->m_pan.x, aRenderJob->m_pan.y, aRenderJob->m_pan.z ) );
+            camera.Pan_T1( SFVEC3F( aRenderJob->m_pan.x, aRenderJob->m_pan.y, aRenderJob->m_pan.z ) );
 
             camera.Zoom_T1( aRenderJob->m_zoom );
 
@@ -757,23 +911,20 @@ int PCBNEW_JOBS_HANDLER::JobExportRender( JOB* aJob )
         image = image.Mirror( false );
 
         image.SetOption( wxIMAGE_OPTION_QUALITY, 90 );
-        image.SaveFile( outPath,
-                        aRenderJob->m_format == JOB_PCB_RENDER::FORMAT::PNG ? wxBITMAP_TYPE_PNG
-                                                                            : wxBITMAP_TYPE_JPEG );
+        image.SaveFile( outPath, aRenderJob->m_format == JOB_PCB_RENDER::FORMAT::PNG ? wxBITMAP_TYPE_PNG
+                                                                                     : wxBITMAP_TYPE_JPEG );
     }
 
     if( success )
     {
-        m_reporter->Report( _( "Successfully created 3D render image" ) + wxS( "\n" ),
-                            RPT_SEVERITY_INFO );
+        m_reporter->Report( _( "Successfully created 3D render image" ) + wxS( "\n" ), RPT_SEVERITY_INFO );
+        return CLI::EXIT_CODES::OK;
     }
     else
     {
-        m_reporter->Report( _( "Error creating 3D render image" ) + wxS( "\n" ),
-                            RPT_SEVERITY_ERROR );
+        m_reporter->Report( _( "Error creating 3D render image" ) + wxS( "\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
     }
-
-    return CLI::EXIT_CODES::OK;
 }
 
 
@@ -784,12 +935,14 @@ int PCBNEW_JOBS_HANDLER::JobExportSvg( JOB* aJob )
     if( aSvgJob == nullptr )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
 
-    BOARD* brd = getBoard( aSvgJob->m_filename );
+    BOARD*        brd = getBoard( aSvgJob->m_filename );
+    TOOL_MANAGER* toolManager = getToolManager( brd );
 
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
+    if( !aSvgJob->m_variant.IsEmpty() )
+        brd->SetCurrentVariant( aSvgJob->m_variant );
 
     if( aSvgJob->m_genMode == JOB_EXPORT_PCB_SVG::GEN_MODE::SINGLE )
     {
@@ -803,7 +956,7 @@ int PCBNEW_JOBS_HANDLER::JobExportSvg( JOB* aJob )
         }
     }
 
-    wxString outPath = aSvgJob->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd, &aSvgJob->m_drawingSheet );
 
     if( !PATHS::EnsurePathExists( outPath, aSvgJob->m_genMode == JOB_EXPORT_PCB_SVG::GEN_MODE::SINGLE ) )
     {
@@ -811,9 +964,13 @@ int PCBNEW_JOBS_HANDLER::JobExportSvg( JOB* aJob )
         return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
     }
 
-    loadOverrideDrawingSheet( brd, aSvgJob->m_drawingSheet );
-    brd->GetProject()->ApplyTextVars( aJob->GetVarOverrides() );
-    brd->SynchronizeProperties();
+    if( aSvgJob->m_checkZonesBeforePlot )
+    {
+        if( !toolManager->FindTool( ZONE_FILLER_TOOL_NAME ) )
+            toolManager->RegisterTool( new ZONE_FILLER_TOOL );
+
+        toolManager->GetTool<ZONE_FILLER_TOOL>()->FillAllZones( nullptr, m_progressReporter, true );
+    }
 
     if( aSvgJob->m_argLayers )
         aSvgJob->m_plotLayerSequence = convertLayerArg( aSvgJob->m_argLayers.value(), brd );
@@ -848,8 +1005,6 @@ int PCBNEW_JOBS_HANDLER::JobExportSvg( JOB* aJob )
             sheetPath = aSvgJob->GetVarOverrides().at( wxT( "SHEETPATH" ) );
     }
 
-    LOCALE_IO dummy;
-
     if( !plotter.Plot( outPath, aSvgJob->m_plotLayerSequence, aSvgJob->m_plotOnAllLayersSequence,
                        false, aSvgJob->m_genMode == JOB_EXPORT_PCB_SVG::GEN_MODE::SINGLE,
                        layerName, sheetName, sheetPath ) )
@@ -873,10 +1028,18 @@ int PCBNEW_JOBS_HANDLER::JobExportDxf( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-    loadOverrideDrawingSheet( brd, aDxfJob->m_drawingSheet );
-    brd->GetProject()->ApplyTextVars( aJob->GetVarOverrides() );
-    brd->SynchronizeProperties();
+    if( !aDxfJob->m_variant.IsEmpty() )
+        brd->SetCurrentVariant( aDxfJob->m_variant );
+
+    TOOL_MANAGER* toolManager = getToolManager( brd );
+
+    if( aDxfJob->m_checkZonesBeforePlot )
+    {
+        if( !toolManager->FindTool( ZONE_FILLER_TOOL_NAME ) )
+            toolManager->RegisterTool( new ZONE_FILLER_TOOL );
+
+        toolManager->GetTool<ZONE_FILLER_TOOL>()->FillAllZones( nullptr, m_progressReporter, true );
+    }
 
     if( aDxfJob->m_argLayers )
         aDxfJob->m_plotLayerSequence = convertLayerArg( aDxfJob->m_argLayers.value(), brd );
@@ -902,7 +1065,7 @@ int PCBNEW_JOBS_HANDLER::JobExportDxf( JOB* aJob )
         }
     }
 
-    wxString outPath = aDxfJob->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd, &aDxfJob->m_drawingSheet );
 
     if( !PATHS::EnsurePathExists( outPath, aDxfJob->m_genMode == JOB_EXPORT_PCB_DXF::GEN_MODE::SINGLE ) )
     {
@@ -955,10 +1118,18 @@ int PCBNEW_JOBS_HANDLER::JobExportPdf( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    pdfJob->SetTitleBlock( brd->GetTitleBlock() );
-    loadOverrideDrawingSheet( brd, pdfJob->m_drawingSheet );
-    brd->GetProject()->ApplyTextVars( pdfJob->GetVarOverrides() );
-    brd->SynchronizeProperties();
+    if( !pdfJob->m_variant.IsEmpty() )
+        brd->SetCurrentVariant( pdfJob->m_variant );
+
+    TOOL_MANAGER* toolManager = getToolManager( brd );
+
+    if( pdfJob->m_checkZonesBeforePlot )
+    {
+        if( !toolManager->FindTool( ZONE_FILLER_TOOL_NAME ) )
+            toolManager->RegisterTool( new ZONE_FILLER_TOOL );
+
+        toolManager->GetTool<ZONE_FILLER_TOOL>()->FillAllZones( nullptr, m_progressReporter, true );
+    }
 
     if( pdfJob->m_argLayers )
         pdfJob->m_plotLayerSequence = convertLayerArg( pdfJob->m_argLayers.value(), brd );
@@ -975,7 +1146,9 @@ int PCBNEW_JOBS_HANDLER::JobExportPdf( JOB* aJob )
         return CLI::EXIT_CODES::ERR_ARGS;
     }
 
-    if( plotAllLayersOneFile && pdfJob->GetConfiguredOutputPath().IsEmpty() )
+    const bool outputIsSingle = plotAllLayersOneFile || pdfJob->m_pdfSingle;
+
+    if( outputIsSingle && pdfJob->GetConfiguredOutputPath().IsEmpty() )
     {
         wxFileName fn = brd->GetFileName();
         fn.SetName( fn.GetName() );
@@ -984,18 +1157,14 @@ int PCBNEW_JOBS_HANDLER::JobExportPdf( JOB* aJob )
         pdfJob->SetWorkingOutputPath( fn.GetFullName() );
     }
 
+    wxString outPath = resolveJobOutputPath( pdfJob, brd, &pdfJob->m_drawingSheet );
+
     PCB_PLOT_PARAMS plotOpts;
     PCB_PLOTTER::PlotJobToPlotOpts( plotOpts, pdfJob, *m_reporter );
 
-    // ensure this is set for this one gen mode
-    if( plotAllLayersOneFile )
-        plotOpts.m_PDFSingle = true;
-
     PCB_PLOTTER pcbPlotter( brd, m_reporter, plotOpts );
 
-    wxString outPath = pdfJob->GetFullOutputPath( brd->GetProject() );
-
-    if( !PATHS::EnsurePathExists( outPath, plotAllLayersOneFile ) )
+    if( !PATHS::EnsurePathExists( outPath, outputIsSingle ) )
     {
         m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
         return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
@@ -1017,11 +1186,98 @@ int PCBNEW_JOBS_HANDLER::JobExportPdf( JOB* aJob )
             sheetPath = pdfJob->GetVarOverrides().at( wxT( "SHEETPATH" ) );
     }
 
-
-    LOCALE_IO dummy;
-
     if( !pcbPlotter.Plot( outPath, pdfJob->m_plotLayerSequence,
-                          pdfJob->m_plotOnAllLayersSequence, false, plotAllLayersOneFile,
+                          pdfJob->m_plotOnAllLayersSequence, false, outputIsSingle,
+                          layerName, sheetName, sheetPath ) )
+    {
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+    }
+
+    return CLI::EXIT_CODES::OK;
+}
+
+
+int PCBNEW_JOBS_HANDLER::JobExportPs( JOB* aJob )
+{
+    JOB_EXPORT_PCB_PS* psJob = dynamic_cast<JOB_EXPORT_PCB_PS*>( aJob );
+
+    if( psJob == nullptr )
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+
+    BOARD* brd = getBoard( psJob->m_filename );
+
+    if( !brd )
+        return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
+
+    if( !psJob->m_variant.IsEmpty() )
+        brd->SetCurrentVariant( psJob->m_variant );
+
+    TOOL_MANAGER* toolManager = getToolManager( brd );
+
+    if( psJob->m_checkZonesBeforePlot )
+    {
+        if( !toolManager->FindTool( ZONE_FILLER_TOOL_NAME ) )
+            toolManager->RegisterTool( new ZONE_FILLER_TOOL );
+
+        toolManager->GetTool<ZONE_FILLER_TOOL>()->FillAllZones( nullptr, m_progressReporter, true );
+    }
+
+    if( psJob->m_argLayers )
+        psJob->m_plotLayerSequence = convertLayerArg( psJob->m_argLayers.value(), brd );
+
+    if( psJob->m_argCommonLayers )
+        psJob->m_plotOnAllLayersSequence = convertLayerArg( psJob->m_argCommonLayers.value(), brd );
+
+    if( psJob->m_plotLayerSequence.size() < 1 )
+    {
+        m_reporter->Report( _( "At least one layer must be specified\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_ARGS;
+    }
+
+    bool isSingle = psJob->m_genMode == JOB_EXPORT_PCB_PS::GEN_MODE::SINGLE;
+
+    if( isSingle )
+    {
+        if( psJob->GetConfiguredOutputPath().IsEmpty() )
+        {
+            wxFileName fn = brd->GetFileName();
+            fn.SetName( fn.GetName() );
+            fn.SetExt( GetDefaultPlotExtension( PLOT_FORMAT::POST ) );
+
+            psJob->SetWorkingOutputPath( fn.GetFullName() );
+        }
+    }
+
+    wxString outPath = resolveJobOutputPath( psJob, brd, &psJob->m_drawingSheet );
+
+    if( !PATHS::EnsurePathExists( outPath, isSingle ) )
+    {
+        m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+    }
+
+    PCB_PLOT_PARAMS plotOpts;
+    PCB_PLOTTER::PlotJobToPlotOpts( plotOpts, psJob, *m_reporter );
+
+    PCB_PLOTTER pcbPlotter( brd, m_reporter, plotOpts );
+
+    std::optional<wxString> layerName;
+    std::optional<wxString> sheetName;
+    std::optional<wxString> sheetPath;
+
+    if( isSingle )
+    {
+        if( aJob->GetVarOverrides().contains( wxT( "LAYER" ) ) )
+            layerName = psJob->GetVarOverrides().at( wxT( "LAYER" ) );
+
+        if( aJob->GetVarOverrides().contains( wxT( "SHEETNAME" ) ) )
+            sheetName = psJob->GetVarOverrides().at( wxT( "SHEETNAME" ) );
+
+        if( aJob->GetVarOverrides().contains( wxT( "SHEETPATH" ) ) )
+            sheetPath = psJob->GetVarOverrides().at( wxT( "SHEETPATH" ) );
+    }
+
+    if( !pcbPlotter.Plot( outPath, psJob->m_plotLayerSequence, psJob->m_plotOnAllLayersSequence, false, isSingle,
                           layerName, sheetName, sheetPath ) )
     {
         return CLI::EXIT_CODES::ERR_UNKNOWN;
@@ -1044,7 +1300,10 @@ int PCBNEW_JOBS_HANDLER::JobExportGerbers( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    wxString outPath = aGerberJob->GetFullOutputPath( brd->GetProject() );
+    if( !aGerberJob->m_variant.IsEmpty() )
+        brd->SetCurrentVariant( aGerberJob->m_variant );
+
+    wxString outPath = resolveJobOutputPath( aJob, brd, &aGerberJob->m_drawingSheet );
 
     if( !PATHS::EnsurePathExists( outPath, false ) )
     {
@@ -1052,10 +1311,15 @@ int PCBNEW_JOBS_HANDLER::JobExportGerbers( JOB* aJob )
         return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
     }
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-    loadOverrideDrawingSheet( brd, aGerberJob->m_drawingSheet );
-    brd->GetProject()->ApplyTextVars( aJob->GetVarOverrides() );
-    brd->SynchronizeProperties();
+    TOOL_MANAGER* toolManager = getToolManager( brd );
+
+    if( aGerberJob->m_checkZonesBeforePlot )
+    {
+        if( !toolManager->FindTool( ZONE_FILLER_TOOL_NAME ) )
+            toolManager->RegisterTool( new ZONE_FILLER_TOOL );
+
+        toolManager->GetTool<ZONE_FILLER_TOOL>()->FillAllZones( nullptr, m_progressReporter, true );
+    }
 
     bool hasLayerListSpecified = false; // will be true if the user layer list is not empty
 
@@ -1063,11 +1327,13 @@ int PCBNEW_JOBS_HANDLER::JobExportGerbers( JOB* aJob )
     {
         if( !aGerberJob->m_argLayers.value().empty() )
         {
-            aGerberJob->m_plotLayerSequence = convertLayerArg( aGerberJob->m_argLayers.value(), nullptr );
+            aGerberJob->m_plotLayerSequence = convertLayerArg( aGerberJob->m_argLayers.value(), brd );
             hasLayerListSpecified = true;
         }
         else
+        {
             aGerberJob->m_plotLayerSequence = LSET::AllLayersMask().SeqStackupForPlotting();
+        }
     }
 
     if( aGerberJob->m_argCommonLayers )
@@ -1127,7 +1393,7 @@ int PCBNEW_JOBS_HANDLER::JobExportGerbers( JOB* aJob )
         if( aGerberJob->m_useBoardPlotParams )
             plotOpts = boardPlotOptions;
         else
-            populateGerberPlotOptionsFromJob( plotOpts, aGerberJob );
+            PCB_PLOTTER::PlotJobToPlotOpts( plotOpts, aGerberJob, *m_reporter );
 
         if( plotOpts.GetUseGerberProtelExtensions() )
             fileExt = GetGerberProtelExtension( layer );
@@ -1136,6 +1402,12 @@ int PCBNEW_JOBS_HANDLER::JobExportGerbers( JOB* aJob )
 
         BuildPlotFileName( &fn, outPath, layerName, fileExt );
         wxString fullname = fn.GetFullName();
+
+        if( m_progressReporter )
+        {
+            m_progressReporter->AdvancePhase( wxString::Format( _( "Exporting %s" ), fullname ) );
+            m_progressReporter->KeepRefreshing();
+        }
 
         jobfile_writer.AddGbrFile( layer, fullname );
 
@@ -1150,24 +1422,20 @@ int PCBNEW_JOBS_HANDLER::JobExportGerbers( JOB* aJob )
 
         // We are feeding it one layer at the start here to silence a logic check
         GERBER_PLOTTER* plotter;
-        {
-            LOCALE_IO dummy;
-            plotter = (GERBER_PLOTTER*) StartPlotBoard( brd, &plotOpts, layer, layerName,
-                                                        fn.GetFullPath(), sheetName, sheetPath );
-        }
+        plotter = (GERBER_PLOTTER*) StartPlotBoard( brd, &plotOpts, layer, layerName,
+                                                    fn.GetFullPath(), sheetName, sheetPath );
 
         if( plotter )
         {
             m_reporter->Report( wxString::Format( _( "Plotted to '%s'.\n" ), fn.GetFullPath() ),
                                 RPT_SEVERITY_ACTION );
-            LOCALE_IO dummy;
+
             PlotBoardLayers( brd, plotter, plotSequence, plotOpts );
             plotter->EndPlot();
         }
         else
         {
-            m_reporter->Report( wxString::Format( _( "Failed to plot to '%s'.\n" ),
-                                                  fn.GetFullPath() ),
+            m_reporter->Report( wxString::Format( _( "Failed to plot to '%s'.\n" ), fn.GetFullPath() ),
                                 RPT_SEVERITY_ERROR );
             exitCode = CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
         }
@@ -1187,6 +1455,7 @@ int PCBNEW_JOBS_HANDLER::JobExportGerbers( JOB* aJob )
     return exitCode;
 }
 
+
 int PCBNEW_JOBS_HANDLER::JobExportGencad( JOB* aJob )
 {
     JOB_EXPORT_PCB_GENCAD* aGencadJob = dynamic_cast<JOB_EXPORT_PCB_GENCAD*>( aJob );
@@ -1194,10 +1463,10 @@ int PCBNEW_JOBS_HANDLER::JobExportGencad( JOB* aJob )
     if( aGencadJob == nullptr )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
 
-    BOARD* brd = LoadBoard( aGencadJob->m_filename, true ); // Ensure m_board is of type BOARD*
+    BOARD* brd = getBoard( aGencadJob->m_filename );
 
-    if( brd == nullptr )
-        return CLI::EXIT_CODES::ERR_UNKNOWN;
+    if( !brd )
+        return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
     GENCAD_EXPORTER exporter( brd );
 
@@ -1221,7 +1490,7 @@ int PCBNEW_JOBS_HANDLER::JobExportGencad( JOB* aJob )
         aGencadJob->SetWorkingOutputPath( fn.GetFullName() );
     }
 
-    wxString outPath = aGencadJob->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd );
 
     if( !PATHS::EnsurePathExists( outPath, true ) )
     {
@@ -1243,35 +1512,81 @@ int PCBNEW_JOBS_HANDLER::JobExportGencad( JOB* aJob )
 }
 
 
-void PCBNEW_JOBS_HANDLER::populateGerberPlotOptionsFromJob( PCB_PLOT_PARAMS& aPlotOpts,
-                                                            JOB_EXPORT_PCB_GERBER* aJob )
+int PCBNEW_JOBS_HANDLER::JobExportStats( JOB* aJob )
 {
-    aPlotOpts.SetFormat( PLOT_FORMAT::GERBER );
+    JOB_EXPORT_PCB_STATS* statsJob = dynamic_cast<JOB_EXPORT_PCB_STATS*>( aJob );
 
-    aPlotOpts.SetPlotFrameRef( aJob->m_plotDrawingSheet );
-    aPlotOpts.SetPlotValue( aJob->m_plotFootprintValues );
-    aPlotOpts.SetPlotReference( aJob->m_plotRefDes );
+    if( statsJob == nullptr )
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
 
-    aPlotOpts.SetSubtractMaskFromSilk( aJob->m_subtractSolderMaskFromSilk );
+    BOARD* brd = getBoard( statsJob->m_filename );
 
-    // Always disable plot pad holes
-    aPlotOpts.SetDrillMarksType( DRILL_MARKS::NO_DRILL_SHAPE );
+    if( !brd )
+        return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aPlotOpts.SetDisableGerberMacros( aJob->m_disableApertureMacros );
-    aPlotOpts.SetUseGerberX2format( aJob->m_useX2Format );
-    aPlotOpts.SetIncludeGerberNetlistInfo( aJob->m_includeNetlistAttributes );
-    aPlotOpts.SetUseAuxOrigin( aJob->m_useDrillOrigin );
-    aPlotOpts.SetUseGerberProtelExtensions( aJob->m_useProtelFileExtension );
-    aPlotOpts.SetGerberPrecision( aJob->m_precision );
-}
+    BOARD_STATISTICS_DATA data;
+    InitializeBoardStatisticsData( data );
 
+    BOARD_STATISTICS_OPTIONS options;
+    options.excludeFootprintsWithoutPads = statsJob->m_excludeFootprintsWithoutPads;
+    options.subtractHolesFromBoardArea = statsJob->m_subtractHolesFromBoardArea;
+    options.subtractHolesFromCopperAreas = statsJob->m_subtractHolesFromCopperAreas;
 
-void PCBNEW_JOBS_HANDLER::populateGerberPlotOptionsFromJob( PCB_PLOT_PARAMS& aPlotOpts,
-                                                            JOB_EXPORT_PCB_GERBERS* aJob )
-{
-    populateGerberPlotOptionsFromJob( aPlotOpts, static_cast<JOB_EXPORT_PCB_GERBER*>( aJob ) );
+    ComputeBoardStatistics( brd, options, data );
 
-    aPlotOpts.SetCreateGerberJobFile( aJob->m_createJobsFile );
+    wxString projectName;
+
+    if( brd->GetProject() )
+        projectName = brd->GetProject()->GetProjectName();
+
+    wxFileName boardFile = brd->GetFileName();
+
+    if( boardFile.GetName().IsEmpty() )
+        boardFile = wxFileName( statsJob->m_filename );
+
+    EDA_UNITS unitsForReport = statsJob->m_units == JOB_EXPORT_PCB_STATS::UNITS::MM ? EDA_UNITS::MM : EDA_UNITS::INCH;
+    UNITS_PROVIDER unitsProvider( pcbIUScale, unitsForReport );
+
+    wxString report;
+
+    if( statsJob->m_format == JOB_EXPORT_PCB_STATS::OUTPUT_FORMAT::JSON )
+        report = FormatBoardStatisticsJson( data, brd, unitsProvider, projectName, boardFile.GetName() );
+    else
+        report = FormatBoardStatisticsReport( data, brd, unitsProvider, projectName, boardFile.GetName() );
+
+    if( statsJob->GetConfiguredOutputPath().IsEmpty() && statsJob->GetWorkingOutputPath().IsEmpty() )
+        statsJob->SetDefaultOutputPath( boardFile.GetFullPath() );
+
+    wxString outPath = resolveJobOutputPath( aJob, brd );
+
+    if( !PATHS::EnsurePathExists( outPath, true ) )
+    {
+        m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+    }
+
+    FILE* outFile = wxFopen( outPath, wxS( "wt" ) );
+
+    if( !outFile )
+    {
+        m_reporter->Report( wxString::Format( _( "Failed to create file '%s'.\n" ), outPath ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+    }
+
+    if( fprintf( outFile, "%s", TO_UTF8( report ) ) < 0 )
+    {
+        fclose( outFile );
+        m_reporter->Report( wxString::Format( _( "Error writing file '%s'.\n" ), outPath ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+    }
+
+    fclose( outFile );
+
+    m_reporter->Report( wxString::Format( _( "Wrote board statistics to '%s'.\n" ), outPath ), RPT_SEVERITY_ACTION );
+
+    statsJob->AddOutput( outPath );
+
+    return CLI::EXIT_CODES::OK;
 }
 
 
@@ -1288,9 +1603,10 @@ int PCBNEW_JOBS_HANDLER::JobExportGerber( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-    brd->GetProject()->ApplyTextVars( aJob->GetVarOverrides() );
-    brd->SynchronizeProperties();
+    if( !aGerberJob->m_variant.IsEmpty() )
+        brd->SetCurrentVariant( aGerberJob->m_variant );
+
+    TOOL_MANAGER* toolManager = getToolManager( brd );
 
     if( aGerberJob->m_argLayers )
         aGerberJob->m_plotLayerSequence = convertLayerArg( aGerberJob->m_argLayers.value(), brd );
@@ -1313,8 +1629,18 @@ int PCBNEW_JOBS_HANDLER::JobExportGerber( JOB* aJob )
         aGerberJob->SetWorkingOutputPath( fn.GetFullName() );
     }
 
+    wxString outPath = resolveJobOutputPath( aJob, brd );
+
+    if( aGerberJob->m_checkZonesBeforePlot )
+    {
+        if( !toolManager->FindTool( ZONE_FILLER_TOOL_NAME ) )
+            toolManager->RegisterTool( new ZONE_FILLER_TOOL );
+
+        toolManager->GetTool<ZONE_FILLER_TOOL>()->FillAllZones( nullptr, m_progressReporter, true );
+    }
+
     PCB_PLOT_PARAMS plotOpts;
-    populateGerberPlotOptionsFromJob( plotOpts, aGerberJob );
+    PCB_PLOTTER::PlotJobToPlotOpts( plotOpts, aGerberJob, *m_reporter );
     plotOpts.SetLayerSelection( aGerberJob->m_plotLayerSequence );
     plotOpts.SetPlotOnAllLayersSequence( aGerberJob->m_plotOnAllLayersSequence );
 
@@ -1322,7 +1648,6 @@ int PCBNEW_JOBS_HANDLER::JobExportGerber( JOB* aJob )
     wxString     layerName;
     wxString     sheetName;
     wxString     sheetPath;
-    wxString     outPath = aGerberJob->GetFullOutputPath( brd->GetProject() );
 
     // The first layer will be treated as the layer name for the gerber header,
     // the other layers will be treated equivalent to the "Plot on All Layers" option
@@ -1379,9 +1704,7 @@ int PCBNEW_JOBS_HANDLER::JobExportDrill( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-
-    wxString outPath = aDrillJob->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd );
 
     if( !PATHS::EnsurePathExists( outPath ) )
     {
@@ -1415,20 +1738,35 @@ int PCBNEW_JOBS_HANDLER::JobExportDrill( JOB* aJob )
     case JOB_EXPORT_PCB_DRILL::MAP_FORMAT::PDF:        mapFormat = PLOT_FORMAT::PDF;    break;
     }
 
+
+    if( aDrillJob->m_generateReport && aDrillJob->m_reportPath.IsEmpty() )
+    {
+        wxFileName fn = outPath;
+        fn.SetFullName( brd->GetFileName() );
+        fn.SetName( fn.GetName() + "-drill" );
+        fn.SetExt( FILEEXT::ReportFileExtension );
+
+        aDrillJob->m_reportPath = fn.GetFullPath();
+    }
+
     if( aDrillJob->m_format == JOB_EXPORT_PCB_DRILL::DRILL_FORMAT::EXCELLON )
     {
         EXCELLON_WRITER::ZEROS_FMT zeroFmt;
+
         switch( aDrillJob->m_zeroFormat )
         {
         case JOB_EXPORT_PCB_DRILL::ZEROS_FORMAT::KEEP_ZEROS:
             zeroFmt = EXCELLON_WRITER::KEEP_ZEROS;
             break;
+
         case JOB_EXPORT_PCB_DRILL::ZEROS_FORMAT::SUPPRESS_LEADING:
             zeroFmt = EXCELLON_WRITER::SUPPRESS_LEADING;
             break;
+
         case JOB_EXPORT_PCB_DRILL::ZEROS_FORMAT::SUPPRESS_TRAILING:
             zeroFmt = EXCELLON_WRITER::SUPPRESS_TRAILING;
             break;
+
         case JOB_EXPORT_PCB_DRILL::ZEROS_FORMAT::DECIMAL:
         default:
             zeroFmt = EXCELLON_WRITER::DECIMAL_FORMAT;
@@ -1460,6 +1798,16 @@ int PCBNEW_JOBS_HANDLER::JobExportDrill( JOB* aJob )
         {
             return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
         }
+
+        if( aDrillJob->m_generateReport )
+        {
+            wxString reportPath = aDrillJob->ResolveOutputPath( aDrillJob->m_reportPath, true, brd->GetProject() );
+
+            if( !excellonWriter->GenDrillReportFile( reportPath ) )
+            {
+                return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+            }
+        }
     }
     else if( aDrillJob->m_format == JOB_EXPORT_PCB_DRILL::DRILL_FORMAT::GERBER )
     {
@@ -1476,9 +1824,19 @@ int PCBNEW_JOBS_HANDLER::JobExportDrill( JOB* aJob )
         gerberWriter->SetMapFileFormat( mapFormat );
 
         if( !gerberWriter->CreateDrillandMapFilesSet( outPath, true, aDrillJob->m_generateMap,
-                                                      m_reporter ) )
+                                                      aDrillJob->m_generateTenting, m_reporter ) )
         {
             return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+        }
+
+        if( aDrillJob->m_generateReport )
+        {
+            wxString reportPath = aDrillJob->ResolveOutputPath( aDrillJob->m_reportPath, true, brd->GetProject() );
+
+            if( !gerberWriter->GenDrillReportFile( reportPath ) )
+            {
+                return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+            }
         }
     }
 
@@ -1498,8 +1856,6 @@ int PCBNEW_JOBS_HANDLER::JobExportPos( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-
     if( aPosJob->GetConfiguredOutputPath().IsEmpty() )
     {
         wxFileName fn = brd->GetFileName();
@@ -1515,7 +1871,7 @@ int PCBNEW_JOBS_HANDLER::JobExportPos( JOB* aJob )
         aPosJob->SetWorkingOutputPath( fn.GetFullName() );
     }
 
-    wxString outPath = aPosJob->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd );
 
     if( !PATHS::EnsurePathExists( outPath, true ) )
     {
@@ -1536,15 +1892,19 @@ int PCBNEW_JOBS_HANDLER::JobExportPos( JOB* aJob )
                     wxCHECK( file, false );
 
                     PLACE_FILE_EXPORTER exporter( brd,
-                                          aPosJob->m_units == JOB_EXPORT_PCB_POS::UNITS::MM,
-                                          aPosJob->m_smdOnly,
-                                          aPosJob->m_excludeFootprintsWithTh,
-                                          aPosJob->m_excludeDNP,
-                                          frontSide,
-                                          backSide,
-                                          aPosJob->m_format == JOB_EXPORT_PCB_POS::FORMAT::CSV,
-                                          aPosJob->m_useDrillPlaceFileOrigin,
-                                          aPosJob->m_negateBottomX );
+                                                  aPosJob->m_units == JOB_EXPORT_PCB_POS::UNITS::MM,
+                                                  aPosJob->m_smdOnly,
+                                                  aPosJob->m_excludeFootprintsWithTh,
+                                                  aPosJob->m_excludeDNP,
+                                                  aPosJob->m_excludeBOM,
+                                                  frontSide,
+                                                  backSide,
+                                                  aPosJob->m_format == JOB_EXPORT_PCB_POS::FORMAT::CSV,
+                                                  aPosJob->m_useDrillPlaceFileOrigin,
+                                                  aPosJob->m_negateBottomX );
+
+                    // Set variant for variant-aware DNP/BOM/position file filtering
+                    exporter.SetVariant( aPosJob->m_variant );
 
                     std::string data = exporter.GenPositionData();
                     fputs( data.c_str(), file );
@@ -1624,6 +1984,10 @@ int PCBNEW_JOBS_HANDLER::JobExportPos( JOB* aJob )
     else if( aPosJob->m_format == JOB_EXPORT_PCB_POS::FORMAT::GERBER )
     {
         PLACEFILE_GERBER_WRITER exporter( brd );
+
+        // Set variant for variant-aware DNP/BOM/position file filtering
+        exporter.SetVariant( aPosJob->m_variant );
+
         PCB_LAYER_ID            gbrLayer = F_Cu;
         wxString                outPath_base = outPath;
 
@@ -1633,10 +1997,10 @@ int PCBNEW_JOBS_HANDLER::JobExportPos( JOB* aJob )
             if( aPosJob->m_side == JOB_EXPORT_PCB_POS::SIDE::BOTH || !aPosJob->m_nakedFilename )
                 outPath = exporter.GetPlaceFileName( outPath, gbrLayer );
 
-            if( exporter.CreatePlaceFile( outPath, gbrLayer, aPosJob->m_gerberBoardEdge ) >= 0 )
+            if( exporter.CreatePlaceFile( outPath, gbrLayer, aPosJob->m_gerberBoardEdge,
+                                          aPosJob->m_excludeDNP, aPosJob->m_excludeBOM ) >= 0 )
             {
-                m_reporter->Report( wxString::Format( _( "Wrote front position data to '%s'.\n" ),
-                                                      outPath ),
+                m_reporter->Report( wxString::Format( _( "Wrote front position data to '%s'.\n" ), outPath ),
                                     RPT_SEVERITY_ACTION );
 
                 aPosJob->AddOutput( outPath );
@@ -1657,10 +2021,10 @@ int PCBNEW_JOBS_HANDLER::JobExportPos( JOB* aJob )
             if( aPosJob->m_side == JOB_EXPORT_PCB_POS::SIDE::BOTH || !aPosJob->m_nakedFilename )
                 outPath = exporter.GetPlaceFileName( outPath, gbrLayer );
 
-            if( exporter.CreatePlaceFile( outPath, gbrLayer, aPosJob->m_gerberBoardEdge ) >= 0 )
+            if( exporter.CreatePlaceFile( outPath, gbrLayer, aPosJob->m_gerberBoardEdge,
+                                          aPosJob->m_excludeDNP, aPosJob->m_excludeBOM ) >= 0 )
             {
-                m_reporter->Report( wxString::Format( _( "Wrote back position data to '%s'.\n" ),
-                                                      outPath ),
+                m_reporter->Report( wxString::Format( _( "Wrote back position data to '%s'.\n" ), outPath ),
                                     RPT_SEVERITY_ACTION );
 
                 aPosJob->AddOutput( outPath );
@@ -1725,15 +2089,15 @@ int PCBNEW_JOBS_HANDLER::JobExportFpUpgrade( JOB* aJob )
             return CLI::EXIT_CODES::ERR_UNKNOWN;
         }
 
+        if( m_progressReporter )
+            m_progressReporter->KeepRefreshing();
+
         bool shouldSave = upgradeJob->m_force;
 
         for( const auto& footprint : fpLib.GetFootprints() )
         {
-            if( footprint.second->GetFootprint()->GetFileFormatVersionAtLoad()
-                < SEXPR_BOARD_FILE_VERSION )
-            {
+            if( footprint.second->GetFootprint()->GetFileFormatVersionAtLoad() < SEXPR_BOARD_FILE_VERSION )
                 shouldSave = true;
-            }
         }
 
         if( shouldSave )
@@ -1758,7 +2122,7 @@ int PCBNEW_JOBS_HANDLER::JobExportFpUpgrade( JOB* aJob )
     }
     else
     {
-        if( !PCB_IO_MGR::ConvertLibrary( nullptr, upgradeJob->m_libraryPath,
+        if( !PCB_IO_MGR::ConvertLibrary( {}, upgradeJob->m_libraryPath,
                                          upgradeJob->m_outputLibraryPath, nullptr /* REPORTER */ ) )
         {
             m_reporter->Report( ( "Unable to convert library\n" ), RPT_SEVERITY_ERROR );
@@ -1798,9 +2162,12 @@ int PCBNEW_JOBS_HANDLER::JobExportFpSvg( JOB* aJob )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
     }
 
-    if( !svgJob->m_outputDirectory.IsEmpty() && !wxDir::Exists( svgJob->m_outputDirectory ) )
+    wxString outPath = svgJob->GetFullOutputPath( nullptr );
+
+    if( !PATHS::EnsurePathExists( outPath, true ) )
     {
-        wxFileName::Mkdir( svgJob->m_outputDirectory );
+        m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
     }
 
     int  exitCode = CLI::EXIT_CODES::OK;
@@ -1808,6 +2175,12 @@ int PCBNEW_JOBS_HANDLER::JobExportFpSvg( JOB* aJob )
 
     for( const auto& [fpName, fpCacheEntry] : fpLib.GetFootprints() )
     {
+        if( m_progressReporter )
+        {
+            m_progressReporter->AdvancePhase( wxString::Format( _( "Exporting %s" ), fpName ) );
+            m_progressReporter->KeepRefreshing();
+        }
+
         if( !svgJob->m_footprint.IsEmpty() )
         {
             // skip until we find the right footprint
@@ -1863,7 +2236,7 @@ int PCBNEW_JOBS_HANDLER::doFpExportSvg( JOB_FP_EXPORT_SVG* aSvgJob, const FOOTPR
     brd->Add( fp, ADD_MODE::INSERT, true );
 
     wxFileName outputFile;
-    outputFile.SetPath( aSvgJob->m_outputDirectory );
+    outputFile.SetPath( aSvgJob->GetFullOutputPath(nullptr) );
     outputFile.SetName( aFootprint->GetFPID().GetLibItemName().wx_str() );
     outputFile.SetExt( FILEEXT::SVGFileExtension );
 
@@ -1872,22 +2245,33 @@ int PCBNEW_JOBS_HANDLER::doFpExportSvg( JOB_FP_EXPORT_SVG* aSvgJob, const FOOTPR
                                           outputFile.GetFullPath() ),
                         RPT_SEVERITY_ACTION );
 
+    PCB_PLOT_PARAMS plotOpts;
+    PCB_PLOTTER::PlotJobToPlotOpts( plotOpts, aSvgJob, *m_reporter );
 
-    PCB_PLOT_SVG_OPTIONS svgPlotOptions;
-    svgPlotOptions.m_blackAndWhite = aSvgJob->m_blackAndWhite;
-    svgPlotOptions.m_colorTheme = aSvgJob->m_colorTheme;
-    svgPlotOptions.m_outputFile = outputFile.GetFullPath();
-    svgPlotOptions.m_mirror = false;
-    svgPlotOptions.m_pageSizeMode = 2; // board bounding box
-    svgPlotOptions.m_printMaskLayer = aSvgJob->m_plotLayerSequence;
-    svgPlotOptions.m_sketchPadsOnFabLayers = aSvgJob->m_sketchPadsOnFabLayers;
-    svgPlotOptions.m_hideDNPFPsOnFabLayers = aSvgJob->m_hideDNPFPsOnFabLayers;
-    svgPlotOptions.m_sketchDNPFPsOnFabLayers = aSvgJob->m_sketchDNPFPsOnFabLayers;
-    svgPlotOptions.m_crossoutDNPFPsOnFabLayers = aSvgJob->m_crossoutDNPFPsOnFabLayers;
-    svgPlotOptions.m_plotFrame = false;
+    // always fixed for the svg plot
+    plotOpts.SetPlotFrameRef( false );
+    plotOpts.SetSvgFitPageToBoard( true );
+    plotOpts.SetMirror( false );
+    plotOpts.SetSkipPlotNPTH_Pads( false );
 
-    if( !EXPORT_SVG::Plot( brd.get(), svgPlotOptions ) )
+    if( plotOpts.GetSketchPadsOnFabLayers() )
+    {
+        plotOpts.SetPlotPadNumbers( true );
+    }
+
+    PCB_PLOTTER plotter( brd.get(), m_reporter, plotOpts );
+
+    if( !plotter.Plot( outputFile.GetFullPath(),
+                       aSvgJob->m_plotLayerSequence,
+                       aSvgJob->m_plotOnAllLayersSequence,
+                       false,
+                       true,
+                       wxEmptyString, wxEmptyString,
+                       wxEmptyString ) )
+    {
         m_reporter->Report( _( "Error creating svg file" ) + wxS( "\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+    }
 
     return CLI::EXIT_CODES::OK;
 }
@@ -1905,9 +2289,10 @@ int PCBNEW_JOBS_HANDLER::JobExportDrc( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-    brd->GetProject()->ApplyTextVars( aJob->GetVarOverrides() );
-    brd->SynchronizeProperties();
+    // Running DRC requires libraries be loaded, so make sure they have been
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( brd->GetProject() );
+    adapter->AsyncLoad();
+    adapter->BlockUntilLoaded();
 
     if( drcJob->GetConfiguredOutputPath().IsEmpty() )
     {
@@ -1922,7 +2307,7 @@ int PCBNEW_JOBS_HANDLER::JobExportDrc( JOB* aJob )
         drcJob->SetWorkingOutputPath( fn.GetFullName() );
     }
 
-    wxString outPath = drcJob->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd );
 
     if( !PATHS::EnsurePathExists( outPath, true ) )
     {
@@ -1934,7 +2319,7 @@ int PCBNEW_JOBS_HANDLER::JobExportDrc( JOB* aJob )
 
     switch( drcJob->m_units )
     {
-    case JOB_PCB_DRC::UNITS::INCH: units = EDA_UNITS::INCH;   break;
+    case JOB_PCB_DRC::UNITS::INCH: units = EDA_UNITS::INCH; break;
     case JOB_PCB_DRC::UNITS::MILS: units = EDA_UNITS::MILS; break;
     case JOB_PCB_DRC::UNITS::MM:   units = EDA_UNITS::MM;   break;
     default:                       units = EDA_UNITS::MM;   break;
@@ -1946,8 +2331,7 @@ int PCBNEW_JOBS_HANDLER::JobExportDrc( JOB* aJob )
     drcEngine->SetDrawingSheet( getDrawingSheetProxyView( brd ) );
 
     // BOARD_COMMIT uses TOOL_MANAGER to grab the board internally so we must give it one
-    TOOL_MANAGER* toolManager = new TOOL_MANAGER;
-    toolManager->SetEnvironment( brd, nullptr, nullptr, Kiface().KifaceSettings(), nullptr );
+    TOOL_MANAGER* toolManager = getToolManager( brd );
 
     BOARD_COMMIT commit( toolManager );
     bool         checkParity = drcJob->m_parity;
@@ -2017,12 +2401,21 @@ int PCBNEW_JOBS_HANDLER::JobExportDrc( JOB* aJob )
         drcEngine->SetSchematicNetlist( netlist.get() );
     }
 
-    drcEngine->SetProgressReporter( nullptr );
+    if( drcJob->m_refillZones )
+    {
+        if( !toolManager->FindTool( ZONE_FILLER_TOOL_NAME ) )
+            toolManager->RegisterTool( new ZONE_FILLER_TOOL );
+
+        toolManager->GetTool<ZONE_FILLER_TOOL>()->FillAllZones( nullptr, m_progressReporter, true );
+    }
+
+    drcEngine->SetProgressReporter( m_progressReporter );
     drcEngine->SetViolationHandler(
-            [&]( const std::shared_ptr<DRC_ITEM>& aItem, VECTOR2I aPos, int aLayer,
-                 DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )
+            [&]( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos, int aLayer,
+                 const std::function<void( PCB_MARKER* )>& aPathGenerator )
             {
                 PCB_MARKER* marker = new PCB_MARKER( aItem, aPos, aLayer );
+                aPathGenerator( marker );
                 commit.Add( marker );
             } );
 
@@ -2082,6 +2475,20 @@ int PCBNEW_JOBS_HANDLER::JobExportDrc( JOB* aJob )
     m_reporter->Report( wxString::Format( _( "Saved DRC Report to %s\n" ), outPath ),
                         RPT_SEVERITY_ACTION );
 
+    if( drcJob->m_refillZones && drcJob->m_saveBoard )
+    {
+        if( SaveBoard( drcJob->m_filename, brd, true ) )
+        {
+            m_reporter->Report( _( "Saved board\n" ), RPT_SEVERITY_ACTION );
+        }
+        else
+        {
+            m_reporter->Report( _( "Failed to save board.\n" ), RPT_SEVERITY_ERROR );
+
+            return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+        }
+    }
+
     if( drcJob->m_exitCodeViolations )
     {
         if( markersProvider->GetCount() > 0 || ratsnestProvider->GetCount() > 0
@@ -2107,7 +2514,8 @@ int PCBNEW_JOBS_HANDLER::JobExportIpc2581( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
+    if( !job->m_variant.IsEmpty() )
+        brd->SetCurrentVariant( job->m_variant );
 
     if( job->GetConfiguredOutputPath().IsEmpty() )
     {
@@ -2118,7 +2526,7 @@ int PCBNEW_JOBS_HANDLER::JobExportIpc2581( JOB* aJob )
         job->SetWorkingOutputPath( fn.GetName() );
     }
 
-    wxString outPath = job->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd );
 
     if( !PATHS::EnsurePathExists( outPath, true ) )
     {
@@ -2136,10 +2544,24 @@ int PCBNEW_JOBS_HANDLER::JobExportIpc2581( JOB* aJob )
     props["dist"] = job->m_colDist;
     props["distpn"] = job->m_colDistPn;
 
+    wxString bomRev = job->m_bomRev;
+
+    if( bomRev.IsEmpty() && brd->GetProject() )
+    {
+        const IP2581_BOM& bomSettings = brd->GetProject()->GetProjectFile().m_IP2581Bom;
+        bomRev = bomSettings.bomRev;
+
+        if( bomRev.IsEmpty() )
+            bomRev = bomSettings.schRevision;
+    }
+
+    if( !bomRev.IsEmpty() )
+        props["bomrev"] = bomRev;
+
     wxString tempFile = wxFileName::CreateTempFileName( wxS( "pcbnew_ipc" ) );
     try
     {
-        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::PluginFind( PCB_IO_MGR::IPC2581 ) );
+        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::FindPlugin( PCB_IO_MGR::IPC2581 ) );
         pi->SetProgressReporter( m_progressReporter );
         pi->SaveBoard( tempFile, brd, &props );
     }
@@ -2164,6 +2586,12 @@ int PCBNEW_JOBS_HANDLER::JobExportIpc2581( JOB* aJob )
 
         {
             wxFFileOutputStream fnout( zipfn.GetFullPath() );
+
+            // Use a large I/O buffer to improve compatibility with cloud-synced folders.
+            // See KIPLATFORM::IO::CLOUD_SYNC_BUFFER_SIZE comment for details.
+            if( FILE* fp = fnout.GetFile()->fp() )
+                setvbuf( fp, nullptr, _IOFBF, KIPLATFORM::IO::CLOUD_SYNC_BUFFER_SIZE );
+
             wxZipOutputStream   zip( fnout );
             wxFFileInputStream  fnin( tempFile );
 
@@ -2201,8 +2629,6 @@ int PCBNEW_JOBS_HANDLER::JobExportIpcD356( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-
     if( job->GetConfiguredOutputPath().IsEmpty() )
     {
         wxFileName fn = brd->GetFileName();
@@ -2212,7 +2638,7 @@ int PCBNEW_JOBS_HANDLER::JobExportIpcD356( JOB* aJob )
         job->SetWorkingOutputPath( fn.GetFullName() );
     }
 
-    wxString outPath = job->GetFullOutputPath( brd->GetProject() );
+    wxString outPath = resolveJobOutputPath( aJob, brd );
 
     if( !PATHS::EnsurePathExists( outPath, true ) )
     {
@@ -2249,9 +2675,8 @@ int PCBNEW_JOBS_HANDLER::JobExportOdb( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
-    aJob->SetTitleBlock( brd->GetTitleBlock() );
-
-    wxString   path = job->GetConfiguredOutputPath();
+    if( !job->m_variant.IsEmpty() )
+        brd->SetCurrentVariant( job->m_variant );
 
     if( job->GetConfiguredOutputPath().IsEmpty() )
     {
@@ -2270,9 +2695,11 @@ int PCBNEW_JOBS_HANDLER::JobExportOdb( JOB* aJob )
             case JOB_EXPORT_PCB_ODB::ODB_COMPRESSION::ZIP:
                 fn.SetExt( FILEEXT::ArchiveFileExtension );
                 break;
+
             case JOB_EXPORT_PCB_ODB::ODB_COMPRESSION::TGZ:
                 fn.SetExt( "tgz" );
                 break;
+
             default:
                 break;
             };
@@ -2281,9 +2708,77 @@ int PCBNEW_JOBS_HANDLER::JobExportOdb( JOB* aJob )
         }
     }
 
+    resolveJobOutputPath( job, brd );
+
+    // The helper handles output path creation, so hand it a job that already has fully-resolved
+    // token context (title block and project overrides applied above).
+    CLI_REPORTER reporter;
+
+    if( !m_reporter )
+        m_reporter = &reporter;
+
     DIALOG_EXPORT_ODBPP::GenerateODBPPFiles( *job, brd, nullptr, m_progressReporter, m_reporter );
 
+    if( m_reporter->HasMessageOfSeverity( RPT_SEVERITY_ERROR ) )
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+
     return CLI::EXIT_CODES::SUCCESS;
+}
+
+int PCBNEW_JOBS_HANDLER::JobUpgrade( JOB* aJob )
+{
+    JOB_PCB_UPGRADE* job = dynamic_cast<JOB_PCB_UPGRADE*>( aJob );
+
+    if( job == nullptr )
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+
+    bool shouldSave = job->m_force;
+
+    try
+    {
+        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::FindPlugin( PCB_IO_MGR::KICAD_SEXP ) );
+        BOARD*              brd = getBoard( job->m_filename );
+        if( brd->GetFileFormatVersionAtLoad() < SEXPR_BOARD_FILE_VERSION )
+            shouldSave = true;
+
+        if( shouldSave )
+        {
+            pi->SaveBoard( brd->GetFileName(), brd );
+            m_reporter->Report( _( "Successfully saved board file using the latest format\n" ), RPT_SEVERITY_INFO );
+        }
+        else
+        {
+            m_reporter->Report( _( "Board file was not updated\n" ), RPT_SEVERITY_ERROR );
+        }
+    }
+    catch( const IO_ERROR& ioe )
+    {
+        wxString msg =
+                wxString::Format( _( "Error saving board file '%s'.\n%s" ), job->m_filename, ioe.What().GetData() );
+        m_reporter->Report( msg, RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+    }
+
+    return CLI::EXIT_CODES::SUCCESS;
+}
+
+// Most job handlers need to align the running job with the board before resolving any
+// output paths with variables in them like ${REVISION}.
+wxString PCBNEW_JOBS_HANDLER::resolveJobOutputPath( JOB* aJob, BOARD* aBoard, const wxString* aDrawingSheet )
+{
+    aJob->SetTitleBlock( aBoard->GetTitleBlock() );
+
+    if( aDrawingSheet && !aDrawingSheet->IsEmpty() )
+        loadOverrideDrawingSheet( aBoard, *aDrawingSheet );
+
+    PROJECT* project = aBoard->GetProject();
+
+    if( project )
+        project->ApplyTextVars( aJob->GetVarOverrides() );
+
+    aBoard->SynchronizeProperties();
+
+    return aJob->GetFullOutputPath( project );
 }
 
 
@@ -2300,6 +2795,11 @@ DS_PROXY_VIEW_ITEM* PCBNEW_JOBS_HANDLER::getDrawingSheetProxyView( BOARD* aBrd )
     drawingSheet->SetIsFirstPage( true );
 
     drawingSheet->SetFileName( TO_UTF8( aBrd->GetFileName() ) );
+
+    wxString currentVariant = aBrd->GetCurrentVariant();
+    wxString variantDesc = aBrd->GetVariantDescription( currentVariant );
+    drawingSheet->SetVariantName( TO_UTF8( currentVariant ) );
+    drawingSheet->SetVariantDesc( TO_UTF8( variantDesc ) );
 
     return drawingSheet;
 }
@@ -2341,4 +2841,241 @@ void PCBNEW_JOBS_HANDLER::loadOverrideDrawingSheet( BOARD* aBrd, const wxString&
 
     // failed loading custom path, revert back to default
     loadSheet( aBrd->GetProject()->GetProjectFile().m_BoardDrawingSheetFile );
+}
+
+
+int PCBNEW_JOBS_HANDLER::JobImport( JOB* aJob )
+{
+    JOB_PCB_IMPORT* job = dynamic_cast<JOB_PCB_IMPORT*>( aJob );
+
+    if( !job )
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+
+    // Map job format to PCB_IO file type
+    PCB_IO_MGR::PCB_FILE_T fileType = PCB_IO_MGR::PCB_FILE_UNKNOWN;
+
+    switch( job->m_format )
+    {
+    case JOB_PCB_IMPORT::FORMAT::AUTO:
+        fileType = PCB_IO_MGR::FindPluginTypeFromBoardPath( job->m_inputFile );
+        break;
+
+    case JOB_PCB_IMPORT::FORMAT::PADS_ASCII:
+        fileType = PCB_IO_MGR::PADS;
+        break;
+
+    case JOB_PCB_IMPORT::FORMAT::ALTIUM:
+        fileType = PCB_IO_MGR::ALTIUM_DESIGNER;
+        break;
+
+    case JOB_PCB_IMPORT::FORMAT::EAGLE:
+        fileType = PCB_IO_MGR::EAGLE;
+        break;
+
+    case JOB_PCB_IMPORT::FORMAT::CADSTAR:
+        fileType = PCB_IO_MGR::CADSTAR_PCB_ARCHIVE;
+        break;
+
+    case JOB_PCB_IMPORT::FORMAT::FABMASTER:
+        fileType = PCB_IO_MGR::FABMASTER;
+        break;
+
+    case JOB_PCB_IMPORT::FORMAT::PCAD:
+        fileType = PCB_IO_MGR::PCAD;
+        break;
+
+    case JOB_PCB_IMPORT::FORMAT::SOLIDWORKS:
+        fileType = PCB_IO_MGR::SOLIDWORKS_PCB;
+        break;
+    }
+
+    if( fileType == PCB_IO_MGR::PCB_FILE_UNKNOWN )
+    {
+        m_reporter->Report( wxString::Format( _( "Unable to determine file format for '%s'\n" ),
+                                              job->m_inputFile ),
+                            RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
+    }
+
+    // Check that input file exists
+    if( !wxFile::Exists( job->m_inputFile ) )
+    {
+        m_reporter->Report( wxString::Format( _( "Input file not found: '%s'\n" ),
+                                              job->m_inputFile ),
+                            RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
+    }
+
+    // Determine output path
+    wxString outputPath = job->GetConfiguredOutputPath();
+
+    if( outputPath.IsEmpty() )
+    {
+        wxFileName fn( job->m_inputFile );
+        fn.SetExt( FILEEXT::KiCadPcbFileExtension );
+        outputPath = fn.GetFullPath();
+    }
+
+    BOARD* board = nullptr;
+    wxString formatName = PCB_IO_MGR::ShowType( fileType );
+    std::vector<wxString> warnings;
+
+    try
+    {
+        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::FindPlugin( fileType ) );
+
+        if( !pi )
+        {
+            m_reporter->Report( wxString::Format( _( "No plugin found for file type '%s'\n" ),
+                                                  formatName ),
+                                RPT_SEVERITY_ERROR );
+            return CLI::EXIT_CODES::ERR_UNKNOWN;
+        }
+
+        m_reporter->Report( wxString::Format( _( "Importing '%s' using %s format...\n" ),
+                                              job->m_inputFile, formatName ),
+                            RPT_SEVERITY_INFO );
+
+        board = pi->LoadBoard( job->m_inputFile, nullptr, nullptr, nullptr );
+
+        if( !board )
+        {
+            m_reporter->Report( _( "Failed to load board\n" ), RPT_SEVERITY_ERROR );
+            return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
+        }
+
+        // Save as KiCad format
+        IO_RELEASER<PCB_IO> kicadPlugin( PCB_IO_MGR::FindPlugin( PCB_IO_MGR::KICAD_SEXP ) );
+        kicadPlugin->SaveBoard( outputPath, board );
+
+        m_reporter->Report( wxString::Format( _( "Successfully saved imported board to '%s'\n" ),
+                                              outputPath ),
+                            RPT_SEVERITY_INFO );
+
+        // Generate report if requested
+        if( job->m_reportFormat != JOB_PCB_IMPORT::REPORT_FORMAT::NONE )
+        {
+            wxFileName inputFn( job->m_inputFile );
+            wxFileName outputFn( outputPath );
+
+            // Count board statistics
+            size_t footprintCount = board->Footprints().size();
+            size_t trackCount = 0;
+            size_t viaCount = 0;
+            size_t zoneCount = board->Zones().size();
+
+            for( PCB_TRACK* track : board->Tracks() )
+            {
+                if( track->Type() == PCB_VIA_T )
+                    viaCount++;
+                else
+                    trackCount++;
+            }
+
+            // Build layer mapping info
+            nlohmann::json layerMappings = nlohmann::json::object();
+            LSEQ enabledLayers = board->GetEnabledLayers().Seq();
+
+            for( PCB_LAYER_ID layer : enabledLayers )
+            {
+                wxString layerName = board->GetLayerName( layer );
+
+                layerMappings[layerName.ToStdString()] = {
+                    { "kicad_layer", LSET::Name( layer ).ToStdString() },
+                    { "method", "auto" }
+                };
+            }
+
+            if( job->m_reportFormat == JOB_PCB_IMPORT::REPORT_FORMAT::JSON )
+            {
+                nlohmann::json report;
+
+                report["source_file"] = inputFn.GetFullName().ToStdString();
+                report["source_format"] = formatName.ToStdString();
+                report["output_file"] = outputFn.GetFullName().ToStdString();
+                report["layer_mapping"] = layerMappings;
+                report["statistics"] = {
+                    { "footprints", footprintCount },
+                    { "tracks", trackCount },
+                    { "vias", viaCount },
+                    { "zones", zoneCount }
+                };
+
+                nlohmann::json warningsJson = nlohmann::json::array();
+
+                for( const wxString& warning : warnings )
+                    warningsJson.push_back( warning.ToStdString() );
+
+                report["warnings"] = warningsJson;
+                report["errors"] = nlohmann::json::array();
+
+                wxString reportOutput = wxString::FromUTF8( report.dump( 2 ) );
+
+                if( !job->m_reportFile.IsEmpty() )
+                {
+                    wxFile file( job->m_reportFile, wxFile::write );
+
+                    if( file.IsOpened() )
+                    {
+                        file.Write( reportOutput );
+                        file.Close();
+                    }
+                }
+                else
+                {
+                    m_reporter->Report( reportOutput + wxS( "\n" ), RPT_SEVERITY_INFO );
+                }
+            }
+            else if( job->m_reportFormat == JOB_PCB_IMPORT::REPORT_FORMAT::TEXT )
+            {
+                wxString text;
+
+                text += wxString::Format( wxS( "Import Report\n" ) );
+                text += wxString::Format( wxS( "=============\n\n" ) );
+                text += wxString::Format( wxS( "Source file: %s\n" ), inputFn.GetFullName() );
+                text += wxString::Format( wxS( "Source format: %s\n" ), formatName );
+                text += wxString::Format( wxS( "Output file: %s\n\n" ), outputFn.GetFullName() );
+                text += wxS( "Statistics:\n" );
+                text += wxString::Format( wxS( "  Footprints: %zu\n" ), footprintCount );
+                text += wxString::Format( wxS( "  Tracks: %zu\n" ), trackCount );
+                text += wxString::Format( wxS( "  Vias: %zu\n" ), viaCount );
+                text += wxString::Format( wxS( "  Zones: %zu\n" ), zoneCount );
+
+                if( !warnings.empty() )
+                {
+                    text += wxS( "\nWarnings:\n" );
+
+                    for( const wxString& warning : warnings )
+                        text += wxString::Format( wxS( "  - %s\n" ), warning );
+                }
+
+                if( !job->m_reportFile.IsEmpty() )
+                {
+                    wxFile file( job->m_reportFile, wxFile::write );
+
+                    if( file.IsOpened() )
+                    {
+                        file.Write( text );
+                        file.Close();
+                    }
+                }
+                else
+                {
+                    m_reporter->Report( text, RPT_SEVERITY_INFO );
+                }
+            }
+        }
+
+        delete board;
+    }
+    catch( const IO_ERROR& ioe )
+    {
+        m_reporter->Report( wxString::Format( _( "Error during import: %s\n" ), ioe.What() ),
+                            RPT_SEVERITY_ERROR );
+
+        delete board;
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+    }
+
+    return CLI::EXIT_CODES::SUCCESS;
 }

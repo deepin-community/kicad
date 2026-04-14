@@ -25,7 +25,6 @@
 #include <symbol_edit_frame.h>
 #include <lib_symbol_library_manager.h>
 #include <widgets/lib_tree.h>
-#include <symbol_tree_pane.h>
 #include <tool/tool_manager.h>
 #include <tools/sch_selection_tool.h>
 #include <tools/symbol_editor_drawing_tools.h>
@@ -37,8 +36,6 @@ void SYMBOL_EDIT_FRAME::PushSymbolToUndoList( const wxString& aDescription, LIB_
     if( !aSymbolCopy )
         return;
 
-    auto* drawingTool = GetToolManager()->GetTool<SYMBOL_EDITOR_DRAWING_TOOLS>();
-
     PICKED_ITEMS_LIST* lastcmd = new PICKED_ITEMS_LIST();
 
     // Clear current flags (which can be temporary set by a current edit command).
@@ -47,7 +44,6 @@ void SYMBOL_EDIT_FRAME::PushSymbolToUndoList( const wxString& aDescription, LIB_
     aSymbolCopy->SetFlags( UR_TRANSIENT );
 
     ITEM_PICKER wrapper( GetScreen(), aSymbolCopy, aUndoType );
-    wrapper.SetGroupId( drawingTool->GetLastPin() );
     lastcmd->PushItem( wrapper );
     lastcmd->SetDescription( aDescription );
     PushCommandToUndoList( lastcmd );
@@ -70,8 +66,6 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromRedoList()
     if( GetRedoCommandCount() <= 0 )
         return;
 
-    auto* drawingTool = GetToolManager()->GetTool<SYMBOL_EDITOR_DRAWING_TOOLS>();
-
     // Load the last redo entry
     PICKED_ITEMS_LIST* redoCommand = PopCommandFromRedoList();
     ITEM_PICKER        redoWrapper = redoCommand->PopItem();
@@ -80,7 +74,6 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromRedoList()
     delete redoCommand;
 
     LIB_SYMBOL* symbol = (LIB_SYMBOL*) redoWrapper.GetItem();
-    KIID        lastPin = redoWrapper.GetGroupId();
     UNDO_REDO   undoRedoType = redoWrapper.GetStatus();
     wxCHECK( symbol, /* void */ );
     symbol->ClearFlags( UR_TRANSIENT );
@@ -91,7 +84,6 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromRedoList()
 
     oldSymbol->SetFlags( UR_TRANSIENT );
     ITEM_PICKER undoWrapper( GetScreen(), oldSymbol, undoRedoType );
-    undoWrapper.SetGroupId( drawingTool->GetLastPin() );
     undoCommand->SetDescription( description );
     undoCommand->PushItem( undoWrapper );
     PushCommandToUndoList( undoCommand );
@@ -101,7 +93,6 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromRedoList()
     // <previous symbol> is now put in undo list and is owned by this list
     // Just set the current symbol to the symbol which come from the redo list
     m_symbol = symbol;
-    drawingTool->SetLastPin( lastPin );
 
     if( undoRedoType == UNDO_REDO::LIB_RENAME )
     {
@@ -112,8 +103,7 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromRedoList()
         m_treePane->GetLibTree()->SelectLibId( LIB_ID( lib, symbol->GetName() ) );
     }
 
-    RebuildSymbolUnitsList();
-    SetShowDeMorgan( symbol->HasAlternateBodyStyle() );
+    RebuildSymbolUnitAndBodyStyleLists();
     UpdateTitle();
 
     RebuildView();
@@ -126,8 +116,6 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromUndoList()
     if( GetUndoCommandCount() <= 0 )
         return;
 
-    auto* drawingTool = GetToolManager()->GetTool<SYMBOL_EDITOR_DRAWING_TOOLS>();
-
     // Load the last undo entry
     PICKED_ITEMS_LIST* undoCommand = PopCommandFromUndoList();
     wxString           description = undoCommand->GetDescription();
@@ -136,7 +124,6 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromUndoList()
     delete undoCommand;
 
     LIB_SYMBOL* symbol = (LIB_SYMBOL*) undoWrapper.GetItem();
-    KIID        lastPin = undoWrapper.GetGroupId();
     UNDO_REDO   undoRedoType = undoWrapper.GetStatus();
     wxCHECK( symbol, /* void */ );
     symbol->ClearFlags( UR_TRANSIENT );
@@ -147,7 +134,6 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromUndoList()
 
     oldSymbol->SetFlags( UR_TRANSIENT );
     ITEM_PICKER redoWrapper( GetScreen(), oldSymbol, undoRedoType );
-    redoWrapper.SetGroupId( drawingTool->GetLastPin() );
     redoCommand->PushItem( redoWrapper );
     redoCommand->SetDescription( description );
     PushCommandToRedoList( redoCommand );
@@ -157,7 +143,6 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromUndoList()
     // <previous symbol> is now put in redo list and is owned by this list.
     // Just set the current symbol to the symbol which come from the undo list
     m_symbol = symbol;
-    drawingTool->SetLastPin( lastPin );
 
     if( undoRedoType == UNDO_REDO::LIB_RENAME )
     {
@@ -168,8 +153,7 @@ void SYMBOL_EDIT_FRAME::GetSymbolFromUndoList()
         m_treePane->GetLibTree()->SelectLibId( LIB_ID( lib, symbol->GetName() ) );
     }
 
-    RebuildSymbolUnitsList();
-    SetShowDeMorgan( symbol->HasAlternateBodyStyle() );
+    RebuildSymbolUnitAndBodyStyleLists();
     UpdateTitle();
 
     RebuildView();

@@ -23,6 +23,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "connectivity/connectivity_data.h"
 #include <bitmaps.h>
 #include <base_units.h>
 #include <eda_draw_frame.h>
@@ -36,7 +37,10 @@
 #include <widgets/ui_common.h>
 #include <pgm_base.h>
 #include <drc/drc_item.h>
+#include <drc/drc_rule.h>
 #include <trigo.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 /// Factor to convert the maker unit shape to internal units:
@@ -46,7 +50,8 @@
 
 PCB_MARKER::PCB_MARKER( std::shared_ptr<RC_ITEM> aItem, const VECTOR2I& aPosition, int aLayer ) :
         BOARD_ITEM( nullptr, PCB_MARKER_T, F_Cu ),  // parent set during BOARD::Add()
-        MARKER_BASE( SCALING_FACTOR, aItem )
+        MARKER_BASE( SCALING_FACTOR, aItem ),
+        m_pathLength( 0 )
 {
     if( m_rcItem )
     {
@@ -69,6 +74,7 @@ PCB_MARKER::PCB_MARKER( std::shared_ptr<RC_ITEM> aItem, const VECTOR2I& aPositio
             case DRCE_EXTRA_FOOTPRINT:
             case DRCE_NET_CONFLICT:
             case DRCE_SCHEMATIC_PARITY:
+            case DRCE_SCHEMATIC_FIELDS_PARITY:
             case DRCE_FOOTPRINT_FILTERS:
                 SetMarkerType( MARKER_BASE::MARKER_PARITY );
                 break;
@@ -106,6 +112,22 @@ wxString PCB_MARKER::SerializeToString() const
                                  m_Pos.y,
                                  m_rcItem->GetMainItemID().AsString(),
                                  LayerName( m_layer ) );
+    }
+    else if( m_rcItem->GetErrorCode() == DRCE_UNCONNECTED_ITEMS )
+    {
+        PCB_LAYER_ID layer = m_layer;
+
+        if( m_layer == UNDEFINED_LAYER )
+            layer = F_Cu;
+
+        return wxString::Format( wxT( "%s|%d|%d|%s|%d|%s|%s" ),
+                                 m_rcItem->GetSettingsKey(),
+                                 m_Pos.x,
+                                 m_Pos.y,
+                                 LayerName( layer ),
+                                 GetMarkerType(),
+                                 m_rcItem->GetMainItemID().AsString(),
+                                 m_rcItem->GetAuxItemID().AsString() );
     }
     else if( m_rcItem->GetErrorCode() == DRCE_STARVED_THERMAL )
     {
@@ -171,6 +193,14 @@ PCB_MARKER* PCB_MARKER::DeserializeFromString( const wxString& data )
         drcItem->SetItems( KIID( props[3] ) );
         markerLayer = getMarkerLayer( props[4] );
     }
+    else if( drcItem->GetErrorCode() == DRCE_UNCONNECTED_ITEMS )
+    {
+        // Pre-9.0.4 versions didn't have KIIDs as last two properties to allow sorting stability
+        if( props.size() < 6 )
+            drcItem->SetItems( KIID( props[3] ), KIID( props[4] ) );
+        else
+            drcItem->SetItems( KIID( props[5] ), KIID( props[6] ) );
+    }
     else if( drcItem->GetErrorCode() == DRCE_STARVED_THERMAL )
     {
         drcItem->SetItems( KIID( props[3] ), KIID( props[4] ) );
@@ -197,7 +227,7 @@ PCB_MARKER* PCB_MARKER::DeserializeFromString( const wxString& data )
 void PCB_MARKER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList )
 {
     aList.emplace_back( _( "Type" ), _( "Marker" ) );
-    aList.emplace_back( _( "Violation" ), m_rcItem->GetErrorMessage() );
+    aList.emplace_back( _( "Violation" ), m_rcItem->GetErrorMessage( true ) );
 
     switch( GetSeverity() )
     {
@@ -222,14 +252,8 @@ void PCB_MARKER::GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_
     {
         wxString  mainText;
         wxString  auxText;
-        EDA_ITEM* mainItem = nullptr;
-        EDA_ITEM* auxItem = nullptr;
-
-        if( m_rcItem->GetMainItemID() != niluuid )
-            mainItem = aFrame->GetItem( m_rcItem->GetMainItemID() );
-
-        if( m_rcItem->GetAuxItemID() != niluuid )
-            auxItem = aFrame->GetItem( m_rcItem->GetAuxItemID() );
+        EDA_ITEM* mainItem = aFrame->ResolveItem( m_rcItem->GetMainItemID() );
+        EDA_ITEM* auxItem = aFrame->ResolveItem( m_rcItem->GetAuxItemID() );
 
         if( mainItem )
             mainText = mainItem->GetItemDescription( aFrame, true );
@@ -259,16 +283,22 @@ void PCB_MARKER::Flip( const VECTOR2I& aCentre, FLIP_DIRECTION aFlipDirection )
 
 std::shared_ptr<SHAPE> PCB_MARKER::GetEffectiveShape( PCB_LAYER_ID aLayer, FLASHING aFlash ) const
 {
-    // Markers do not participate in the board geometry space, and therefore have no
-    // effectiven shape.
+    // Markers do not participate in the board geometry space, and therefore have no effective shape.
     return std::make_shared<SHAPE_NULL>();
 }
 
 
+void PCB_MARKER::TransformShapeToPolygon( SHAPE_POLY_SET& aBuffer, PCB_LAYER_ID aLayer, int aClearance,
+                                          int aError, ERROR_LOC aErrorLoc, bool ignoreLineWidth ) const
+{
+    // Markers do not participate in the board geometry space, and therefore have no shape.
+};
+
+
 wxString PCB_MARKER::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Marker (%s)" ),
-                             aFull ? m_rcItem->GetErrorMessage() : m_rcItem->GetErrorText() );
+    return wxString::Format( _( "Marker (%s)" ), aFull ? m_rcItem->GetErrorMessage( true )
+                                                       : m_rcItem->GetErrorText( true ) );
 }
 
 
@@ -302,11 +332,9 @@ SEVERITY PCB_MARKER::GetSeverity() const
 std::vector<int> PCB_MARKER::ViewGetLayers() const
 {
     if( GetMarkerType() == MARKER_RATSNEST )
-    {
         return {};
-    }
 
-    std::vector<int> layers{ 0, LAYER_MARKER_SHADOWS, LAYER_DRC_SHAPE1, LAYER_DRC_SHAPE2 };
+    std::vector<int> layers{ 0, LAYER_MARKER_SHADOWS, LAYER_DRC_SHAPES };
 
     switch( GetSeverity() )
     {
@@ -334,14 +362,75 @@ GAL_LAYER_ID PCB_MARKER::GetColorLayer() const
 
 KIGFX::COLOR4D PCB_MARKER::getColor() const
 {
-    COLOR_SETTINGS* colors = Pgm().GetSettingsManager().GetColorSettings();
-    return colors->GetColor( GetColorLayer() );
+    return ::GetColorSettings( DEFAULT_THEME )->GetColor( GetColorLayer() );
 }
 
 
-void PCB_MARKER::SetZoom( double aZoomFactor )
+void PCB_MARKER::SetZoom( double aZoomFactor ) const
 {
     SetMarkerScale( SCALING_FACTOR * aZoomFactor );
+}
+
+
+std::vector<PCB_SHAPE> PCB_MARKER::GetShapes() const
+{
+    STROKE_PARAMS          hairline( 1.0 );     // Segments of width 1.0 will get drawn as lines by PCB_PAINTER
+    std::vector<PCB_SHAPE> pathShapes;
+
+    if( m_pathStart == m_pathEnd )
+    {
+        // Add a collision 'X'
+        const int len = KiROUND( 2.5 * MarkerScale() );
+
+        PCB_SHAPE s( nullptr, SHAPE_T::SEGMENT );
+        s.SetStroke( hairline );
+
+        s.SetStart( m_pathStart + VECTOR2I( -len, -len ) );
+        s.SetEnd( m_pathStart + VECTOR2I( len, len ) );
+        pathShapes.push_back( s );
+
+        s.SetStart( m_pathStart + VECTOR2I( -len, len ) );
+        s.SetEnd( m_pathStart + VECTOR2I( len, -len ) );
+        pathShapes.push_back( s );
+    }
+    else
+    {
+        // Add the path
+        for( PCB_SHAPE shape : m_pathShapes )
+        {
+            shape.SetStroke( hairline );
+            pathShapes.push_back( std::move( shape ) );
+        }
+
+        // Draw perpendicular begin/end stops
+        if( pathShapes.size() > 0 )
+        {
+            VECTOR2I V1 = pathShapes[0].GetStart() - pathShapes[0].GetEnd();
+            VECTOR2I V2 = pathShapes.back().GetStart() - pathShapes.back().GetEnd();
+            V1 = V1.Perpendicular().Resize( 2.5 * MarkerScale() );
+            V2 = V2.Perpendicular().Resize( 2.5 * MarkerScale() );
+
+            PCB_SHAPE s( nullptr, SHAPE_T::SEGMENT );
+            s.SetStroke( hairline );
+
+            s.SetStart( m_pathStart + V1 );
+            s.SetEnd( m_pathStart - V1 );
+            pathShapes.push_back( s );
+
+            s.SetStart( m_pathEnd + V2 );
+            s.SetEnd( m_pathEnd - V2 );
+            pathShapes.push_back( s );
+        }
+    }
+
+    // Add shaded areas
+    for( PCB_SHAPE shape : m_pathShapes )
+    {
+        shape.SetWidth( 10 * MarkerScale() );
+        pathShapes.push_back( std::move( shape ) );
+    }
+
+    return pathShapes;
 }
 
 
@@ -349,7 +438,7 @@ const BOX2I PCB_MARKER::GetBoundingBox() const
 {
     BOX2I box = GetBoundingBoxMarker();
 
-    for( auto& s : m_shapes1 )
+    for( const PCB_SHAPE& s : m_pathShapes )
         box.Merge( s.GetBoundingBox() );
 
     return box;
@@ -374,11 +463,7 @@ static struct PCB_MARKER_DESC
         propMgr.InheritsAfter( TYPE_HASH( PCB_MARKER ), TYPE_HASH( MARKER_BASE ) );
 
         // Markers cannot be locked and have no user-accessible layer control
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_MARKER ), TYPE_HASH( BOARD_ITEM ),
-                                      _HKI( "Layer" ),
-                                      []( INSPECTABLE* aItem ) { return false; } );
-        propMgr.OverrideAvailability( TYPE_HASH( PCB_MARKER ), TYPE_HASH( BOARD_ITEM ),
-                                      _HKI( "Locked" ),
-                                      []( INSPECTABLE* aItem ) { return false; } );
+        propMgr.Mask( TYPE_HASH( PCB_MARKER ), TYPE_HASH( BOARD_ITEM ), _HKI( "Layer" ) );
+        propMgr.Mask( TYPE_HASH( PCB_MARKER ), TYPE_HASH( BOARD_ITEM ), _HKI( "Locked" ) );
     }
 } _PCB_MARKER_DESC;

@@ -52,7 +52,7 @@ public:
         return wxT( "SCH_JUNCTION" );
     }
 
-    void SwapData( SCH_ITEM* aItem ) override;
+    void swapData( SCH_ITEM* aItem ) override;
 
     void SetLastResolvedState( const SCH_ITEM* aItem ) override
     {
@@ -121,12 +121,7 @@ public:
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
-
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
-
-    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                          const VECTOR2I& aOffset, bool aDimmed ) override {}
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;

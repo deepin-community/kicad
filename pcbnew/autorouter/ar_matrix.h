@@ -109,17 +109,17 @@ public:
     DIST_CELL   GetDist( int aRow, int aCol, int aSide );
     void        SetDist( int aRow, int aCol, int aSide, DIST_CELL );
 
-    void TraceSegmentPcb( PCB_SHAPE* aShape, int aColor, int aMargin, AR_MATRIX::CELL_OP op_logic );
+    void TracePcbShape( PCB_SHAPE* aShape, int aColor, int aMargin, AR_MATRIX::CELL_OP op_logic );
 
     void CreateKeepOutRectangle( int ux0, int uy0, int ux1, int uy1, int marge, int aKeepOut,
-                                 LSET aLayerMask );
+                                 const LSET& aLayerMask );
 
     void PlacePad( PAD* aPad, int color, int marge, AR_MATRIX::CELL_OP op_logic );
 
-    void TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, double angle, LSET aLayerMask,
+    void TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, double angle, const LSET& aLayerMask,
                                int color, AR_MATRIX::CELL_OP op_logic );
 
-    void TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, LSET aLayerMask, int color,
+    void TraceFilledRectangle( int ux0, int uy0, int ux1, int uy1, const LSET& aLayerMask, int color,
                                AR_MATRIX::CELL_OP op_logic );
 
 private:
@@ -129,7 +129,7 @@ private:
     void traceCircle( int ux0, int uy0, int ux1, int uy1, int lg, int layer, int color,
                       AR_MATRIX::CELL_OP op_logic );
 
-    void traceFilledCircle( int cx, int cy, int radius, LSET aLayerMask, int color,
+    void traceFilledCircle( int cx, int cy, int radius, const LSET& aLayerMask, int color,
                             AR_MATRIX::CELL_OP op_logic );
 
     void traceArc( int ux0, int uy0, int ux1, int uy1, const EDA_ANGLE& arcAngle, int lg,

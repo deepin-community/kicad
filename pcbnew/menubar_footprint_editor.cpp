@@ -106,11 +106,20 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
     editMenu->Add( ACTIONS::doDelete );
     editMenu->Add( ACTIONS::duplicate );
 
+
     editMenu->AppendSeparator();
-    editMenu->Add( ACTIONS::selectAll );
+
+    // Select Submenu
+    ACTION_MENU* selectSubMenu = new ACTION_MENU( false, selTool );
+    selectSubMenu->SetTitle( _( "&Select" ) );
+    selectSubMenu->Add( ACTIONS::selectAll );
+    selectSubMenu->Add( ACTIONS::unselectAll );
+
+    editMenu->Add( selectSubMenu );
 
     editMenu->AppendSeparator();
     editMenu->Add( PCB_ACTIONS::editTextAndGraphics );
+    editMenu->Add( PCB_ACTIONS::padTable );
     editMenu->Add( PCB_ACTIONS::defaultPadProperties );
     editMenu->Add( PCB_ACTIONS::enumeratePads );
     editMenu->Add( ACTIONS::gridOrigin );
@@ -180,6 +189,8 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
     placeMenu->Add( PCB_ACTIONS::placeText );
     placeMenu->Add( PCB_ACTIONS::drawTextBox );
     placeMenu->Add( PCB_ACTIONS::drawTable );
+    placeMenu->Add( PCB_ACTIONS::placePoint );
+    placeMenu->Add( PCB_ACTIONS::placeBarcode );
 
     placeMenu->AppendSeparator();
     placeMenu->Add( PCB_ACTIONS::drawOrthogonalDimension );
@@ -212,15 +223,8 @@ void FOOTPRINT_EDIT_FRAME::doReCreateMenuBar()
     //
     ACTION_MENU* toolsMenu = new ACTION_MENU( false, selTool );
 
-    toolsMenu->Add( _( "&Load Footprint from PCB..." ),
-                    _( "Load a footprint from the current board into the editor" ),
-                    ID_LOAD_FOOTPRINT_FROM_BOARD,
-                    BITMAPS::load_module_board );
-
-    toolsMenu->Add( _( "&Insert Footprint on PCB" ),
-                    _( "Insert footprint onto current board" ),
-                    ID_ADD_FOOTPRINT_TO_BOARD,
-                    BITMAPS::insert_module_board );
+    toolsMenu->Add( PCB_ACTIONS::loadFpFromBoard );
+    toolsMenu->Add( PCB_ACTIONS::saveFpToBoard );
 
     toolsMenu->AppendSeparator();
     toolsMenu->Add( PCB_ACTIONS::cleanupGraphics );

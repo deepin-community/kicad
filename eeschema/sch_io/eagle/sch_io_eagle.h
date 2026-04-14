@@ -48,7 +48,7 @@ class SCH_GLOBALLABEL;
 class SCH_SYMBOL;
 class SCH_FIELD;
 class LIB_SYMBOL;
-class SYMBOL_LIB;
+class LEGACY_SYMBOL_LIB;
 class SCH_PIN;
 class wxXmlNode;
 
@@ -78,7 +78,7 @@ struct EAGLE_LIBRARY
 class SCH_IO_EAGLE : public SCH_IO
 {
 public:
-    const double ARC_ACCURACY = SCH_IU_PER_MM * 0.01; // 0.01mm
+    const int ARC_ACCURACY = KiROUND( SCH_IU_PER_MM * 0.01 ); // 0.01mm
 
     SCH_IO_EAGLE();
     ~SCH_IO_EAGLE();
@@ -228,13 +228,16 @@ private:
     // (named power pins in Eagle).
     struct EAGLE_MISSING_CMP
     {
-        EAGLE_MISSING_CMP( const SCH_SYMBOL* aSymbol = nullptr )
-            : cmp( aSymbol )
+        EAGLE_MISSING_CMP( const SCH_SYMBOL* aSymbol = nullptr, SCH_SCREEN* aScreen = nullptr )
+            : cmp( aSymbol ), screen( aScreen )
         {
         }
 
         ///< Link to the parent symbol
         const SCH_SYMBOL* cmp;
+
+        ///< Screen where the parent symbol is located
+        SCH_SCREEN* screen;
 
         /* Map of the symbol units: for each unit there is a flag saying
          * whether the unit needs to be instantiated with appropriate net labels to
@@ -262,15 +265,13 @@ private:
 
     std::unordered_map<wxString, bool> m_userValue; ///< deviceset/@uservalue for device.
 
-    IO_RELEASER<SCH_IO>               m_pi;                ///< PI to create KiCad symbol library.
-    std::unique_ptr<std::map<std::string, UTF8>>  m_properties;        ///< Library plugin properties.
+    IO_RELEASER<SCH_IO>                m_pi;                ///< PI to create KiCad symbol library.
 
-    int m_sheetIndex;
-
-    std::map<wxString, int>           m_netCounts;
-    std::map<int, SCH_LAYER_ID>       m_layerMap;
-    std::map<wxString, wxString>      m_powerPorts;        ///< map from symbol reference to global
-                                                           ///< label equivalent
+    int                                m_sheetIndex;
+    std::map<wxString, int>            m_netCounts;
+    std::map<int, SCH_LAYER_ID>        m_layerMap;
+    std::map<wxString, wxString>       m_powerPorts;        ///< map from symbol reference to global
+                                                            ///<   label equivalent
 
     ///< Wire intersection points, used for quick checks whether placing a net label in a particular
     ///< place would short two nets.

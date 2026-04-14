@@ -21,6 +21,7 @@
 #include <regex>
 
 #include <pgm_base.h>
+#include <settings/color_settings.h>
 #include <board.h>
 #include <layer_ids.h>
 #include <layer_range.h>
@@ -94,9 +95,6 @@ std::string g_previewBoard =
         "      (viasonmask false)\n"
         "      (mode 1)\n"
         "      (useauxorigin false)\n"
-        "      (hpglpennumber 1)\n"
-        "      (hpglpenspeed 20)\n"
-        "      (hpglpendiameter 15.000000)\n"
         "      (pdf_front_fp_property_popups true)\n"
         "      (pdf_back_fp_property_popups true)\n"
         "      (dxfpolygonmode true)\n"
@@ -658,7 +656,8 @@ std::set<int> g_excludedLayers =
         {
             LAYER_VIAS,
             LAYER_VIA_THROUGH,
-            LAYER_VIA_BBLIND,
+            LAYER_VIA_BLIND,
+            LAYER_VIA_BURIED,
             LAYER_VIA_MICROVIA,
             LAYER_FOOTPRINTS_FR,
             LAYER_FOOTPRINTS_BK,
@@ -690,15 +689,14 @@ PANEL_PCBNEW_COLOR_SETTINGS::PANEL_PCBNEW_COLOR_SETTINGS( wxWindow* aParent, BOA
 {
     m_colorNamespace = "board";
 
-    SETTINGS_MANAGER& mgr     = Pgm().GetSettingsManager();
-    PCBNEW_SETTINGS*  cfg     = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-    COLOR_SETTINGS*   current = mgr.GetColorSettings( cfg->m_ColorTheme );
+    PCBNEW_SETTINGS* cfg     = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+    COLOR_SETTINGS*  current = ::GetColorSettings( cfg ? cfg->m_ColorTheme : DEFAULT_THEME );
 
     // Saved theme doesn't exist?  Reset to default
-    if( current->GetFilename() != cfg->m_ColorTheme )
+    if( cfg && current->GetFilename() != cfg->m_ColorTheme )
         cfg->m_ColorTheme = current->GetFilename();
 
-    createThemeList( cfg->m_ColorTheme );
+    createThemeList( cfg ? cfg->m_ColorTheme : DEFAULT_THEME );
 
     // Currently this only applies to eeschema
     m_optOverrideColors->Hide();
@@ -716,6 +714,7 @@ PANEL_PCBNEW_COLOR_SETTINGS::PANEL_PCBNEW_COLOR_SETTINGS( wxWindow* aParent, BOA
     // These layers are not in GAL_LAYER_ID_START ... GAL_LAYER_ID_BITMASK_END
     m_validLayers.push_back( LAYER_LOCKED_ITEM_SHADOW );
     m_validLayers.push_back( LAYER_CONFLICTS_SHADOW );
+    m_validLayers.push_back( LAYER_BOARD_OUTLINE_AREA );
     m_validLayers.push_back( LAYER_PAGE_LIMITS );
     m_validLayers.push_back( LAYER_DRC_WARNING );
     m_validLayers.push_back( LAYER_DRC_EXCLUSION );
@@ -738,10 +737,8 @@ PANEL_PCBNEW_COLOR_SETTINGS::~PANEL_PCBNEW_COLOR_SETTINGS()
 
 bool PANEL_PCBNEW_COLOR_SETTINGS::TransferDataFromWindow()
 {
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-
-    cfg->m_ColorTheme = m_currentSettings->GetFilename();
+    if( PCBNEW_SETTINGS* cfg = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" ) )
+        cfg->m_ColorTheme = m_currentSettings->GetFilename();
 
     return true;
 }
@@ -801,7 +798,7 @@ void PANEL_PCBNEW_COLOR_SETTINGS::onNewThemeSelected()
 
 void PANEL_PCBNEW_COLOR_SETTINGS::createPreviewItems()
 {
-    m_page       = new PAGE_INFO( PAGE_INFO::Custom );
+    m_page       = new PAGE_INFO( PAGE_SIZE_TYPE::User );
     m_titleBlock = new TITLE_BLOCK;
     m_titleBlock->SetTitle( _( "Color Preview" ) );
     m_titleBlock->SetDate( wxDateTime::Now().FormatDate() );
@@ -822,6 +819,8 @@ void PANEL_PCBNEW_COLOR_SETTINGS::createPreviewItems()
     }
 
     m_preview->UpdateColors();
+    // Ensure board use is normal, not FPHOLDER, in order to display the board like in board editor
+    m_preview->GetBoard()->SetBoardUse( BOARD_USE::NORMAL );
     m_preview->DisplayBoard( m_preview->GetBoard() );
 
     DS_PROXY_VIEW_ITEM* drawingSheet = new DS_PROXY_VIEW_ITEM( pcbIUScale, m_page, nullptr,

@@ -23,6 +23,7 @@
 #include <api/board/board_types.pb.h>
 #include <api/board/board_commands.pb.h>
 #include <wx/wx.h>
+#include <widgets/report_severity.h>
 
 #include <board_stackup_manager/board_stackup.h>
 #include <padstack.h>
@@ -35,6 +36,7 @@
 // Adding something new here?  Add it to test_api_enums.cpp!
 
 using namespace kiapi::board;
+using namespace kiapi::board::commands;
 
 template<>
 types::PadType ToProtoEnum( PAD_ATTRIB aValue )
@@ -179,7 +181,8 @@ types::ViaType ToProtoEnum( VIATYPE aValue )
     switch( aValue )
     {
     case VIATYPE::THROUGH:      return types::ViaType::VT_THROUGH;
-    case VIATYPE::BLIND_BURIED: return types::ViaType::VT_BLIND_BURIED;
+    case VIATYPE::BLIND:        return types::ViaType::VT_BLIND; // Since V10
+    case VIATYPE::BURIED:       return types::ViaType::VT_BURIED;
     case VIATYPE::MICROVIA:     return types::ViaType::VT_MICRO;
 
     default:
@@ -196,7 +199,9 @@ VIATYPE FromProtoEnum( types::ViaType aValue )
     {
     case types::ViaType::VT_UNKNOWN:
     case types::ViaType::VT_THROUGH:      return VIATYPE::THROUGH;
-    case types::ViaType::VT_BLIND_BURIED: return VIATYPE::BLIND_BURIED;
+    case types::ViaType::VT_BLIND_BURIED: return VIATYPE::BLIND;
+    case types::ViaType::VT_BLIND:        return VIATYPE::BLIND;    // Since V10
+    case types::ViaType::VT_BURIED:       return VIATYPE::BURIED;
     case types::ViaType::VT_MICRO:        return VIATYPE::MICROVIA;
 
     default:
@@ -244,18 +249,21 @@ ZONE_CONNECTION FromProtoEnum( types::ZoneConnectionStyle aValue )
 
 
 template<>
-types::UnconnectedLayerRemoval ToProtoEnum( PADSTACK::UNCONNECTED_LAYER_MODE aValue )
+types::UnconnectedLayerRemoval ToProtoEnum( UNCONNECTED_LAYER_MODE aValue )
 {
     switch( aValue )
     {
-    case PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL:
+    case UNCONNECTED_LAYER_MODE::KEEP_ALL:
         return types::UnconnectedLayerRemoval::ULR_KEEP;
 
-    case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL:
+    case UNCONNECTED_LAYER_MODE::REMOVE_ALL:
         return types::UnconnectedLayerRemoval::ULR_REMOVE;
 
-    case PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
+    case UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END:
         return types::UnconnectedLayerRemoval::ULR_REMOVE_EXCEPT_START_AND_END;
+
+    case UNCONNECTED_LAYER_MODE::START_END_ONLY:
+        return types::UnconnectedLayerRemoval::ULR_START_END_ONLY;
 
     default:
         wxCHECK_MSG( false, types::UnconnectedLayerRemoval::ULR_UNKNOWN,
@@ -265,22 +273,25 @@ types::UnconnectedLayerRemoval ToProtoEnum( PADSTACK::UNCONNECTED_LAYER_MODE aVa
 
 
 template<>
-PADSTACK::UNCONNECTED_LAYER_MODE FromProtoEnum( types::UnconnectedLayerRemoval aValue )
+UNCONNECTED_LAYER_MODE FromProtoEnum( types::UnconnectedLayerRemoval aValue )
 {
     switch( aValue )
     {
     case types::UnconnectedLayerRemoval::ULR_UNKNOWN:
     case types::UnconnectedLayerRemoval::ULR_KEEP:
-        return PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL;
+        return UNCONNECTED_LAYER_MODE::KEEP_ALL;
 
     case types::UnconnectedLayerRemoval::ULR_REMOVE:
-        return PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_ALL;
+        return UNCONNECTED_LAYER_MODE::REMOVE_ALL;
 
     case types::UnconnectedLayerRemoval::ULR_REMOVE_EXCEPT_START_AND_END:
-        return PADSTACK::UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END;
+        return UNCONNECTED_LAYER_MODE::REMOVE_EXCEPT_START_AND_END;
+
+    case types::UnconnectedLayerRemoval::ULR_START_END_ONLY:
+        return UNCONNECTED_LAYER_MODE::START_END_ONLY;
 
     default:
-        wxCHECK_MSG( false, PADSTACK::UNCONNECTED_LAYER_MODE::KEEP_ALL,
+        wxCHECK_MSG( false, UNCONNECTED_LAYER_MODE::KEEP_ALL,
                      "Unhandled case in FromProtoEnum<types::UnconnectedLayerRemoval>");
     }
 }
@@ -386,37 +397,49 @@ ZONE_BORDER_DISPLAY_STYLE FromProtoEnum( types::ZoneBorderStyle aValue )
 
 
 template<>
-types::PlacementRuleSourceType ToProtoEnum( RULE_AREA_PLACEMENT_SOURCE_TYPE aValue )
+types::PlacementRuleSourceType ToProtoEnum( PLACEMENT_SOURCE_T aValue )
 {
     switch( aValue )
     {
-    case RULE_AREA_PLACEMENT_SOURCE_TYPE::SHEETNAME:
+    case PLACEMENT_SOURCE_T::SHEETNAME:
         return types::PlacementRuleSourceType::PRST_SHEET_NAME;
 
-    case RULE_AREA_PLACEMENT_SOURCE_TYPE::COMPONENT_CLASS:
+    case PLACEMENT_SOURCE_T::COMPONENT_CLASS:
         return types::PlacementRuleSourceType::PRST_COMPONENT_CLASS;
+
+    case PLACEMENT_SOURCE_T::GROUP_PLACEMENT:
+        return types::PlacementRuleSourceType::PRST_GROUP;
+
+    case PLACEMENT_SOURCE_T::DESIGN_BLOCK:
+        return types::PlacementRuleSourceType::PRST_DESIGN_BLOCK;
 
     default:
         wxCHECK_MSG( false, types::PlacementRuleSourceType::PRST_UNKNOWN,
-                     "Unhandled case in ToProtoEnum<RULE_AREA_PLACEMENT_SOURCE_TYPE>");
+                     "Unhandled case in ToProtoEnum<PLACEMENT_SOURCE_T>");
     }
 }
 
 
 template<>
-RULE_AREA_PLACEMENT_SOURCE_TYPE FromProtoEnum( types::PlacementRuleSourceType aValue )
+PLACEMENT_SOURCE_T FromProtoEnum( types::PlacementRuleSourceType aValue )
 {
     switch( aValue )
     {
     case types::PlacementRuleSourceType::PRST_UNKNOWN:
     case types::PlacementRuleSourceType::PRST_SHEET_NAME:
-        return RULE_AREA_PLACEMENT_SOURCE_TYPE::SHEETNAME;
+        return PLACEMENT_SOURCE_T::SHEETNAME;
 
     case types::PlacementRuleSourceType::PRST_COMPONENT_CLASS:
-        return RULE_AREA_PLACEMENT_SOURCE_TYPE::COMPONENT_CLASS;
+        return PLACEMENT_SOURCE_T::COMPONENT_CLASS;
+
+    case types::PlacementRuleSourceType::PRST_GROUP:
+        return PLACEMENT_SOURCE_T::GROUP_PLACEMENT;
+
+    case types::PlacementRuleSourceType::PRST_DESIGN_BLOCK:
+        return PLACEMENT_SOURCE_T::DESIGN_BLOCK;
 
     default:
-        wxCHECK_MSG( false, RULE_AREA_PLACEMENT_SOURCE_TYPE::SHEETNAME,
+        wxCHECK_MSG( false, PLACEMENT_SOURCE_T::SHEETNAME,
                      "Unhandled case in FromProtoEnum<types::PlacementRuleSourceType>" );
     }
 }
@@ -802,6 +825,45 @@ BOARD_STACKUP_ITEM_TYPE FromProtoEnum( BoardStackupLayerType aValue )
     default:
         wxCHECK_MSG( false, BS_ITEM_TYPE_UNDEFINED,
                      "Unhandled case in FromProtoEnum<BoardStackupLayerType>" );
+    }
+}
+
+
+template<>
+DrcSeverity ToProtoEnum( SEVERITY aValue )
+{
+    switch( aValue )
+    {
+    case RPT_SEVERITY_WARNING:   return DrcSeverity::DRS_WARNING;
+    case RPT_SEVERITY_ERROR:     return DrcSeverity::DRS_ERROR;
+    case RPT_SEVERITY_EXCLUSION: return DrcSeverity::DRS_EXCLUSION;
+    case RPT_SEVERITY_IGNORE:    return DrcSeverity::DRS_IGNORE;
+    case RPT_SEVERITY_INFO:      return DrcSeverity::DRS_INFO;
+    case RPT_SEVERITY_ACTION:    return DrcSeverity::DRS_ACTION;
+    case RPT_SEVERITY_DEBUG:     return DrcSeverity::DRS_DEBUG;
+    case RPT_SEVERITY_UNDEFINED: return DrcSeverity::DRS_UNDEFINED;
+    default:
+        wxCHECK_MSG( false, DrcSeverity::DRS_UNDEFINED,
+                     "Unhandled case in ToProtoEnum<SEVERITY>");
+    }
+}
+
+
+template<>
+SEVERITY FromProtoEnum( DrcSeverity aValue )
+{
+    switch( aValue )
+    {
+    case DrcSeverity::DRS_WARNING:   return RPT_SEVERITY_WARNING;
+    case DrcSeverity::DRS_ERROR:     return RPT_SEVERITY_ERROR;
+    case DrcSeverity::DRS_EXCLUSION: return RPT_SEVERITY_EXCLUSION;
+    case DrcSeverity::DRS_IGNORE:    return RPT_SEVERITY_IGNORE;
+    case DrcSeverity::DRS_INFO:      return RPT_SEVERITY_INFO;
+    case DrcSeverity::DRS_ACTION:    return RPT_SEVERITY_ACTION;
+    case DrcSeverity::DRS_DEBUG:     return RPT_SEVERITY_DEBUG;
+    case DrcSeverity::DRS_UNKNOWN:
+    default:
+        return RPT_SEVERITY_UNDEFINED;
     }
 }
 

@@ -25,6 +25,7 @@
 #include <wx/image.h>
 #include <wx/icon.h>
 #include <wx/statline.h>
+#include <wx/hyperlink.h>
 #include <wx/dialog.h>
 
 ///////////////////////////////////////////////////////////////////////////
@@ -44,23 +45,26 @@ class DIALOG_FIND_BASE : public DIALOG_SHIM
 		wxCheckBox* m_wildcards;
 		wxCheckBox* m_wrap;
 		wxCheckBox* m_includeReferences;
-		wxCheckBox* m_includeValues;
-		wxCheckBox* m_includeTexts;
 		wxCheckBox* m_includeMarkers;
+		wxCheckBox* m_includeValues;
 		wxCheckBox* m_includeNets;
+		wxCheckBox* m_checkAllFields;
+		wxCheckBox* m_includeTexts;
 		wxButton* m_findNext;
 		wxButton* m_findPrevious;
 		wxButton* m_searchAgain;
 		wxButton* m_closeButton;
 		wxStaticText* m_status;
+		wxHyperlinkCtrl* m_searchPanelLink;
 
 		// Virtual event handlers, override them in your derived class
-		virtual void OnClose( wxCloseEvent& event ) { event.Skip(); }
 		virtual void onTextEnter( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onOptionChanged( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onFindNextClick( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onFindPreviousClick( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onSearchAgainClick( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnCloseButtonClick( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onShowSearchPanel( wxHyperlinkEvent& event ) { event.Skip(); }
 
 
 	public:

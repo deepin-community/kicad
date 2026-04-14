@@ -54,7 +54,7 @@ void PCB_EDIT_FRAME::Edit_Zone_Params( ZONE* aZone )
     {
         // edit a zone on a copper layer
         zoneInfo << *aZone;
-        dialogResult = InvokeCopperZonesEditor( this, &zoneInfo );
+        dialogResult = InvokeCopperZonesEditor( this, aZone, &zoneInfo );
     }
     else
     {
@@ -75,10 +75,11 @@ void PCB_EDIT_FRAME::Edit_Zone_Params( ZONE* aZone )
 
     zoneInfo.ExportSetting( *aZone );
 
-    NETINFO_ITEM* net = GetBoard()->FindNet( zoneInfo.m_NetcodeSelection );
-
-    if( net )   // net == NULL should not occur
+    if( NETINFO_ITEM* net = GetBoard()->FindNet( zoneInfo.m_Netcode ) )
         aZone->SetNetCode( net->GetNetCode() );
+
+    // restore default net properties
+    zoneInfo.m_Netcode = NETINFO_LIST::ORPHANED;
 
     m_pcb->GetDesignSettings().SetDefaultZoneSettings( zoneInfo );
 

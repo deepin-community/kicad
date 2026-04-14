@@ -31,12 +31,15 @@
 #include <json_common.h>
 #include <unordered_set>
 
+#include <kiid.h>
 #include <lib_id.h>
-#include <footprint.h>
 #include <ctl_flags.h>
+#include <case_insensitive_map.h>
 
 
 class REPORTER;
+class FOOTPRINT;
+class OUTPUTFORMATTER;
 
 
 /**
@@ -81,6 +84,37 @@ private:
 
 typedef std::vector< COMPONENT_NET > COMPONENT_NETS;
 
+
+struct NETLIST_GROUP
+{
+    wxString name;
+    KIID uuid;
+    LIB_ID            libId;
+    std::vector<KIID> members;
+};
+
+typedef boost::ptr_vector< NETLIST_GROUP > NETLIST_GROUPS;
+
+
+struct COMPONENT_VARIANT
+{
+    COMPONENT_VARIANT( const wxString& aName = wxEmptyString ) : m_name( aName ) {}
+
+    wxString m_name;
+    bool     m_dnp = false;
+    bool     m_excludedFromBOM = false;
+    bool     m_excludedFromSim = false;
+    bool     m_excludedFromPosFiles = false;
+
+    bool     m_hasDnp = false;
+    bool     m_hasExcludedFromBOM = false;
+    bool     m_hasExcludedFromSim = false;
+    bool     m_hasExcludedFromPosFiles = false;
+
+    nlohmann::ordered_map<wxString, wxString> m_fields;
+};
+
+
 /**
  * Store all of the related footprint information found in a netlist.
  */
@@ -91,17 +125,9 @@ public:
                const wxString&          aReference,
                const wxString&          aValue,
                const KIID_PATH&         aPath,
-               const std::vector<KIID>& aKiids )
-    {
-        m_fpid             = aFPID;
-        m_reference        = aReference;
-        m_value            = aValue;
-        m_pinCount         = 0;
-        m_path             = aPath;
-        m_kiids            = aKiids;
-    }
+               const std::vector<KIID>& aKiids );
 
-    virtual ~COMPONENT() { };
+    virtual ~COMPONENT();
 
     void AddNet( const wxString& aPinName, const wxString& aNetName, const wxString& aPinFunction,
                  const wxString& aPinType )
@@ -131,13 +157,13 @@ public:
     void SetValue( const wxString& aValue ) { m_value = aValue; }
     const wxString& GetValue() const { return m_value; }
 
-    void SetFields( nlohmann::ordered_map<wxString, wxString>& aFields )
+    void SetFields( nlohmann::ordered_map<wxString, wxString> aFields )
     {
         m_fields = std::move( aFields );
     }
     const nlohmann::ordered_map<wxString, wxString>& GetFields() const { return m_fields; }
 
-    void SetProperties( std::map<wxString, wxString>& aProps )
+    void SetProperties( std::map<wxString, wxString> aProps )
     {
         m_properties = std::move( aProps );
     }
@@ -159,10 +185,7 @@ public:
     void SetPinCount( int aPinCount ) { m_pinCount = aPinCount; }
     int GetPinCount() const { return m_pinCount; }
 
-    FOOTPRINT* GetFootprint( bool aRelease = false )
-    {
-        return ( aRelease ) ? m_footprint.release() : m_footprint.get();
-    }
+    FOOTPRINT* GetFootprint( bool aRelease = false );
 
     void SetFootprint( FOOTPRINT* aFootprint );
 
@@ -182,6 +205,30 @@ public:
     }
 
     std::unordered_set<wxString>& GetComponentClassNames() { return m_componentClassNames; }
+
+    bool GetDuplicatePadNumbersAreJumpers() const { return m_duplicatePadNumbersAreJumpers; }
+    void SetDuplicatePadNumbersAreJumpers( bool aEnabled ) { m_duplicatePadNumbersAreJumpers = aEnabled; }
+
+    std::vector<std::set<wxString>>& JumperPadGroups() { return m_jumperPadGroups; }
+    const std::vector<std::set<wxString>>& JumperPadGroups() const { return m_jumperPadGroups; }
+
+    NETLIST_GROUP* GetGroup() const { return m_group; }
+    void SetGroup( NETLIST_GROUP* aGroup ) { m_group = aGroup; }
+
+    // Unit info for multi-unit symbols
+    struct UNIT_INFO
+    {
+        wxString              m_unitName; // e.g. A
+        std::vector<wxString> m_pins;     // pin numbers in this unit
+    };
+
+    void                          SetUnitInfo( const std::vector<UNIT_INFO>& aUnits ) { m_units = aUnits; }
+    const std::vector<UNIT_INFO>& GetUnitInfo() const { return m_units; }
+
+    const CASE_INSENSITIVE_MAP<COMPONENT_VARIANT>& GetVariants() const { return m_variants; }
+    const COMPONENT_VARIANT* GetVariant( const wxString& aVariantName ) const;
+    COMPONENT_VARIANT* GetVariant( const wxString& aVariantName );
+    void AddVariant( const COMPONENT_VARIANT& aVariant );
 
 private:
     std::vector<COMPONENT_NET>   m_nets;  ///< list of nets shared by the component pins
@@ -226,7 +273,22 @@ private:
     /// Component classes for this footprint
     std::unordered_set<wxString> m_componentClassNames;
 
+    /// Jumper pad groups for this footprint
+    std::vector<std::set<wxString>> m_jumperPadGroups;
+
+    /// Flag that this footprint should automatically treat sets of two or more pads with the same
+    /// number as jumpered pin groups
+    bool m_duplicatePadNumbersAreJumpers;
+
+    /// Group membership for this footprint. Nullptr if none.
+    NETLIST_GROUP*               m_group;
+
     static COMPONENT_NET         m_emptyNet;
+
+    // Unit information parsed from the netlist (optional)
+    std::vector<UNIT_INFO> m_units;
+
+    CASE_INSENSITIVE_MAP<COMPONENT_VARIANT> m_variants;
 };
 
 
@@ -280,6 +342,29 @@ public:
     void AddComponent( COMPONENT* aComponent );
 
     /**
+     * @note If \a aGroup already exists in the NETLIST, \a aGroup is deleted
+     *       to prevent memory leaks.  An assertion is raised in debug builds.
+     *
+     * @param aGroup is the NETLIST_GROUP to save to the NETLIST.
+     */
+    void AddGroup( NETLIST_GROUP* aGroup );
+
+    /**
+     * @brief Return a #NETLIST_GROUP by \a aUuid.
+     *
+     * @param aUuid is the KIID of the #NETLIST_GROUP.
+     *
+     * @return a pointer to the #NETLIST_GROUP that matches \a aUuid if found.  Otherwise NULL.
+     */
+    NETLIST_GROUP* GetGroupByUuid( const KIID& aUuid );
+
+    /**
+     * After groups and components are parsed, apply the group memberships to the
+     * internal components based on the group member UUIDs.
+     */
+    void ApplyGroupMembership();
+
+    /**
      * Return a #COMPONENT by \a aReference.
      *
      * @param aReference is the reference designator the #COMPONENT.
@@ -294,6 +379,14 @@ public:
      * @return a pointer to the #COMPONENT that matches \a aPath if found.  Otherwise NULL.
      */
     COMPONENT* GetComponentByPath( const KIID_PATH& aPath );
+
+    /**
+     * Return a #COMPONENT by \a aUuid.
+     *
+     * @param aUuid is the KIID of the #COMPONENT.
+     * @return a pointer to the #COMPONENT that matches \a aUuid if found.  Otherwise NULL.
+     */
+    COMPONENT* GetComponentByUuid( const KIID& aUuid );
 
     void SortByFPID();
     void SortByReference();
@@ -318,8 +411,81 @@ public:
         Format( "cvpcb_netlist", aOut, 0, CTL_FOR_CVPCB );
     }
 
+    /**
+     * @return a list of variant names found in the netlist.
+     */
+    const std::vector<wxString>& GetVariantNames() const { return m_variantNames; }
+
+    /**
+     * Add a variant name to the netlist.
+     */
+    void AddVariant( const wxString& aName, const wxString& aDescription = wxEmptyString )
+    {
+        if( aName.IsEmpty() )
+            return;
+
+        for( const wxString& existingName : m_variantNames )
+        {
+            if( existingName.CmpNoCase( aName ) == 0 )
+            {
+                if( aDescription.IsEmpty() )
+                    m_variantDescriptions.erase( existingName );
+                else
+                    m_variantDescriptions[existingName] = aDescription;
+
+                return;
+            }
+        }
+
+        m_variantNames.push_back( aName );
+
+        if( aDescription.IsEmpty() )
+            return;
+
+        m_variantDescriptions[aName] = aDescription;
+    }
+
+    /**
+     * @return the description for a given variant, or empty string if not found.
+     */
+    wxString GetVariantDescription( const wxString& aVariantName ) const
+    {
+        wxString actualName;
+
+        for( const wxString& existingName : m_variantNames )
+        {
+            if( existingName.CmpNoCase( aVariantName ) == 0 )
+            {
+                actualName = existingName;
+                break;
+            }
+        }
+
+        if( !actualName.IsEmpty() )
+        {
+            auto it = m_variantDescriptions.find( actualName );
+
+            if( it != m_variantDescriptions.end() )
+                return it->second;
+        }
+
+        return wxEmptyString;
+    }
+
+    /**
+     * @return a map of all variant descriptions.
+     */
+    const std::map<wxString, wxString>& GetVariantDescriptions() const
+    {
+        return m_variantDescriptions;
+    }
+
 private:
     COMPONENTS m_components;          // Components found in the netlist.
+    NETLIST_GROUPS m_groups;          // Groups found in the netlist.
+
+    std::vector<wxString>            m_variantNames;         // Variant names in order.
+    std::map<wxString, wxString>     m_variantDescriptions;  // Variant descriptions.
 
     bool       m_findByTimeStamp;     // Associate components by KIID (or refdes if false)
     bool       m_replaceFootprints;   // Update footprints to match footprints defined in netlist

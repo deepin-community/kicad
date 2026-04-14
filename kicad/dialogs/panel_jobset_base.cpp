@@ -77,7 +77,7 @@ PANEL_JOBSET_BASE::PANEL_JOBSET_BASE( wxWindow* parent, wxWindowID id, const wxP
 	sbJobs->Add( bJobsButtons, 0, wxEXPAND|wxLEFT|wxRIGHT, 3 );
 
 
-	bSizerUpper->Add( sbJobs, 7, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
+	bSizerUpper->Add( sbJobs, 3, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
 
 	wxStaticBoxSizer* sbDestinations;
 	sbDestinations = new wxStaticBoxSizer( new wxStaticBox( this, wxID_ANY, _("Destinations") ), wxVERTICAL );
@@ -102,7 +102,7 @@ PANEL_JOBSET_BASE::PANEL_JOBSET_BASE( wxWindow* parent, wxWindowID id, const wxP
 	sbDestinations->Add( bOutputButtons, 0, wxEXPAND|wxLEFT, 3 );
 
 
-	bSizerUpper->Add( sbDestinations, 4, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
+	bSizerUpper->Add( sbDestinations, 2, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
 
 
 	bSizerMain->Add( bSizerUpper, 1, wxEXPAND, 5 );
@@ -128,6 +128,7 @@ PANEL_JOBSET_BASE::PANEL_JOBSET_BASE( wxWindow* parent, wxWindowID id, const wxP
 
 	this->SetSizer( bSizerMain );
 	this->Layout();
+	bSizerMain->Fit( this );
 
 	// Connect Events
 	m_jobsGrid->Connect( wxEVT_GRID_CELL_CHANGED, wxGridEventHandler( PANEL_JOBSET_BASE::OnGridCellChange ), NULL, this );
@@ -170,7 +171,7 @@ PANEL_DESTINATION_BASE::PANEL_DESTINATION_BASE( wxWindow* parent, wxWindowID id,
 	fgSizer3->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
 	m_bitmapOutputType = new wxStaticBitmap( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, 0 );
-	fgSizer3->Add( m_bitmapOutputType, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5 );
+	fgSizer3->Add( m_bitmapOutputType, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5 );
 
 	m_textOutputType = new wxStaticText( this, wxID_ANY, _("dummy"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_textOutputType->Wrap( -1 );
@@ -179,10 +180,17 @@ PANEL_DESTINATION_BASE::PANEL_DESTINATION_BASE( wxWindow* parent, wxWindowID id,
 	fgSizer3->Add( m_textOutputType, 0, wxALIGN_CENTER_VERTICAL|wxTOP, 1 );
 
 	m_statusBitmap = new wxStaticBitmap( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, 0 );
-	fgSizer3->Add( m_statusBitmap, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5 );
+	fgSizer3->Add( m_statusBitmap, 0, wxALIGN_CENTER_VERTICAL|wxRIGHT|wxLEFT, 5 );
 
 
-	bSizerMain->Add( fgSizer3, 0, wxEXPAND|wxALL, 5 );
+	bSizerMain->Add( fgSizer3, 0, wxEXPAND|wxTOP, 6 );
+
+
+	bSizerMain->Add( 0, 2, 0, 0, 5 );
+
+	m_pathInfo = new wxStaticText( this, wxID_ANY, _("path"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_pathInfo->Wrap( -1 );
+	bSizerMain->Add( m_pathInfo, 0, wxRIGHT|wxLEFT, 6 );
 
 	wxBoxSizer* bSizerButtons;
 	bSizerButtons = new wxBoxSizer( wxHORIZONTAL );
@@ -194,13 +202,16 @@ PANEL_DESTINATION_BASE::PANEL_DESTINATION_BASE( wxWindow* parent, wxWindowID id,
 	bSizerButtons->Add( m_buttonDelete, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5 );
 
 
-	bSizerButtons->Add( 0, 0, 1, wxEXPAND, 5 );
+	bSizerButtons->Add( 10, 0, 1, wxEXPAND, 5 );
 
 	m_buttonGenerate = new wxButton( this, wxID_ANY, _("Generate"), wxDefaultPosition, wxDefaultSize, 0 );
-	bSizerButtons->Add( m_buttonGenerate, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5 );
+	bSizerButtons->Add( m_buttonGenerate, 0, wxALIGN_CENTER_VERTICAL|wxTOP|wxBOTTOM|wxLEFT, 5 );
+
+	m_buttonOpenOutput = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
+	bSizerButtons->Add( m_buttonOpenOutput, 0, wxALL|wxALIGN_CENTER_VERTICAL, 5 );
 
 
-	bSizerMain->Add( bSizerButtons, 0, wxEXPAND, 5 );
+	bSizerMain->Add( bSizerButtons, 0, wxEXPAND|wxTOP, 10 );
 
 
 	this->SetSizer( bSizerMain );
@@ -213,6 +224,7 @@ PANEL_DESTINATION_BASE::PANEL_DESTINATION_BASE( wxWindow* parent, wxWindowID id,
 	m_buttonProperties->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( PANEL_DESTINATION_BASE::OnProperties ), NULL, this );
 	m_buttonDelete->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( PANEL_DESTINATION_BASE::OnDelete ), NULL, this );
 	m_buttonGenerate->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( PANEL_DESTINATION_BASE::OnGenerate ), NULL, this );
+	m_buttonOpenOutput->Connect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( PANEL_DESTINATION_BASE::OnOpenOutput ), NULL, this );
 }
 
 PANEL_DESTINATION_BASE::~PANEL_DESTINATION_BASE()
@@ -223,6 +235,7 @@ PANEL_DESTINATION_BASE::~PANEL_DESTINATION_BASE()
 	m_buttonProperties->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( PANEL_DESTINATION_BASE::OnProperties ), NULL, this );
 	m_buttonDelete->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( PANEL_DESTINATION_BASE::OnDelete ), NULL, this );
 	m_buttonGenerate->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( PANEL_DESTINATION_BASE::OnGenerate ), NULL, this );
+	m_buttonOpenOutput->Disconnect( wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler( PANEL_DESTINATION_BASE::OnOpenOutput ), NULL, this );
 
 }
 

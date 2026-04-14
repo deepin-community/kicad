@@ -21,6 +21,8 @@
 
 #include "sch_io_lib_cache.h"
 
+#include <common.h>
+#include <kiplatform/io.h>
 #include <lib_symbol.h>
 #include <wx_filename.h>
 
@@ -28,11 +30,20 @@
 SCH_IO_LIB_CACHE::SCH_IO_LIB_CACHE( const wxString& aFullPathAndFileName ) :
     m_modHash( 1 ),
     m_fileName( aFullPathAndFileName ),
-    m_libFileName( aFullPathAndFileName ),
+    m_libFileName(),
+    m_fileModTime( 0 ),
     m_isWritable( true ),
-    m_isModified( false )
+    m_isModified( false ),
+    m_hasParseError( false )
 {
     m_libType = SCH_LIB_TYPE::LT_EESCHEMA;
+
+    // Normalize the path: if it's a directory on the filesystem, ensure m_libFileName is marked
+    // as a directory so that IsDir() checks work correctly.
+    if( wxFileName::DirExists( aFullPathAndFileName ) )
+        m_libFileName.AssignDir( aFullPathAndFileName );
+    else
+        m_libFileName = aFullPathAndFileName;
 }
 
 
@@ -58,19 +69,34 @@ wxFileName SCH_IO_LIB_CACHE::GetRealFile() const
 
     // If m_libFileName is a symlink follow it to the real source file
     WX_FILENAME::ResolvePossibleSymlinks( fn );
+
+    // Normalize the path: if it's a directory on the filesystem, ensure fn is marked as a
+    // directory so that IsDir() checks work correctly. wxFileName::IsDir() only checks if
+    // the path string ends with a separator, not if the path is actually a directory.
+    if( !fn.IsDir() && wxFileName::DirExists( fn.GetFullPath() ) )
+        fn.AssignDir( fn.GetFullPath() );
+
     return fn;
 }
 
 
-wxDateTime SCH_IO_LIB_CACHE::GetLibModificationTime()
+long long SCH_IO_LIB_CACHE::GetLibModificationTime()
 {
     wxFileName fn = GetRealFile();
+    wxString wildcard = fn.GetFullName();
 
-    // update the writable flag while we have a wxFileName, in a network this
-    // is possibly quite dynamic anyway.
-    m_isWritable = fn.IsFileWritable();
-
-    return fn.GetModificationTime();
+    // Update the writable flag while we have a wxFileName, in a network this is possibly quite dynamic anyway.
+    if( !fn.IsDir() )
+    {
+        m_isWritable = fn.IsFileWritable();
+        return fn.GetModificationTime().GetValue().GetValue();
+    }
+    else
+    {
+        m_isWritable = fn.IsDirWritable();
+        wildcard = wxS( "*." ) + wxString( FILEEXT::KiCadSymbolLibFileExtension );
+        return KIPLATFORM::IO::TimestampDir( fn.GetPath(), wildcard );
+    }
 }
 
 
@@ -80,12 +106,36 @@ bool SCH_IO_LIB_CACHE::IsFile( const wxString& aFullPathAndFileName ) const
 }
 
 
+void SCH_IO_LIB_CACHE::SetFileName( const wxString& aFileName )
+{
+    // Update both m_fileName and m_libFileName to keep them in sync
+    m_fileName = aFileName;
+
+    // Normalize the path: if it's a directory on the filesystem, ensure m_libFileName is marked
+    // as a directory so that IsDir() checks work correctly.
+    if( wxFileName::DirExists( aFileName ) )
+        m_libFileName.AssignDir( aFileName );
+    else
+        m_libFileName = aFileName;
+}
+
+
 bool SCH_IO_LIB_CACHE::IsFileChanged() const
 {
     wxFileName fn = GetRealFile();
 
-    if( m_fileModTime.IsValid() && fn.IsOk() && fn.FileExists() )
-        return fn.GetModificationTime() != m_fileModTime;
+    if( !fn.IsOk() )
+        return false;
+
+    if( !fn.IsDir() && fn.IsFileReadable() )
+        return fn.GetModificationTime().GetValue().GetValue() != m_fileModTime;
+
+    if( fn.IsDir() && fn.IsDirReadable() )
+    {
+        return KIPLATFORM::IO::TimestampDir( fn.GetPath(),
+                             wxS( "*." ) + wxString( FILEEXT::KiCadSymbolLibFileExtension ) )
+               != m_fileModTime;
+    }
 
     return false;
 }
@@ -107,13 +157,13 @@ LIB_SYMBOL* SCH_IO_LIB_CACHE::removeSymbol( LIB_SYMBOL* aSymbol )
                  "Pointer mismatch while attempting to remove alias entry <" + aSymbol->GetName() +
                  "> from library cache <" + m_libFileName.GetName() + ">." );
 
-    // If the symbol is a root symbol used by other symbols find the first alias that uses
+    // If the symbol is a root symbol used by other symbols find the first derived symbol that uses
     // the root symbol and make it the new root.
     if( aSymbol->IsRoot() )
     {
         for( const std::pair<const wxString, LIB_SYMBOL*>& entry : m_symbols )
         {
-            if( entry.second->IsAlias()
+            if( entry.second->IsDerived()
               && entry.second->GetParent().lock() == aSymbol->SharedPtr() )
             {
                 firstChild = entry.second;
@@ -129,7 +179,7 @@ LIB_SYMBOL* SCH_IO_LIB_CACHE::removeSymbol( LIB_SYMBOL* aSymbol )
                 {
                     SCH_FIELD& field = static_cast<SCH_FIELD&>( drawItem );
 
-                    if( firstChild->FindField( field.GetCanonicalName() ) )
+                    if( firstChild->GetField( field.GetCanonicalName() ) )
                         continue;
                 }
 
@@ -138,10 +188,10 @@ LIB_SYMBOL* SCH_IO_LIB_CACHE::removeSymbol( LIB_SYMBOL* aSymbol )
                 firstChild->AddDrawItem( newItem );
             }
 
-            // Reparent the remaining aliases.
+            // Reparent the remaining derived symbols.
             for( const std::pair<const wxString, LIB_SYMBOL*>& entry : m_symbols )
             {
-                if( entry.second->IsAlias()
+                if( entry.second->IsDerived()
                       && entry.second->GetParent().lock() == aSymbol->SharedPtr() )
                 {
                     entry.second->SetParent( firstChild );

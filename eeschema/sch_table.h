@@ -27,6 +27,7 @@
 
 #include <sch_tablecell.h>
 #include <sch_item.h>
+#include <algorithm>
 
 
 class SCH_TABLE : public SCH_ITEM
@@ -47,8 +48,6 @@ public:
     {
         return wxT( "SCH_TABLE" );
     }
-
-    void SwapData( SCH_ITEM* aItem ) override;
 
     void SetStrokeExternal( bool aDoStroke ) { m_strokeExternal = aDoStroke; }
     bool StrokeExternal() const              { return m_strokeExternal; }
@@ -102,7 +101,7 @@ public:
     void SetStrokeRows( bool aDoStroke ) { m_strokeRows = aDoStroke; }
     bool StrokeRows() const              { return m_strokeRows; }
 
-    void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction ) override;
+    void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction, RECURSE_MODE aMode ) override;
 
     bool operator<( const SCH_ITEM& aItem ) const override;
 
@@ -182,10 +181,15 @@ public:
 
     void DeleteMarkedCells()
     {
-        alg::delete_if( m_cells,
+        std::erase_if( m_cells,
                 []( SCH_TABLECELL* cell )
                 {
-                    return ( cell->GetFlags() & STRUCT_DELETED ) > 0;
+                    if( cell->GetFlags() & STRUCT_DELETED )
+                    {
+                        delete cell;
+                        return true;
+                    }
+                    return false;
                 } );
     }
 
@@ -215,14 +219,8 @@ public:
     std::vector<int> ViewGetLayers() const override;
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy = 0 ) const override;
-
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
-
-    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                          const VECTOR2I& aOffset, bool aDimmed ) override;
-
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& offset, bool aForceNoFill, bool aDimmed ) override;
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     void DrawBorders( const std::function<void( const VECTOR2I& aPt1, const VECTOR2I& aPt2,
                                                 const STROKE_PARAMS& aStroke )>& aCallback ) const;
@@ -246,6 +244,8 @@ public:
 #endif
 
 protected:
+    void swapData( SCH_ITEM* aItem ) override;
+
     bool                        m_strokeExternal;
     bool                        m_StrokeHeaderSeparator;
     STROKE_PARAMS               m_borderStroke;

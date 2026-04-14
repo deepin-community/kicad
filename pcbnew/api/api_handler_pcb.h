@@ -74,6 +74,9 @@ private:
     HANDLER_RESULT<commands::GetItemsResponse> handleGetItems(
             const HANDLER_CONTEXT<commands::GetItems>& aCtx );
 
+    HANDLER_RESULT<commands::GetItemsResponse> handleGetItemsById(
+            const HANDLER_CONTEXT<commands::GetItemsById>& aCtx );
+
     HANDLER_RESULT<commands::SelectionResponse> handleGetSelection(
             const HANDLER_CONTEXT<commands::GetSelection>& aCtx );
 
@@ -89,6 +92,12 @@ private:
     HANDLER_RESULT<BoardStackupResponse> handleGetStackup(
             const HANDLER_CONTEXT<GetBoardStackup>& aCtx );
 
+    HANDLER_RESULT<BoardEnabledLayersResponse> handleGetBoardEnabledLayers(
+            const HANDLER_CONTEXT<GetBoardEnabledLayers>& aCtx );
+
+    HANDLER_RESULT<BoardEnabledLayersResponse> handleSetBoardEnabledLayers(
+            const HANDLER_CONTEXT<SetBoardEnabledLayers>& aCtx );
+
     HANDLER_RESULT<GraphicsDefaultsResponse> handleGetGraphicsDefaults(
             const HANDLER_CONTEXT<GetGraphicsDefaults>& aCtx );
 
@@ -97,11 +106,17 @@ private:
 
     HANDLER_RESULT<Empty> handleSetBoardOrigin( const HANDLER_CONTEXT<SetBoardOrigin>& aCtx );
 
+    HANDLER_RESULT<BoardLayerNameResponse> handleGetBoardLayerName(
+            const HANDLER_CONTEXT<GetBoardLayerName>& aCtx );
+
     HANDLER_RESULT<commands::GetBoundingBoxResponse> handleGetBoundingBox(
             const HANDLER_CONTEXT<commands::GetBoundingBox>& aCtx );
 
     HANDLER_RESULT<PadShapeAsPolygonResponse> handleGetPadShapeAsPolygon(
             const HANDLER_CONTEXT<GetPadShapeAsPolygon>& aCtx );
+
+    HANDLER_RESULT<PadstackPresenceResponse> handleCheckPadstackPresenceOnLayers(
+            const HANDLER_CONTEXT<CheckPadstackPresenceOnLayers>& aCtx );
 
     HANDLER_RESULT<types::TitleBlockInfo> handleGetTitleBlockInfo(
             const HANDLER_CONTEXT<commands::GetTitleBlockInfo>& aCtx );
@@ -138,6 +153,9 @@ private:
 
     HANDLER_RESULT<Empty> handleSetBoardEditorAppearanceSettings(
             const HANDLER_CONTEXT<SetBoardEditorAppearanceSettings>& aCtx );
+
+    HANDLER_RESULT<InjectDrcErrorResponse> handleInjectDrcError(
+            const HANDLER_CONTEXT<InjectDrcError>& aCtx );
 
 protected:
     std::unique_ptr<COMMIT> createCommit() override;

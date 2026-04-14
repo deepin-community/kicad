@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6a-dirty)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -14,42 +14,12 @@ GAL_OPTIONS_PANEL_BASE::GAL_OPTIONS_PANEL_BASE( wxWindow* parent, wxWindowID id,
 	wxBoxSizer* mainSizer;
 	mainSizer = new wxBoxSizer( wxVERTICAL );
 
-	m_renderingSizer = new wxBoxSizer( wxVERTICAL );
-
-	m_staticText9 = new wxStaticText( this, wxID_ANY, _("Rendering Engine"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticText9->Wrap( -1 );
-	m_renderingSizer->Add( m_staticText9, 0, wxTOP|wxRIGHT|wxLEFT, 13 );
-
-	m_staticline3 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	m_renderingSizer->Add( m_staticline3, 0, wxEXPAND|wxBOTTOM, 5 );
-
-	wxFlexGridSizer* fgSizer2;
-	fgSizer2 = new wxFlexGridSizer( 0, 1, 4, 0 );
-	fgSizer2->SetFlexibleDirection( wxBOTH );
-	fgSizer2->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
-
-	m_rbAccelerated = new wxRadioButton( this, wxID_ANY, _("Accelerated graphics"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP );
-	m_rbAccelerated->SetToolTip( _("Hardware-accelerated graphics (recommended)") );
-
-	fgSizer2->Add( m_rbAccelerated, 0, wxLEFT, 5 );
-
-	m_rbFallback = new wxRadioButton( this, wxID_ANY, _("Fallback graphics"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_rbFallback->SetToolTip( _("Software graphics (for computers which do not support KiCad's hardware acceleration requirements)") );
-
-	fgSizer2->Add( m_rbFallback, 0, wxLEFT, 5 );
-
-
-	m_renderingSizer->Add( fgSizer2, 0, wxEXPAND|wxALL, 5 );
-
-
-	mainSizer->Add( m_renderingSizer, 0, wxEXPAND|wxBOTTOM, 5 );
-
 	m_staticText1 = new wxStaticText( this, wxID_ANY, _("Grid Display"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText1->Wrap( -1 );
 	mainSizer->Add( m_staticText1, 0, wxTOP|wxRIGHT|wxLEFT, 13 );
 
 	m_staticline1 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	mainSizer->Add( m_staticline1, 0, wxEXPAND|wxBOTTOM, 5 );
+	mainSizer->Add( m_staticline1, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxBoxSizer* bSizerGridStyle;
 	bSizerGridStyle = new wxBoxSizer( wxHORIZONTAL );
@@ -68,7 +38,7 @@ GAL_OPTIONS_PANEL_BASE::GAL_OPTIONS_PANEL_BASE( wxWindow* parent, wxWindowID id,
 	bSizerGridStyle->Add( m_rbCrosses, 0, wxALIGN_CENTER_VERTICAL|wxALL, 5 );
 
 
-	mainSizer->Add( bSizerGridStyle, 0, wxEXPAND|wxBOTTOM|wxRIGHT|wxLEFT, 5 );
+	mainSizer->Add( bSizerGridStyle, 0, wxEXPAND|wxALL, 5 );
 
 	wxGridBagSizer* gbGridSettings;
 	gbGridSettings = new wxGridBagSizer( 5, 5 );
@@ -122,7 +92,7 @@ GAL_OPTIONS_PANEL_BASE::GAL_OPTIONS_PANEL_BASE( wxWindow* parent, wxWindowID id,
 	mainSizer->Add( m_stGridLabel, 0, wxTOP|wxRIGHT|wxLEFT, 13 );
 
 	m_staticline2 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	mainSizer->Add( m_staticline2, 0, wxEXPAND|wxBOTTOM, 5 );
+	mainSizer->Add( m_staticline2, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxFlexGridSizer* fgSizer1;
 	fgSizer1 = new wxFlexGridSizer( 0, 1, 3, 0 );
@@ -130,10 +100,13 @@ GAL_OPTIONS_PANEL_BASE::GAL_OPTIONS_PANEL_BASE( wxWindow* parent, wxWindowID id,
 	fgSizer1->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
 	m_rbSmallCrosshairs = new wxRadioButton( this, wxID_ANY, _("Small crosshairs"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP );
-	fgSizer1->Add( m_rbSmallCrosshairs, 0, wxLEFT, 5 );
+	fgSizer1->Add( m_rbSmallCrosshairs, 0, wxTOP|wxLEFT, 5 );
 
-	m_rbFullWindowCrosshairs = new wxRadioButton( this, wxID_ANY, _("Full window crosshairs"), wxDefaultPosition, wxDefaultSize, 0 );
-	fgSizer1->Add( m_rbFullWindowCrosshairs, 0, wxLEFT, 5 );
+        m_rbFullWindowCrosshairs = new wxRadioButton( this, wxID_ANY, _("Full window crosshairs"), wxDefaultPosition, wxDefaultSize, 0 );
+        fgSizer1->Add( m_rbFullWindowCrosshairs, 0, wxLEFT, 5 );
+
+        m_rb45DegreeCrosshairs = new wxRadioButton( this, wxID_ANY, _("45 degree crosshairs"), wxDefaultPosition, wxDefaultSize, 0 );
+        fgSizer1->Add( m_rb45DegreeCrosshairs, 0, wxLEFT, 5 );
 
 
 	fgSizer1->Add( 0, 8, 0, wxEXPAND, 5 );

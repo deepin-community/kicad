@@ -29,6 +29,7 @@
 #include <wx/ffile.h>
 #include <wx/filedlg.h>
 #include <wx_filename.h>
+#include <kiplatform/ui.h>
 #include <wx/stc/stc.h>
 
 #include <kiway.h>
@@ -109,6 +110,8 @@ int SIMULATOR_CONTROL::OpenWorkbook( const TOOL_EVENT& aEvent )
     wxFileDialog openDlg( m_simulatorFrame, _( "Open Simulation Workbook" ), getDefaultPath(), "",
                           FILEEXT::WorkbookFileWildcard(), wxFD_OPEN | wxFD_FILE_MUST_EXIST );
 
+    KIPLATFORM::UI::AllowNetworkFileSystems( &openDlg );
+
     if( openDlg.ShowModal() == wxID_CANCEL )
         return -1;
 
@@ -163,6 +166,8 @@ int SIMULATOR_CONTROL::SaveWorkbook( const TOOL_EVENT& aEvent )
                                 FILEEXT::WorkbookFileWildcard(),
                                 wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
 
+        KIPLATFORM::UI::AllowNetworkFileSystems( &saveAsDlg );
+
         if( saveAsDlg.ShowModal() == wxID_CANCEL )
             return -1;
 
@@ -180,6 +185,8 @@ int SIMULATOR_CONTROL::ExportPlotAsPNG( const TOOL_EVENT& aEvent )
     {
         wxFileDialog saveDlg( m_simulatorFrame, _( "Save Plot as Image" ), "", "",
                               FILEEXT::PngFileWildcard(), wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+        KIPLATFORM::UI::AllowNetworkFileSystems( &saveDlg );
 
         if( saveDlg.ShowModal() == wxID_CANCEL )
             return -1;
@@ -288,6 +295,8 @@ int SIMULATOR_CONTROL::ExportPlotAsCSV( const TOOL_EVENT& aEvent )
                               FILEEXT::CsvFileWildcard(),
                               wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
 
+        KIPLATFORM::UI::AllowNetworkFileSystems( &saveDlg );
+
         if( saveDlg.ShowModal() == wxID_CANCEL )
             return -1;
 
@@ -394,6 +403,24 @@ int SIMULATOR_CONTROL::RedoZoom( const TOOL_EVENT& aEvent )
 {
     if( SIM_PLOT_TAB* plotTab = dynamic_cast<SIM_PLOT_TAB*>( getCurrentSimTab() ) )
         plotTab->GetPlotWin()->ZoomRedo();
+
+    return 0;
+}
+
+
+int SIMULATOR_CONTROL::ToggleSimConsolePanel( const TOOL_EVENT& aEvent )
+{
+    if( m_simulatorFrame )
+        m_simulatorFrame->ToggleSimConsole();
+
+    return 0;
+}
+
+
+int SIMULATOR_CONTROL::ToggleSimSidePanel( const TOOL_EVENT& aEvent )
+{
+    if( m_simulatorFrame )
+        m_simulatorFrame->ToggleSimSidePanel();
 
     return 0;
 }
@@ -623,6 +650,7 @@ int SIMULATOR_CONTROL::ShowNetlist( const TOOL_EVENT& aEvent )
 
 void SIMULATOR_CONTROL::setTransitions()
 {
+    // clang-format off
     Go( &SIMULATOR_CONTROL::NewAnalysisTab,         SCH_ACTIONS::newAnalysisTab.MakeEvent() );
     Go( &SIMULATOR_CONTROL::OpenWorkbook,           SCH_ACTIONS::openWorkbook.MakeEvent() );
     Go( &SIMULATOR_CONTROL::SaveWorkbook,           SCH_ACTIONS::saveWorkbook.MakeEvent() );
@@ -632,7 +660,8 @@ void SIMULATOR_CONTROL::setTransitions()
     Go( &SIMULATOR_CONTROL::ExportPlotToClipboard,  SCH_ACTIONS::exportPlotToClipboard.MakeEvent() );
     Go( &SIMULATOR_CONTROL::ExportPlotToSchematic,  SCH_ACTIONS::exportPlotToSchematic.MakeEvent() );
 
-    Go( &SIMULATOR_CONTROL::Close,                  ACTIONS::quit.MakeEvent() );
+    Go( &SIMULATOR_CONTROL::ToggleSimConsolePanel,  SCH_ACTIONS::toggleSimConsole.MakeEvent() );
+    Go( &SIMULATOR_CONTROL::ToggleSimSidePanel,     SCH_ACTIONS::toggleSimSidePanel.MakeEvent() );
 
     Go( &SIMULATOR_CONTROL::Zoom,                   ACTIONS::zoomInCenter.MakeEvent() );
     Go( &SIMULATOR_CONTROL::Zoom,                   ACTIONS::zoomOutCenter.MakeEvent() );
@@ -656,4 +685,5 @@ void SIMULATOR_CONTROL::setTransitions()
 
     Go( &SIMULATOR_CONTROL::EditUserDefinedSignals, SCH_ACTIONS::editUserDefinedSignals.MakeEvent() );
     Go( &SIMULATOR_CONTROL::ShowNetlist,            SCH_ACTIONS::showNetlist.MakeEvent() );
+    // clang-format on
 }

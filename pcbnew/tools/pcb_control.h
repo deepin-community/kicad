@@ -56,6 +56,11 @@ public:
     int Print( const TOOL_EVENT& aEvent );
     int Quit( const TOOL_EVENT& aEvent );
 
+    // Footprint library control actions
+    int LoadFpFromBoard( const TOOL_EVENT& aEvent );
+    int SaveFpToBoard( const TOOL_EVENT& aEvent );
+    int IterateFootprint( const TOOL_EVENT& aEvent );
+
     // Display modes
     int ToggleRatsnest( const TOOL_EVENT& aEvent );
     int ZoneDisplayMode( const TOOL_EVENT& aEvent );
@@ -101,10 +106,20 @@ public:
     int InteractiveDelete( const TOOL_EVENT& aEvent );
     int Paste( const TOOL_EVENT& aEvent );
     int AppendBoardFromFile( const TOOL_EVENT& aEvent );
-    int AppendBoard( PCB_IO& pi, wxString& fileName );
+    int AppendDesignBlock( const TOOL_EVENT& aEvent );
+    int ApplyDesignBlockLayout( const TOOL_EVENT& aEvent );
+    int PlaceLinkedDesignBlock( const TOOL_EVENT& aEvent );
+    int SaveToLinkedDesignBlock( const TOOL_EVENT& aEvent );
+    int AppendBoard( PCB_IO& pi, const wxString& fileName, DESIGN_BLOCK* aDesignBlock = nullptr,
+                     BOARD_COMMIT* aCommit = nullptr, bool aSkipMove = false );
     int UpdateMessagePanel( const TOOL_EVENT& aEvent );
+    int PlaceCharacteristics( const TOOL_EVENT& aEvent );
+    int PlaceStackup( const TOOL_EVENT& aEvent );
+    int CollectAndEmbed3DModels( const TOOL_EVENT& aEvent );
 
     int FlipPcbView( const TOOL_EVENT& aEvent );
+
+    int RehatchShapes( const TOOL_EVENT& aEvent );
 
     // Drag and drop
     int DdAppendBoard( const TOOL_EVENT& aEvent );
@@ -137,23 +152,24 @@ private:
      * @param aAnchorAtOrigin = true if the items are translated so that the anchor is {0, 0}
      *                        (if false, the top-left item's origin will be used)
      * @param aReannotateDuplicates = true to reannotate any footprints with a designator
-                                      that already exist in the board.
+     *                                that already exist in the board.
      */
-    bool placeBoardItems( BOARD_COMMIT* aCommit, std::vector<BOARD_ITEM*>& aItems, bool aIsNew,
-                          bool aAnchorAtOrigin, bool aReannotateDuplicates );
+    bool placeBoardItems( BOARD_COMMIT* aCommit, std::vector<BOARD_ITEM*>& aItems, bool aIsNew, bool aAnchorAtOrigin,
+                          bool aReannotateDuplicates, bool aSkipMove );
 
-    bool placeBoardItems( BOARD_COMMIT* aCommit, BOARD* aBoard, bool aAnchorAtOrigin,
-                          bool aReannotateDuplicates );
+    bool placeBoardItems( BOARD_COMMIT* aCommit, BOARD* aBoard, bool aAnchorAtOrigin, bool aReannotateDuplicates,
+                          bool aSkipMove );
 
-    ///< Pointer to the currently used edit frame.
-    PCB_BASE_FRAME* m_frame;
+    void rehatchBoardItem( BOARD_ITEM* aItem );
 
-    ///< Grid origin marker.
+private:
+    PCB_BASE_FRAME*                         m_frame;
+
     std::unique_ptr<KIGFX::ORIGIN_VIEWITEM> m_gridOrigin;
 
-    BOARD_ITEM* m_pickerItem;
+    BOARD_ITEM*                             m_pickerItem;
 
-    std::unique_ptr<STATUS_TEXT_POPUP> m_statusPopup;
+    std::unique_ptr<STATUS_TEXT_POPUP>      m_statusPopup;
 };
 
 #endif

@@ -22,15 +22,12 @@
 #include <board.h>
 #include <board_design_settings.h>
 #include <pcb_track.h>
-
-#include <drc/drc_engine.h>
+#include <pad.h>
+#include <pcb_generator.h>
 #include <drc/drc_item.h>
-#include <drc/drc_rule.h>
 #include <drc/drc_test_provider.h>
 #include <drc/drc_rtree.h>
-
 #include <geometry/shape_segment.h>
-
 #include <connectivity/connectivity_data.h>
 #include <connectivity/from_to_cache.h>
 
@@ -42,10 +39,6 @@
     - DRCE_DIFF_PAIR_GAP_OUT_OF_RANGE
     - DRCE_DIFF_PAIR_UNCOUPLED_LENGTH_TOO_LONG
     - DRCE_TOO_MANY_VIAS
-    Todo:
-    - arc support.
-    - improve recognition of coupled segments (now anything that's parallel is considered
-      coupled, causing DRC errors on meanders)
 */
 
 namespace test {
@@ -55,24 +48,13 @@ class DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING : public DRC_TEST_PROVIDER
 public:
     DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING () :
         m_board( nullptr )
-    {
-    }
+    {}
 
-    virtual ~DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING()
-    {
-    }
+    virtual ~DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING() = default;
 
     virtual bool Run() override;
 
-    virtual const wxString GetName() const override
-    {
-        return wxT( "diff_pair_coupling" );
-    };
-
-    virtual const wxString GetDescription() const override
-    {
-        return wxT( "Tests differential pair coupling" );
-    }
+    virtual const wxString GetName() const override { return wxT( "diff_pair_coupling" ); };
 
 private:
     BOARD* m_board;
@@ -129,17 +111,26 @@ static bool commonParallelProjection( const PCB_ARC& p, const PCB_ARC& n, SHAPE_
     VECTOR2I n_center = n.GetCenter();
     double p_radius = p.GetRadius();
     double n_radius = n.GetRadius();
+    bool p_is_ccw = p.IsCCW();
+    bool n_is_ccw = n.IsCCW();
+
+    // Quick check to ensure arcs are of similar size and close enough to be considered coupled
+    double radiusDiffRatio = std::abs(p_radius - n_radius) / std::max(p_radius, n_radius);
+    double centerDistance = (p_center - n_center).EuclideanNorm();
+
+    if (radiusDiffRatio > 0.5 || centerDistance > std::max(p_radius, n_radius) * 0.5)
+        return false;
 
     VECTOR2I p_start( p.GetStart() );
     VECTOR2I p_end( p.GetEnd() );
 
-    if( !p.IsCCW() )
+    if( !p_is_ccw )
         std::swap( p_start, p_end );
 
     VECTOR2I n_start( n.GetStart() );
     VECTOR2I n_end( n.GetEnd() );
 
-    if( !n.IsCCW() )
+    if( !n_is_ccw )
         std::swap( n_start, n_end );
 
     SHAPE_ARC p_arc( p_start, p.GetMid(), p_end, 0 );
@@ -148,53 +139,66 @@ static bool commonParallelProjection( const PCB_ARC& p, const PCB_ARC& n, SHAPE_
     EDA_ANGLE p_start_angle = p_arc.GetStartAngle();
 
     // Rotate the arcs to a common 0 starting angle
-    p_arc.Rotate( -p_start_angle, p_center );
-    n_arc.Rotate( -p_start_angle, n_center );
+    p_arc.Rotate( p_start_angle, p_center );
+    n_arc.Rotate( p_start_angle, n_center );
 
     EDA_ANGLE p_end_angle = p_arc.GetEndAngle();
     EDA_ANGLE n_start_angle = n_arc.GetStartAngle();
     EDA_ANGLE n_end_angle = n_arc.GetEndAngle();
 
+    // Determine overlap region
+    EDA_ANGLE clip_start_angle, clip_end_angle;
 
-    EDA_ANGLE clip_total_angle;
-    EDA_ANGLE clip_start_angle;
+    // No overlap when n starts after p ends or n ends before p starts
+    if( n_start_angle >= p_end_angle || n_end_angle <= EDA_ANGLE(0) )
+        return false;
 
-    if( n_start_angle > p_end_angle )
-    {
-        // n is fully outside of p
-        if( n_end_angle > p_end_angle )
-            return false;
+    // Calculate the start and end angles of the overlap
+    clip_start_angle = std::max( EDA_ANGLE(0), n_start_angle );
+    clip_end_angle = std::min( p_end_angle, n_end_angle );
 
-        // n starts before angle 0 and ends in the middle of p
-        clip_total_angle = n_end_angle + p_start_angle;
-        clip_start_angle = p_start_angle;
-    }
-    else
-    {
-        clip_start_angle = n_start_angle + p_start_angle;
+    // Calculate the total angle of the overlap
+    EDA_ANGLE clip_total_angle = clip_end_angle - clip_start_angle;
 
-        // n is fully inside of p
-        if( n_end_angle < p_end_angle )
-            clip_total_angle = n_end_angle - n_start_angle;
-        else // n starts after 0 and ends after p
-            clip_total_angle = p_end_angle - n_start_angle;
-    }
+    // Now we reset the angles.  However, note that the convention here for adding angles
+    // is OPPOSITE the Rotate convention above.  So this undoes the rotation.
+    clip_start_angle += p_start_angle;
+    clip_end_angle += p_start_angle;
+    clip_start_angle.Normalize();
+    clip_end_angle.Normalize();
 
-    // One arc starts approximately where the other ends
+    // One arc starts approximately where the other ends or overlap is too small
     if( clip_total_angle <= EDA_ANGLE( ADVANCED_CFG::GetCfg().m_MinParallelAngle ) )
         return false;
 
-    VECTOR2I n_start_pt = n_center + VECTOR2I( KiROUND( n_radius ), 0 );
-    VECTOR2I p_start_pt = p_center + VECTOR2I( KiROUND( p_radius ), 0 );
+    // For CCW arcs, we start at clip_start_angle and sweep through clip_total_angle
+    // For CW arcs, we start at clip_end_angle and sweep through -clip_total_angle
+    VECTOR2I p_clip_point, n_clip_point;
 
-    RotatePoint( n_start_pt, n_center, clip_start_angle );
-    RotatePoint( p_start_pt, p_center, clip_start_angle );
+    if( p_is_ccw )
+    {
+        p_clip_point = p_center + KiROUND( p_radius * clip_start_angle.Cos(), p_radius * clip_start_angle.Sin() );
+        pClip = SHAPE_ARC( p_center, p_clip_point, clip_total_angle );
+    }
+    else
+    {
+        p_clip_point = p_center + KiROUND( p_radius * clip_end_angle.Cos(), p_radius * clip_end_angle.Sin() );
+        pClip = SHAPE_ARC( p_center, p_clip_point, -clip_total_angle );
+    }
 
-    pClip = SHAPE_ARC( p_center, p_start_pt, clip_total_angle );
-    nClip = SHAPE_ARC( n_center, n_start_pt, clip_total_angle );
+    if( n_is_ccw )
+    {
+        n_clip_point = n_center + KiROUND( n_radius * clip_start_angle.Cos(), n_radius * clip_start_angle.Sin() );
+        nClip = SHAPE_ARC( n_center, n_clip_point, clip_total_angle );
+    }
+    else
+    {
+        n_clip_point = n_center + KiROUND( n_radius * clip_end_angle.Cos(), n_radius * clip_end_angle.Sin() );
+        nClip = SHAPE_ARC( n_center, n_clip_point, -clip_total_angle );
+    }
 
-    if( std::abs( pClip.GetP0().x - pClip.GetArcMid().x ) < 10
-     || std::abs( nClip.GetP0().x - nClip.GetArcMid().x ) < 10 )
+    // Ensure the resulting arcs are not degenerate
+    if( pClip.GetLength() < 1.0 || nClip.GetLength() < 1.0 )
         return false;
 
     return true;
@@ -275,26 +279,41 @@ struct DIFF_PAIR_ITEMS
 
 static void extractDiffPairCoupledItems( DIFF_PAIR_ITEMS& aDp )
 {
+    auto isInTuningPattern =
+            []( BOARD_ITEM* track )
+            {
+                if( EDA_GROUP* parent = track->GetParentGroup() )
+                {
+                    if( PCB_GENERATOR* generator = dynamic_cast<PCB_GENERATOR*>( parent ) )
+                    {
+                        if( generator->GetGeneratorType() == wxS( "tuning_pattern" ) )
+                            return true;
+                    }
+                }
+
+                return false;
+            };
+
     for( BOARD_CONNECTED_ITEM* itemP : aDp.itemsP )
     {
-        PCB_TRACK* sp = dyn_cast<PCB_TRACK*>( itemP );
-        std::vector<std::optional<DIFF_PAIR_COUPLED_SEGMENTS>> coupled_vec;
-
-        if( !sp )
+        if( !itemP || itemP->Type() != PCB_TRACE_T || isInTuningPattern( itemP ) )
             continue;
 
-        for ( BOARD_CONNECTED_ITEM* itemN : aDp.itemsN )
-        {
-            PCB_TRACK* sn = dyn_cast<PCB_TRACK*> ( itemN );
+        PCB_TRACK* sp = static_cast<PCB_TRACK*>( itemP );
+        std::vector<std::optional<DIFF_PAIR_COUPLED_SEGMENTS>> coupled_vec;
 
-            if( !sn )
+        for( BOARD_CONNECTED_ITEM* itemN : aDp.itemsN )
+        {
+            if( !itemN || itemN->Type() != PCB_TRACE_T || isInTuningPattern( itemN ) )
                 continue;
+
+            PCB_TRACK* sn = static_cast<PCB_TRACK*>( itemN );
 
             if( ( sn->GetLayerSet() & sp->GetLayerSet() ).none() )
                 continue;
 
-            SEG ssp ( sp->GetStart(), sp->GetEnd() );
-            SEG ssn ( sn->GetStart(), sn->GetEnd() );
+            SEG ssp( sp->GetStart(), sp->GetEnd() );
+            SEG ssn( sn->GetStart(), sn->GetEnd() );
 
             // Segments that are ~ 1 IU in length per side are approximately parallel (tolerance is 1 IU)
             // with everything and their parallel projection is < 1 IU, leading to bad distance calculations
@@ -318,30 +337,48 @@ static void extractDiffPairCoupledItems( DIFF_PAIR_ITEMS& aDp )
             }
         }
 
-        for( auto coupled : coupled_vec )
+        for( const std::optional<DIFF_PAIR_COUPLED_SEGMENTS>& coupled : coupled_vec )
         {
-            auto excludeSelf = [&]( BOARD_ITEM* aItem )
-            {
-                if( aItem == coupled->parentN || aItem == coupled->parentP )
-                    return false;
-
-                if( aItem->Type() == PCB_TRACE_T || aItem->Type() == PCB_VIA_T
-                    || aItem->Type() == PCB_ARC_T )
-                {
-                    PCB_TRACK* bci = static_cast<PCB_TRACK*>( aItem );
-
-                    // Directly connected items don't count
-                    if( bci->HitTest( coupled->coupledN.A, 0 )
-                        || bci->HitTest( coupled->coupledN.B, 0 )
-                        || bci->HitTest( coupled->coupledP.A, 0 )
-                        || bci->HitTest( coupled->coupledP.B, 0 ) )
+            auto excludeSelf =
+                    [&]( BOARD_ITEM* aItem )
                     {
-                        return false;
-                    }
-                }
+                        if( aItem == coupled->parentN || aItem == coupled->parentP )
+                            return false;
 
-                return true;
-            };
+                        if( aItem->Type() == PCB_TRACE_T || aItem->Type() == PCB_VIA_T || aItem->Type() == PCB_ARC_T )
+                        {
+                            PCB_TRACK* bci = static_cast<PCB_TRACK*>( aItem );
+
+                            // Directly connected items don't count
+                            if( bci->HitTest( coupled->coupledN.A, 0 )
+                                || bci->HitTest( coupled->coupledN.B, 0 )
+                                || bci->HitTest( coupled->coupledP.A, 0 )
+                                || bci->HitTest( coupled->coupledP.B, 0 ) )
+                            {
+                                return false;
+                            }
+                        }
+                        else if( aItem->Type() == PCB_PAD_T )
+                        {
+                            PAD* pad = static_cast<PAD*>( aItem );
+
+                            auto trackExitsPad = [&]( PCB_TRACK* track )
+                            {
+                                bool startIn = pad->HitTest( track->GetStart(), 0 );
+                                bool endIn = pad->HitTest( track->GetEnd(), 0 );
+
+                                return startIn ^ endIn;
+                            };
+
+                            if( trackExitsPad( static_cast<PCB_TRACK*>( coupled->parentP ) )
+                                    || trackExitsPad( static_cast<PCB_TRACK*>( coupled->parentN ) ) )
+                            {
+                                return false;
+                            }
+                        }
+
+                        return true;
+                    };
 
             SHAPE_SEGMENT checkSeg( coupled->nearestN, coupled->nearestP );
             DRC_RTREE*    tree = coupled->parentP->GetBoard()->m_CopperItemRTreeCache.get();
@@ -356,18 +393,18 @@ static void extractDiffPairCoupledItems( DIFF_PAIR_ITEMS& aDp )
 
     for( BOARD_CONNECTED_ITEM* itemP : aDp.itemsP )
     {
-        PCB_ARC* sp = dyn_cast<PCB_ARC*>( itemP );
-        std::vector<std::optional<DIFF_PAIR_COUPLED_SEGMENTS>> coupled_vec;
-
-        if( !sp )
+        if( !itemP || itemP->Type() != PCB_ARC_T || isInTuningPattern( itemP ) )
             continue;
 
-        for ( BOARD_CONNECTED_ITEM* itemN : aDp.itemsN )
-        {
-            PCB_ARC* sn = dyn_cast<PCB_ARC*> ( itemN );
+        PCB_ARC* sp = static_cast<PCB_ARC*>( itemP );
+        std::vector<std::optional<DIFF_PAIR_COUPLED_SEGMENTS>> coupled_vec;
 
-            if( !sn )
+        for( BOARD_CONNECTED_ITEM* itemN : aDp.itemsN )
+        {
+            if( !itemN || itemN->Type() != PCB_ARC_T || isInTuningPattern( itemN ) )
                 continue;
+
+            PCB_ARC* sn = static_cast<PCB_ARC*>( itemN );
 
             if( ( sn->GetLayerSet() & sp->GetLayerSet() ).none() )
                 continue;
@@ -376,7 +413,9 @@ static void extractDiffPairCoupledItems( DIFF_PAIR_ITEMS& aDp )
             // with everything and their parallel projection is < 1 IU, leading to bad distance calculations
             int64_t sqWidth = static_cast<int64_t>( sp->GetWidth() ) * sp->GetWidth();
 
-            if( sp->GetLength() > 2 && sn->GetLength() > 2 && sp->GetCenter().SquaredDistance( sn->GetCenter() ) < sqWidth )
+            if( sp->GetLength() > 2
+                    && sn->GetLength() > 2
+                    && sp->GetCenter().SquaredDistance( sn->GetCenter() ) < sqWidth )
             {
                 DIFF_PAIR_COUPLED_SEGMENTS cpair;
                 cpair.isArc = true;
@@ -388,7 +427,7 @@ static void extractDiffPairCoupledItems( DIFF_PAIR_ITEMS& aDp )
                     cpair.parentN = sn;
                     cpair.layer = sp->GetLayer();
                     cpair.coupledArcP.NearestPoints( cpair.coupledArcN, cpair.nearestP, cpair.nearestN,
-                                                  cpair.computedGap );
+                                                     cpair.computedGap );
                     cpair.computedGap = std::sqrt( cpair.computedGap );  // NearestPoints returns squared distance
                     cpair.computedGap -= ( sp->GetWidth() + sn->GetWidth() ) / 2;
                     coupled_vec.push_back( cpair );
@@ -396,7 +435,7 @@ static void extractDiffPairCoupledItems( DIFF_PAIR_ITEMS& aDp )
             }
         }
 
-        for( auto coupled : coupled_vec )
+        for( const std::optional<DIFF_PAIR_COUPLED_SEGMENTS>& coupled : coupled_vec )
         {
             auto excludeSelf =
                     [&] ( BOARD_ITEM *aItem )
@@ -410,6 +449,24 @@ static void extractDiffPairCoupledItems( DIFF_PAIR_ITEMS& aDp )
 
                             if( bci->GetNetCode() == coupled->parentN->GetNetCode()
                                     ||  bci->GetNetCode() == coupled->parentP->GetNetCode() )
+                            {
+                                return false;
+                            }
+                        }
+                        else if( aItem->Type() == PCB_PAD_T )
+                        {
+                            PAD* pad = static_cast<PAD*>( aItem );
+
+                            auto arcExitsPad = [&]( PCB_ARC* arc )
+                            {
+                                bool startIn = pad->HitTest( arc->GetStart(), 0 );
+                                bool endIn = pad->HitTest( arc->GetEnd(), 0 );
+
+                                return startIn ^ endIn;
+                            };
+
+                            if( arcExitsPad( static_cast<PCB_ARC*>( coupled->parentP ) )
+                                    || arcExitsPad( static_cast<PCB_ARC*>( coupled->parentN ) ) )
                             {
                                 return false;
                             }
@@ -436,7 +493,8 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
 {
     m_board = m_drcEngine->GetBoard();
 
-    int epsilon = m_board->GetDesignSettings().GetDRCEpsilon();
+    int  epsilon = m_board->GetDesignSettings().GetDRCEpsilon();
+    LSET boardCopperLayers = LSET::AllCuMask( m_board->GetCopperLayerCount() );
 
     std::map<DIFF_PAIR_KEY, DIFF_PAIR_ITEMS> dpRuleMatches;
 
@@ -449,7 +507,7 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
 
                 if( refNet && DRC_ENGINE::IsNetADiffPair( m_board, refNet, key.netP, key.netN ) )
                 {
-                    drc_dbg( 10, wxT( "eval dp %p\n" ), item );
+                    // drc_dbg( 10, wxT( "eval dp %p\n" ), item );
 
                     for( DRC_CONSTRAINT_T constraintType : { DIFF_PAIR_GAP_CONSTRAINT,
                                                              MAX_UNCOUPLED_CONSTRAINT } )
@@ -461,7 +519,7 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
                         if( constraint.IsNull() || constraint.GetSeverity() == RPT_SEVERITY_IGNORE )
                             continue;
 
-                        drc_dbg( 10, wxT( "cns %d item %p\n" ), (int) constraintType, item );
+                        // drc_dbg( 10, wxT( "cns %d item %p\n" ), (int) constraintType, item );
 
                         DRC_RULE* parentRule = constraint.GetParentRule();
                         wxString ruleName = parentRule ? parentRule->m_Name : constraint.GetName();
@@ -471,13 +529,13 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
                         case DIFF_PAIR_GAP_CONSTRAINT:
                             key.gapConstraint = constraint.GetValue();
                             key.gapRule = parentRule;
-                            key.gapRuleName = ruleName;
+                            key.gapRuleName = std::move( ruleName );
                             break;
 
                         case MAX_UNCOUPLED_CONSTRAINT:
                             key.uncoupledConstraint = constraint.GetValue();
                             key.uncoupledRule = parentRule;
-                            key.uncoupledRuleName = ruleName;
+                            key.uncoupledRuleName = std::move( ruleName );
                             break;
 
                         default:
@@ -496,12 +554,11 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
 
     m_board->GetConnectivity()->GetFromToCache()->Rebuild( m_board );
 
-    forEachGeometryItem( { PCB_TRACE_T, PCB_VIA_T, PCB_ARC_T }, LSET::AllCuMask(),
-                         evaluateDpConstraints );
+    forEachGeometryItem( { PCB_TRACE_T, PCB_VIA_T, PCB_ARC_T }, boardCopperLayers, evaluateDpConstraints );
 
-    drc_dbg( 10, wxT( "dp rule matches %d\n" ), (int) dpRuleMatches.size() );
+    // drc_dbg( 10, wxT( "dp rule matches %d\n" ), (int) dpRuleMatches.size() );
 
-    reportAux( wxT( "DPs evaluated:" ) );
+    REPORT_AUX( wxT( "DPs evaluated:" ) );
 
     for( auto& [ key, itemSet ] : dpRuleMatches )
     {
@@ -514,8 +571,8 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
         wxString nameP = niP->GetNetname();
         wxString nameN = niN->GetNetname();
 
-        reportAux( wxString::Format( wxT( "Rule '%s', DP: (+) %s - (-) %s" ),
-                                     key.gapRuleName, nameP, nameN ) );
+        REPORT_AUX( wxString::Format( wxT( "Rule '%s', DP: (+) %s - (-) %s" ),
+                                      key.gapRuleName, nameP, nameN ) );
 
         extractDiffPairCoupledItems( itemSet );
 
@@ -523,7 +580,7 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
         itemSet.totalLengthN = 0;
         itemSet.totalLengthP = 0;
 
-        drc_dbg(10, wxT( "       coupled prims : %d\n" ), (int) itemSet.coupled.size() );
+        // drc_dbg( 10, wxT( "       coupled prims : %d\n" ), (int) itemSet.coupled.size() );
 
         std::set<BOARD_CONNECTED_ITEM*> allItems;
 
@@ -563,10 +620,10 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
                 overlay->Line( dp.coupledN );
             }
 
-            drc_dbg( 10, wxT( "               len %d gap %ld l %d\n" ),
-                     length,
-                     (long int) dp.computedGap,
-                     (int) dp.parentP->GetLayer() );
+            // drc_dbg( 10, wxT( "               len %d gap %ld l %d\n" ),
+            //          length,
+            //          (long int) dp.computedGap,
+            //          (int) dp.parentP->GetLayer() );
 
             if( key.gapConstraint )
             {
@@ -590,9 +647,10 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
         }
 
         int totalLen = std::max( itemSet.totalLengthN, itemSet.totalLengthP );
-        reportAux( wxString::Format( wxT( "   - coupled length: %s, total length: %s" ),
-                                     MessageTextFromValue( itemSet.totalCoupled ),
-                                     MessageTextFromValue( totalLen ) ) );
+
+        REPORT_AUX( wxString::Format( wxT( "   - coupled length: %s, total length: %s" ),
+                                      MessageTextFromValue( itemSet.totalCoupled ),
+                                      MessageTextFromValue( totalLen ) ) );
 
         int  totalUncoupled = totalLen - itemSet.totalCoupled;
         bool uncoupledViolation = false;
@@ -603,13 +661,11 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
 
             if( val.HasMax() && val.Max() >= 0 && totalUncoupled > val.Max() )
             {
-                auto     drce = DRC_ITEM::Create( DRCE_DIFF_PAIR_UNCOUPLED_LENGTH_TOO_LONG );
-                wxString msg = formatMsg( _( "(%s maximum uncoupled length %s; actual %s)" ),
-                                          key.uncoupledRuleName,
-                                          val.Max(),
-                                          totalUncoupled );
-
-                drce->SetErrorMessage( drce->GetErrorText() + wxS( " " ) + msg );
+                std::shared_ptr<DRC_ITEM> drce = DRC_ITEM::Create( DRCE_DIFF_PAIR_UNCOUPLED_LENGTH_TOO_LONG );
+                drce->SetErrorDetail( formatMsg( _( "(%s maximum uncoupled length %s; actual %s)" ),
+                                                 key.uncoupledRuleName,
+                                                 val.Max(),
+                                                 totalUncoupled ) );
 
                 BOARD_CONNECTED_ITEM* item = nullptr;
                 auto                  p_it = itemSet.itemsP.begin();
@@ -667,25 +723,24 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
                     if( !dp.couplingFailMin && !dp.couplingFailMax )
                         continue;
 
-                    auto     drcItem = DRC_ITEM::Create( DRCE_DIFF_PAIR_GAP_OUT_OF_RANGE );
-                    wxString msg;
+                    std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_DIFF_PAIR_GAP_OUT_OF_RANGE );
 
                     if( dp.couplingFailMin )
                     {
-                        msg = formatMsg( _( "(%s minimum gap %s; actual %s)" ),
-                                         key.gapRuleName,
-                                         val.Min(),
-                                         dp.computedGap );
+                        drcItem->SetErrorDetail( formatMsg( _( "(%s minimum gap %s; actual %s)" ),
+                                                            key.gapRuleName,
+                                                            val.Min(),
+                                                            (double) dp.computedGap ) );
                     }
                     else if( dp.couplingFailMax )
                     {
-                        msg = formatMsg( _( "(%s maximum gap %s; actual %s)" ),
-                                         key.gapRuleName,
-                                         val.Max(),
-                                         dp.computedGap );
+                        drcItem->SetErrorDetail( formatMsg( _( "(%s maximum gap %s; actual %s)" ),
+                                                            key.gapRuleName,
+                                                            val.Max(),
+                                                            (double) dp.computedGap ) );
                     }
 
-                    drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + msg );
+                    drcItem->SetViolatingRule( key.gapRule );
 
                     BOARD_CONNECTED_ITEM* item = nullptr;
 
@@ -701,15 +756,12 @@ bool test::DRC_TEST_PROVIDER_DIFF_PAIR_COUPLING::Run()
                         drcItem->AddItem( dp.parentN );
                     }
 
-                    drcItem->SetViolatingRule( key.gapRule );
-
-                    reportViolation( drcItem, item->GetFocusPosition(), item->GetLayer() );
+                    if( item )
+                        reportViolation( drcItem, item->GetFocusPosition(), item->GetLayer() );
                 }
             }
         }
     }
-
-    reportRuleStatistics();
 
     return true;
 }

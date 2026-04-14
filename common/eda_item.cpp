@@ -26,21 +26,26 @@
 
 #include <bitmaps.h>
 #include <eda_item.h>
+#include <eda_group.h>
 #include <trace_helpers.h>
 #include <trigo.h>
 #include <i18n_utility.h>
 #include <wx/log.h>
 
 #include <wx/fdrepdlg.h>
+#include <wx/regex.h>
 #include <eda_pattern_match.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 EDA_ITEM::EDA_ITEM( EDA_ITEM* parent, KICAD_T idType, bool isSCH_ITEM, bool isBOARD_ITEM ) :
         KIGFX::VIEW_ITEM( isSCH_ITEM, isBOARD_ITEM ),
         m_structType( idType ),
         m_flags( 0 ),
         m_parent( parent ),
-        m_forceVisible( false ),
-        m_isRollover( false )
+        m_group( nullptr ),
+        m_isRollover( false ),
+        m_forceVisible( false )
 { }
 
 
@@ -49,8 +54,9 @@ EDA_ITEM::EDA_ITEM( KICAD_T idType, bool isSCH_ITEM, bool isBOARD_ITEM ) :
         m_structType( idType ),
         m_flags( 0 ),
         m_parent( nullptr ),
-        m_forceVisible( false ),
-        m_isRollover( false )
+        m_group( nullptr ),
+        m_isRollover( false ),
+        m_forceVisible( false )
 { }
 
 
@@ -60,10 +66,44 @@ EDA_ITEM::EDA_ITEM( const EDA_ITEM& base ) :
         m_structType( base.m_structType ),
         m_flags( base.m_flags ),
         m_parent( base.m_parent ),
-        m_forceVisible( base.m_forceVisible ),
-        m_isRollover( false )
+        m_group( base.m_group ),
+        m_isRollover( false ),
+        m_forceVisible( base.m_forceVisible )
 {
     SetForcedTransparency( base.GetForcedTransparency() );
+}
+
+
+EDA_ITEM* EDA_ITEM::findParent( KICAD_T aType ) const
+{
+    EDA_ITEM* parent = GetParent();
+
+    while( parent )
+    {
+        if( parent->Type() == aType )
+            return parent;
+        else
+            parent = parent->GetParent();
+    }
+
+    return nullptr;
+}
+
+
+void EDA_ITEM::SetParent( EDA_ITEM* aParent )
+{
+    wxCHECK( aParent != this, /* void */ );
+
+    m_parent = aParent;
+}
+
+
+KIID EDA_ITEM::GetParentGroupId() const
+{
+    if( EDA_GROUP* group = GetParentGroup() )
+        return group->AsEdaItem()->m_Uuid;
+    else
+        return niluuid;
 }
 
 
@@ -113,8 +153,7 @@ INSPECT_RESULT EDA_ITEM::Visit( INSPECTOR inspector, void* testData,
 
 wxString EDA_ITEM::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    wxFAIL_MSG( wxT( "GetItemDescription() was not overridden for schematic item type " ) +
-                GetClass() );
+    wxFAIL_MSG( wxT( "GetItemDescription() was not overridden for item type " ) + GetClass() );
 
     return wxString( wxT( "Undefined item description for " ) + GetClass() );
 }
@@ -182,6 +221,21 @@ bool EDA_ITEM::Matches( const wxString& aText, const EDA_SEARCH_DATA& aSearchDat
     {
         return text.Matches( searchText );
     }
+    else if( aSearchData.matchMode == EDA_SEARCH_MATCH_MODE::REGEX )
+    {
+        if( aSearchData.regex_string != searchText || !aSearchData.regex.IsValid() )
+        {
+            int flag = aSearchData.matchCase ? 0 : wxRE_ICASE;
+            wxLogNull noLogs;
+
+            if( !aSearchData.regex.Compile( searchText, flag ) )
+                return false;
+
+            aSearchData.regex_string = searchText;
+        }
+
+        return aSearchData.regex.Matches( text );
+    }
     else
     {
         return text.Find( searchText ) != wxNOT_FOUND;
@@ -195,6 +249,26 @@ bool EDA_ITEM::Replace( const EDA_SEARCH_DATA& aSearchData, wxString& aText )
     wxString searchText = aSearchData.findString;
     wxString result;
     bool     replaced = false;
+
+    if( aSearchData.matchMode == EDA_SEARCH_MATCH_MODE::REGEX )
+    {
+        if( aSearchData.regex_string != searchText || !aSearchData.regex.IsValid() )
+        {
+            int flag = aSearchData.matchCase ? 0 : wxRE_ICASE;
+            wxLogNull noLogs;
+
+            if( !aSearchData.regex.Compile( searchText, flag ) )
+                return false;
+
+            aSearchData.regex_string = searchText;
+        }
+
+        if( !aSearchData.regex.Replace( &text, aSearchData.replaceString ) )
+            return false;
+
+        aText = text;
+        return true;
+    }
 
     if( !aSearchData.matchCase )
     {
@@ -268,7 +342,9 @@ EDA_ITEM& EDA_ITEM::operator=( const EDA_ITEM& aItem )
     m_structType   = aItem.m_structType;
     m_flags        = aItem.m_flags;
     m_parent       = aItem.m_parent;
+    m_group        = aItem.m_group;
     m_forceVisible = aItem.m_forceVisible;
+    m_isRollover   = aItem.m_isRollover;
 
     SetForcedTransparency( aItem.GetForcedTransparency() );
 
@@ -346,6 +422,7 @@ static struct EDA_ITEM_DESC
             .Undefined( TYPE_NOT_INIT )
             .Map( NOT_USED,                wxT( "<not used>" ) )
             .Map( SCREEN_T,                _HKI( "Screen" ) )
+            .Map( SCHEMATIC_T,             _HKI( "Schematic" ) )
 
             .Map( PCB_FOOTPRINT_T,         _HKI( "Footprint" ) )
             .Map( PCB_PAD_T,               _HKI( "Pad" ) )
@@ -367,10 +444,12 @@ static struct EDA_ITEM_DESC
             .Map( PCB_DIM_RADIAL_T,        _HKI( "Dimension" ) )
             .Map( PCB_DIM_LEADER_T,        _HKI( "Leader" ) )
             .Map( PCB_TARGET_T,            _HKI( "Target" ) )
+            .Map( PCB_POINT_T,             _HKI( "Point" ) )
             .Map( PCB_ZONE_T,              _HKI( "Zone" ) )
             .Map( PCB_ITEM_LIST_T,         _HKI( "ItemList" ) )
             .Map( PCB_NETINFO_T,           _HKI( "NetInfo" ) )
             .Map( PCB_GROUP_T,             _HKI( "Group" ) )
+            .Map( PCB_BARCODE_T,           _HKI( "Barcode" ) )
 
             .Map( SCH_MARKER_T,            _HKI( "Marker" ) )
             .Map( SCH_JUNCTION_T,          _HKI( "Junction" ) )
@@ -394,6 +473,7 @@ static struct EDA_ITEM_DESC
             .Map( SCH_PIN_T,               _HKI( "Pin" ) )
             .Map( SCH_SHEET_PIN_T,         _HKI( "Sheet Pin" ) )
             .Map( SCH_SHEET_T,             _HKI( "Sheet" ) )
+            .Map( SCH_GROUP_T,             _HKI( "Group" ) )
 
             // Synthetic search tokens don't need to be included...
             //.Map( SCH_FIELD_LOCATE_REFERENCE_T, _HKI( "Field Locate Reference" ) )

@@ -43,50 +43,21 @@ The Schematic Editor supports multi-sheet schematics in several ways:
 Hierarchical schematics are described in detail
 <<hierarchical-schematics,later in the manual>>.
 
-[[initial-configuration]]
-=== Initial Configuration
-
-When the Schematic Editor is run for the first time, if the the global symbol
-library table file `sym-lib-table` is not found in the KiCad configuration
-folder then KiCad will ask how to create this file:
-
-image::images/en/symbol-lib-table-configuration.png[scaledwidth="80%",alt="symbol library table initial configuration"]
-
-The first option is recommended (*Copy default global symbol library table
-(recommended)*). The default symbol library table includes all of the
-standard symbol libraries that are installed as part of KiCad.
-
-If this option is disabled, KiCad was unable to find the default global
-symbol library table. This probably means you did not install the standard
-symbol libraries with KiCad, or they are not installed where KiCad expects to
-find them. On some systems the KiCad libraries are installed as a separate
-package.
-
-* If you have installed the standard KiCad symbol libraries and want to use
-  them, but the first option is disabled, select the second option and browse to
-  the `sym-lib-table` file in the directory where the KiCad libraries were
-  installed.
-* If you already have a custom symbol library table that you would like to use,
-  select the second option and browse to your `sym-lib-table` file.
-* If you want to construct a new symbol library table from scratch, select
-  the third option.
-
-Symbol library management, including how to re-run this initial configuration,
-is described in more detail <<managing-symbol-libraries,later>>.
-
 === The Schematic Editor User Interface
 
-image::images/en/commands_overview.png[alt="Schematic Editor overview",scaledwidth="60%"]
+// note: SVG template for this at kicad-doc/helpers/eeschema_user_interface.svg
+image::images/eeschema_user_interface.png[alt="Schematic Editor overview",scaledwidth="60%"]
 
-The main Schematic Editor user interface is shown above. The center contains the
-main editing canvas, which is surrounded by:
+The main Schematic Editor user interface is shown above, with some key elements indicated:
 
-* Top toolbars (file management, zoom tools, editing tools)
-* Left toolbar (display options), <<navigating-between-sheets,Hierarchy Navigator>>,
-  <<properties-manager,Properties Manager>>, and the <<selection,selection filter>> at left
-* Message panel and status bar at bottom
-* Right toolbar (drawing and design tools) and
-  <<schematic-design-blocks,Design Block panel>> at right
+1. Top toolbars (file management, zoom tools, editing tools)
+2. <<editing-object-properties,Properties panel>>
+3. <<navigating-between-sheets,Schematic hierarchy navigator panel>>
+4. <<selection,Selection filter panel>>
+5. Message panel and status bar
+6. <<left-toolbar,Left toolbar (display options)>>
+7. <<schematic-editing-operations,Right toolbar (drawing and design tools)>>
+8. Editing canvas
 
 === Navigating the editing canvas
 
@@ -147,9 +118,9 @@ is active.
 Hotkeys are stored in the file `user.hotkeys` in KiCad's configuration
 directory. The location is platform-specific:
 
-* Windows: `%APPDATA%\kicad\9.0\user.hotkeys`
-* Linux: `~/.config/kicad/9.0/user.hotkeys`
-* macOS: `~/Library/Preferences/kicad/9.0/user.hotkeys`
+* Windows: `%APPDATA%\kicad\10.0\user.hotkeys`
+* Linux: `~/.config/kicad/10.0/user.hotkeys`
+* macOS: `~/Library/Preferences/kicad/10.0/user.hotkeys`
 
 KiCad can import hotkey settings from a `user.hotkeys` file using the **Import
 Hotkeys** button in the hotkey editor.
@@ -158,15 +129,44 @@ Hotkeys** button in the hotkey editor.
 === Selection and the selection filter
 
 Selecting items in the editing canvas is done with the left mouse button.
-Single-clicking on an object will select it. Clicking and dragging will perform
-a box selection. A box selection from left to right will only select items that
-are fully inside the box. A box selection from right to left will select any
-items that touch the box. A left-to-right selection box is drawn in yellow, with
-a cursor that indicates exclusive selection, and a right-to-left selection box
-is drawn in blue with a cursor that indicates inclusive selection.
+When no tool is active, single-clicking on an object will select it.
+Pressing kbd:[Esc] will always cancel the current tool or operation and return to the selection tool.
+Pressing kbd:[Esc] while the selection tool is active will clear the current selection.
 
-The selection action can be modified by holding modifier keys while clicking or
-dragging. The following modifier keys apply when clicking to select single items:
+You can also select items using a rectangle or lasso selection.
+These tools can be useful for selecting many items at once.
+You can switch between rectangular and lasso selection modes using the image:images/icons/cursor_24.png[] / image:images/icons/lasso_24.png[] palette in the right toolbar.
+
+NOTE: To switch between multiple tools in a palette,
+      show the palette by clicking and holding the left mouse button on the tool icon
+      or by clicking and dragging the mouse from the tool icon.
+      Release the mouse button on the desired tool to choose it.
+
+With the rectangular selection mode active (image:images/icons/cursor_24.png[]),
+clicking and dragging will perform a rectangular selection.
+A rectangular selection from left to right will only select items that are fully inside the box.
+A rectangular selection from right to left will select any items that touch the box.
+A left-to-right selection box is drawn in yellow, with a cursor that indicates exclusive selection,
+and a right-to-left selection box is drawn in blue with a cursor that indicates inclusive selection.
+
+With the lasso selection mode active (image:images/icons/lasso_24.png[]),
+clicking and dragging will begin a lasso selection.
+Any items in the existing selection are deselected.
+Dragging with the left mouse button held draws a freeform shape.
+Releasing the button stops drawing the freeform shape and starts drawing a straight line.
+Clicking again completes the straight line.
+Any number of freeform or straight segments can be drawn by repeatedly clicking or dragging.
+Double click to finish drawing the lasso.
+Similar to a rectangular selection,
+a lasso drawn in a clockwise direction will only select items that are fully inside the lasso.
+A lasso drawn in a counter-clockwise direction will select any items that touch the lasso.
+A clockwise lasso is drawn in yellow, with a cursor that indicates exclusive selection,
+and a counter-clockwise lasso is drawn in blue with a cursor that indicates inclusive selection.
+
+The selection action can be modified by holding modifier keys while clicking or dragging.
+Modifiers cannot be used with lasso selections.
+
+The following modifier keys apply when clicking to select single items:
 
 [options="header",cols="20%,20%,20%,40%",]
 |====
@@ -182,7 +182,7 @@ dragging. The following modifier keys apply when clicking to select single items
   | Clarify selection from a pop-up menu.
 |====
 
-The following modifier keys apply when dragging to perform a box selection:
+The following modifier keys apply when dragging to perform a rectangular selection:
 
 [options="header",cols="20%,20%,20%,40%",]
 |====
@@ -198,9 +198,15 @@ The following modifier keys apply when dragging to perform a box selection:
 
 The selection filter panel in the lower left corner of the Schematic Editor window controls which types of
 objects can be selected with the mouse.  Turning off selection of unwanted object types makes it
-easier to select items in a busy schematic.  The "All items" checkbox is a shortcut to turn the other
+easier to select items in a busy schematic.
+
+The **All items** checkbox is a shortcut to turn the other
 items on and off.  You can right-click any object type in the
 selection filter to quickly change the filter to only allow selecting that type of object.
+
+If you repeatedly try to select an object whose type is disabled in the selection filter,
+the selection filter will visually flash the checkbox for that object type as a reminder that
+selecting that object type is disabled.
 
 image::images/selection_filter.png[]
 
@@ -208,15 +214,22 @@ Selecting an object displays information about the object in the message panel
 at the bottom of the window. Double-clicking an object opens a window to edit
 the object's properties.
 
-Pressing kbd:[Esc] will always cancel the current tool or operation and return
-to the selection tool. Pressing kbd:[Esc] while the selection tool is active
-will clear the current selection.
-
 [[left-toolbar]]
 === Left toolbar display controls
 
 The left toolbar provides options to change the display of items in the
 Schematic Editor.
+
+Some toolbar buttons have more than one item available in a palette.
+These buttons are indicated with a small arrow in the lower-right corner of the button:
+image:images/palette_buttons.png[]
+
+To show the palette, you can click and hold the mouse button on the button or click and drag the mouse.
+The palette will show the selected item when it is closed.
+
+The default contents of the left toolbar are shown below.
+
+NOTE: You can edit the toolbar's contents in the **Toolbar** page of the Schematic Editor Preferences.
 
 [width="100%",cols="5%,95%",]
 |=======================================================================
@@ -236,9 +249,15 @@ Schematic Editor.
 
   image:images/icons/unit_mm_24.png[millimeter unit icon]
     | Display/entry of coordinates and dimensions in inches, mils, or millimeters.
+      Clicking the button toggles to the next unit, or you can choose a unit directly by expanding the palette (click and hold/drag).
 
 | image:images/icons/cursor_shape_24.png[cursor shape icon]
-    | Switches between full-screen and small editing cursor (crosshairs).
+
+  image:images/icons/cursor_fullscreen_24.png[]
+
+  image:images/icons/cursor_fullscreen45_24.png[]
+    | Switches the cursor crosshair between small, fullscreen, and 45-degree-rotated fullscreen.
+      Clicking the button toggles to the next crosshair type, or you can choose a crosshair directly by expanding the palette (click and hold/drag).
 
 | image:images/icons/hidden_pin_24.png[hidden pin icon]
     | Turns invisible pin display on/off.
@@ -249,8 +268,10 @@ Schematic Editor.
 
   image:images/icons/hv45mode_24.png[45deg angle wire icon]
 
-    | Switches between free angle, 90 degree mode, and 45 degree mode for
+    | Switches the line mode between free angle, 90 degree mode, and 45 degree mode for
       placement of new wires, buses, and graphical shapes.
+      Clicking the button toggles to the next line mode, or you can choose a line mode directly by expanding the palette (click and hold/drag).
+      You can also toggle between line modes using kbd:[Shift+Space].
 
 | image:images/icons/annotate_24.png[automatic annotation icon]
     | Turns automatic <<reference-designators-and-symbol-annotation,symbol annotation>> on/off.
@@ -261,6 +282,6 @@ Schematic Editor.
     | Opens and closes the docked <<navigating-between-sheets,Hierarchy Navigator>> panel.
 
 | image:images/icons/tools_24.png[Properties Manager icon]
-    | Opens and closes the docked <<editing-symbol-properties,Properties Manager>> panel.
+    | Opens and closes the docked <<editing-object-properties,Properties Manager>> panel.
 
 |=======================================================================

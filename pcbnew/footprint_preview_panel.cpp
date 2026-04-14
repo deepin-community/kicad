@@ -32,7 +32,7 @@
 #include <dpi_scaling_common.h>
 #include <eda_draw_frame.h>
 #include <footprint_preview_panel.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <gal/graphics_abstraction_layer.h>
 #include <kiway.h>
 #include <math/box2.h>
@@ -43,9 +43,9 @@
 #include <settings/settings_manager.h>
 #include <view/view.h>
 #include <wx/stattext.h>
-#include <zoom_defines.h>
 #include <dialog_shim.h>
 #include <project_pcb.h>
+
 
 FOOTPRINT_PREVIEW_PANEL::FOOTPRINT_PREVIEW_PANEL( KIWAY* aKiway, wxWindow* aParent,
                                                   UNITS_PROVIDER* aUnitsProvider,
@@ -53,8 +53,7 @@ FOOTPRINT_PREVIEW_PANEL::FOOTPRINT_PREVIEW_PANEL( KIWAY* aKiway, wxWindow* aPare
                                                   GAL_TYPE aGalType ) :
         PCB_DRAW_PANEL_GAL( aParent, -1, wxPoint( 0, 0 ), wxSize( 200, 200 ), *aOpts, aGalType ),
         KIWAY_HOLDER( aKiway, KIWAY_HOLDER::PANEL ),
-        m_displayOptions( std::move( aOpts ) ),
-        m_currentFootprint( nullptr )
+        m_displayOptions( std::move( aOpts ) )
 {
     SetStealsFocus( false );
     ShowScrollbars( wxSHOW_SB_NEVER, wxSHOW_SB_NEVER );
@@ -76,6 +75,12 @@ FOOTPRINT_PREVIEW_PANEL::FOOTPRINT_PREVIEW_PANEL( KIWAY* aKiway, wxWindow* aPare
 
 FOOTPRINT_PREVIEW_PANEL::~FOOTPRINT_PREVIEW_PANEL( )
 {
+    ClearViewAndData();
+}
+
+
+void FOOTPRINT_PREVIEW_PANEL::ClearViewAndData()
+{
     m_dummyBoard->DetachAllFootprints();
 
     if( m_currentFootprint )
@@ -85,6 +90,9 @@ FOOTPRINT_PREVIEW_PANEL::~FOOTPRINT_PREVIEW_PANEL( )
         GetView()->Remove( m_otherFootprint.get() );
 
     GetView()->Clear();
+
+    m_currentFootprint = nullptr;
+    m_otherFootprint = nullptr;
 }
 
 
@@ -164,17 +172,11 @@ bool FOOTPRINT_PREVIEW_PANEL::DisplayFootprint( const LIB_ID& aFPID )
 
     GetView()->Clear();
 
-    FP_LIB_TABLE* fptbl = PROJECT_PCB::PcbFootprintLibs( &Prj() );
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
 
     try
     {
-        const FOOTPRINT* fp = fptbl->GetEnumeratedFootprint( aFPID.GetLibNickname(),
-                                                             aFPID.GetLibItemName() );
-
-        if( fp )
-            m_currentFootprint.reset( static_cast<FOOTPRINT*>( fp->Duplicate() ) );
-        else
-            m_currentFootprint.reset();
+        m_currentFootprint.reset( adapter->LoadFootprint( aFPID.GetLibNickname(), aFPID.GetLibItemName(), false ) );
     }
     catch( ... )
     {
@@ -211,7 +213,7 @@ void FOOTPRINT_PREVIEW_PANEL::DisplayFootprints( std::shared_ptr<FOOTPRINT> aFoo
 
     if( m_currentFootprint )
     {
-        wxASSERT( m_otherFootprint );
+        wxCHECK( m_otherFootprint, /* void */ );
 
         renderFootprint( m_currentFootprint );
         renderFootprint( m_otherFootprint );
@@ -234,26 +236,13 @@ FOOTPRINT_PREVIEW_PANEL* FOOTPRINT_PREVIEW_PANEL::New( KIWAY* aKiway, wxWindow* 
                                                        UNITS_PROVIDER* aUnitsProvider )
 {
     PCBNEW_SETTINGS* cfg = Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-
-    if( cfg->m_Window.grid.grids.empty() )
-        cfg->m_Window.grid.grids = cfg->DefaultGridSizeList();
-
-    // Currently values read from config file are not used because the user cannot
-    // change this config
-    //if( cfg->m_Window.zoom_factors.empty() )
-    {
-        if( ADVANCED_CFG::GetCfg().m_HyperZoom )
-            cfg->m_Window.zoom_factors = { ZOOM_LIST_PCBNEW_HYPER };
-        else
-            cfg->m_Window.zoom_factors = { ZOOM_LIST_PCBNEW };
-    }
-
+    COMMON_SETTINGS* commonSettings = Pgm().GetCommonSettings();
     std::unique_ptr<GAL_DISPLAY_OPTIONS_IMPL> gal_opts;
 
     gal_opts = std::make_unique<GAL_DISPLAY_OPTIONS_IMPL>();
-    gal_opts->ReadConfig( *Pgm().GetCommonSettings(), cfg->m_Window, aParent );
+    gal_opts->ReadConfig( *commonSettings, cfg->m_Window, aParent );
 
-    auto galType = static_cast<EDA_DRAW_PANEL_GAL::GAL_TYPE>( cfg->m_Graphics.canvas_type );
+    auto galType = static_cast<EDA_DRAW_PANEL_GAL::GAL_TYPE>( commonSettings->m_Graphics.canvas_type );
     FOOTPRINT_PREVIEW_PANEL* panel = new FOOTPRINT_PREVIEW_PANEL( aKiway, aParent, aUnitsProvider,
                                                                   std::move( gal_opts ), galType );
 

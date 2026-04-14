@@ -119,7 +119,7 @@ void SCH_CONNECTION::SetDriver( SCH_ITEM* aItem )
 }
 
 
-void SCH_CONNECTION::SetSheet( SCH_SHEET_PATH aSheet )
+void SCH_CONNECTION::SetSheet( const SCH_SHEET_PATH& aSheet )
 {
     m_sheet       = aSheet;
     m_local_sheet = aSheet;
@@ -153,13 +153,14 @@ void SCH_CONNECTION::ConfigureFromLabel( const wxString& aLabel )
     if( NET_SETTINGS::ParseBusVector( unescaped, &prefix, &members ) )
     {
         m_type = CONNECTION_TYPE::BUS;
-        m_vector_prefix = prefix;
+        m_vector_prefix = std::move( prefix );
 
         long i = 0;
 
         for( const wxString& vector_member : members )
         {
-            auto member            = std::make_shared<SCH_CONNECTION>( m_parent, m_sheet );
+            std::shared_ptr<SCH_CONNECTION> member = std::make_shared<SCH_CONNECTION>( m_parent, m_sheet );
+
             member->m_type         = CONNECTION_TYPE::NET;
             member->m_prefix       = m_prefix;
             member->m_local_name   = vector_member;
@@ -167,7 +168,7 @@ void SCH_CONNECTION::ConfigureFromLabel( const wxString& aLabel )
             member->m_vector_index = i++;
             member->SetName( vector_member );
             member->SetGraph( m_graph );
-            m_members.push_back( member );
+            m_members.push_back( std::move( member ) );
         }
     }
     else if( NET_SETTINGS::ParseBusGroup( unescaped, &prefix, &members ) )
@@ -186,20 +187,20 @@ void SCH_CONNECTION::ConfigureFromLabel( const wxString& aLabel )
             {
                 for( const wxString& alias_member : alias->Members() )
                 {
-                    auto member = std::make_shared< SCH_CONNECTION >( m_parent, m_sheet );
+                    std::shared_ptr<SCH_CONNECTION> member = std::make_shared<SCH_CONNECTION>( m_parent, m_sheet );
                     member->SetPrefix( prefix );
                     member->SetGraph( m_graph );
                     member->ConfigureFromLabel( EscapeString( alias_member, CTX_NETNAME ) );
-                    m_members.push_back( member );
+                    m_members.push_back( std::move( member ) );
                 }
             }
             else
             {
-                auto member = std::make_shared< SCH_CONNECTION >( m_parent, m_sheet );
+                std::shared_ptr<SCH_CONNECTION> member = std::make_shared<SCH_CONNECTION>( m_parent, m_sheet );
                 member->SetPrefix( prefix );
                 member->SetGraph( m_graph );
                 member->ConfigureFromLabel( group_member );
-                m_members.push_back( member );
+                m_members.push_back( std::move( member ) );
             }
         }
     }
@@ -336,7 +337,7 @@ bool SCH_CONNECTION::IsDriver() const
         if( const SCH_SYMBOL* symbol = dynamic_cast<const SCH_SYMBOL*>( pin->GetParentSymbol() ) )
         {
             // Only annotated symbols should drive nets.
-            return pin->IsGlobalPower() || symbol->IsAnnotated( &m_sheet );
+            return pin->IsPower() || symbol->IsAnnotated( &m_sheet );
         }
 
         return true;
@@ -399,19 +400,28 @@ void SCH_CONNECTION::recacheName()
         switch( m_driver->Type() )
         {
         case SCH_GLOBAL_LABEL_T:
-        case SCH_PIN_T:
-            // Pins are either power connections or belong to a uniquely-annotated
-            // symbol, so they don't need a path if they are driving the subgraph.
             prepend_path = false;
             break;
+
+        case SCH_PIN_T:
+        { // Normal pins and global power pins do not need a path.  But local power pins do
+            SCH_PIN* pin = static_cast<SCH_PIN*>( m_driver );
+
+            prepend_path = pin->IsLocalPower();
+            break;
+        }
 
         default:
             break;
         }
     }
 
-    m_cached_name_with_path = prepend_path ? m_sheet.PathHumanReadable() << m_cached_name
-                                           : m_cached_name;
+    // Use aEscapeSheetNames=true so that sheets with '/' in their names have the slash
+    // escaped to "{slash}". This ensures pattern matching for net classes works correctly
+    // since '/' is used as the hierarchy separator.
+    m_cached_name_with_path = prepend_path
+            ? m_sheet.PathHumanReadable( true, false, true ) << m_cached_name
+            : m_cached_name;
 }
 
 
@@ -439,24 +449,27 @@ void SCH_CONNECTION::SetSuffix( const wxString& aSuffix )
 
 void SCH_CONNECTION::AppendInfoToMsgPanel( std::vector<MSG_PANEL_ITEM>& aList ) const
 {
-    wxString msg, group_name, members;
+    wxString msg, group_name;
     std::vector<wxString> group_members;
 
     aList.emplace_back( _( "Connection Name" ), UnescapeString( Name() ) );
 
-    if( std::shared_ptr<BUS_ALIAS> alias = m_graph->GetBusAlias( m_name ) )
+    if( IsBus() )
     {
-        msg.Printf( _( "Bus Alias %s Members" ), m_name );
-        aList.emplace_back( msg, boost::algorithm::join( alias->Members(), " " ) );
-    }
-    else if( NET_SETTINGS::ParseBusGroup( m_name, &group_name, &group_members ) )
-    {
-        for( const wxString& group_member : group_members )
+        if( std::shared_ptr<BUS_ALIAS> alias = m_graph->GetBusAlias( m_name ) )
         {
-            if( std::shared_ptr<BUS_ALIAS> group_alias = m_graph->GetBusAlias( group_member ) )
+            msg.Printf( _( "Bus Alias %s Members" ), m_name );
+            aList.emplace_back( msg, boost::algorithm::join( alias->Members(), " " ) );
+        }
+        else if( NET_SETTINGS::ParseBusGroup( m_name, &group_name, &group_members ) )
+        {
+            for( const wxString& group_member : group_members )
             {
-                msg.Printf( _( "Bus Alias %s Members" ), group_alias->GetName() );
-                aList.emplace_back( msg, boost::algorithm::join( group_alias->Members(), " " ) );
+                if( std::shared_ptr<BUS_ALIAS> group_alias = m_graph->GetBusAlias( group_member ) )
+                {
+                    msg.Printf( _( "Bus Alias %s Members" ), group_alias->GetName() );
+                    aList.emplace_back( msg, boost::algorithm::join( group_alias->Members(), " " ) );
+                }
             }
         }
     }
@@ -540,6 +553,14 @@ wxString SCH_CONNECTION::PrintBusForUI( const wxString& aGroup )
             continue;
         }
 
+        // Handle backslash-escaped spaces (display without the backslash)
+        if( aGroup[i] == '\\' && i + 1 < groupLen && aGroup[i + 1] == ' ' )
+        {
+            ret += ' ';
+            i++;
+            continue;
+        }
+
         ret += aGroup[i];
 
         if( aGroup[i] == '{' )
@@ -562,6 +583,14 @@ wxString SCH_CONNECTION::PrintBusForUI( const wxString& aGroup )
             continue;
         }
 
+        // Handle backslash-escaped spaces (display without the backslash)
+        if( aGroup[i] == '\\' && i + 1 < groupLen && aGroup[i + 1] == ' ' )
+        {
+            ret += ' ';
+            i++;
+            continue;
+        }
+
         ret += aGroup[i];
 
         if( aGroup[i] == '}' )
@@ -577,13 +606,37 @@ bool SCH_CONNECTION::IsSubsetOf( SCH_CONNECTION* aOther ) const
     if( !aOther->IsBus() )
         return false;
 
-    for( const std::shared_ptr<SCH_CONNECTION>& member : aOther->Members() )
+    if( !IsBus() )
     {
-        if( member->FullLocalName() == FullLocalName() )
-            return true;
+        for( const std::shared_ptr<SCH_CONNECTION>& otherMember : aOther->Members() )
+        {
+            if( FullLocalName() == otherMember->FullLocalName() )
+                return true;
+        }
+
+        return false;
     }
 
-    return false;
+    // If both connections are buses, check if all members of this bus are in the other bus
+    for( const std::shared_ptr<SCH_CONNECTION>& member : m_members )
+    {
+        bool found = false;
+
+        for( const std::shared_ptr<SCH_CONNECTION>& otherMember : aOther->Members() )
+        {
+            if( member->FullLocalName() == otherMember->FullLocalName() )
+            {
+                found = true;
+                break;
+            }
+        }
+
+        // If one of the members is not found in the other connection, this is not a subset
+        if( !found )
+            return false;
+    }
+
+    return true;
 }
 
 

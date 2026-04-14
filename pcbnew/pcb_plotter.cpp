@@ -22,6 +22,7 @@
  */
 
 #include <pcb_plotter.h>
+#include <common.h>
 #include <plotters/plotter.h>
 #include <plotters/plotters_pslike.h>
 #include <board.h>
@@ -33,9 +34,24 @@
 #include <jobs/job_export_pcb_dxf.h>
 #include <jobs/job_export_pcb_pdf.h>
 #include <jobs/job_export_pcb_plot.h>
+#include <jobs/job_export_pcb_ps.h>
 #include <jobs/job_export_pcb_svg.h>
 #include <pgm_base.h>
 #include <pcbnew_settings.h>
+#include <math/util.h> // for KiROUND
+
+
+static int scaleToSelection( double scale )
+{
+    int selection = 1;
+
+    if( scale == 0.0 )      selection = 0;
+    else if( scale == 1.5 ) selection = 2;
+    else if( scale == 2.0 ) selection = 3;
+    else if( scale == 3.0 ) selection = 4;
+
+    return selection;
+}
 
 
 PCB_PLOTTER::PCB_PLOTTER( BOARD* aBoard, REPORTER* aReporter, PCB_PLOT_PARAMS& aParams ) :
@@ -46,14 +62,10 @@ PCB_PLOTTER::PCB_PLOTTER( BOARD* aBoard, REPORTER* aReporter, PCB_PLOT_PARAMS& a
 }
 
 
-bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
-                        const LSEQ& aLayersToPlot,
-                        const LSEQ& aCommonLayers,
-                        bool aUseGerberFileExtensions,
-                        bool aOutputPathIsSingle,
-                        std::optional<wxString> aLayerName,
-                        std::optional<wxString> aSheetName,
-                        std::optional<wxString> aSheetPath )
+bool PCB_PLOTTER::Plot( const wxString& aOutputPath, const LSEQ& aLayersToPlot,
+                        const LSEQ& aCommonLayers, bool aUseGerberFileExtensions,
+                        bool aOutputPathIsSingle, std::optional<wxString> aLayerName,
+                        std::optional<wxString> aSheetName, std::optional<wxString> aSheetPath )
 {
     std::function<bool( wxString* )> textResolver = [&]( wxString* token ) -> bool
     {
@@ -73,7 +85,7 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
 
     if( m_plotOpts.GetFormat() == PLOT_FORMAT::SVG && m_plotOpts.GetSvgFitPagetoBoard() ) // Page is board boundary size
     {
-        BOX2I     bbox = m_board->ComputeBoundingBox( false );
+        BOX2I     bbox = m_board->ComputeBoundingBox( false, false );
         PAGE_INFO currPageInfo = m_board->GetPageSettings();
 
         currPageInfo.SetWidthMils( bbox.GetWidth() / pcbIUScale.IU_PER_MILS );
@@ -90,15 +102,15 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
     LSEQ layersToPlot;
     LSEQ commonLayers;
 
-    if( aOutputPathIsSingle )
+    const bool isPdfMultiPage =
+            ( m_plotOpts.GetFormat() == PLOT_FORMAT::PDF && m_plotOpts.m_PDFSingle );
+
+    if( aOutputPathIsSingle && !m_plotOpts.GetDXFMultiLayeredExportOption() && !isPdfMultiPage )
     {
         layersToPlot.push_back( aLayersToPlot[0] );
 
         if( aLayersToPlot.size() > 1 )
-        {
-            commonLayers.insert( commonLayers.end(), aLayersToPlot.begin() + 1,
-                                 aLayersToPlot.end() );
-        }
+            commonLayers.insert( commonLayers.end(), aLayersToPlot.begin() + 1, aLayersToPlot.end() );
     }
     else
     {
@@ -107,13 +119,17 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
     }
 
     int finalPageCount = 0;
+    std::vector<std::pair<PCB_LAYER_ID, wxString>> layersToExport;
 
+    // Skip the disabled copper layers and build the layer ID -> layer name mapping for plotter
+    // DXF plotter will use this information to name its layers
     for( PCB_LAYER_ID layer : layersToPlot )
     {
         if( copperLayerShouldBeSkipped( layer ) )
             continue;
 
         finalPageCount++;
+        layersToExport.emplace_back( layer, m_board->GetLayerName( layer ) );
     }
 
     std::unique_ptr<GERBER_JOBFILE_WRITER> jobfile_writer;
@@ -121,6 +137,7 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
     if( m_plotOpts.GetFormat() == PLOT_FORMAT::GERBER && !aOutputPathIsSingle )
         jobfile_writer = std::make_unique<GERBER_JOBFILE_WRITER>( m_board, m_reporter );
 
+    PLOT_FORMAT plot_format = m_plotOpts.GetFormat();
     wxString fileExt( GetDefaultPlotExtension( m_plotOpts.GetFormat() ) );
     wxString sheetPath;
     wxString msg;
@@ -153,8 +170,10 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
             if( m_plotOpts.GetFormat() == PLOT_FORMAT::GERBER && aUseGerberFileExtensions )
                 fileExt = GetGerberProtelExtension( layer );
 
-            if( m_plotOpts.GetFormat() == PLOT_FORMAT::PDF && m_plotOpts.m_PDFSingle )
+            if( plot_format == PLOT_FORMAT::PDF && m_plotOpts.m_PDFSingle )
                 fn.SetExt( GetDefaultPlotExtension( PLOT_FORMAT::PDF ) );
+            else if ( plot_format == PLOT_FORMAT::DXF && m_plotOpts.GetDXFMultiLayeredExportOption() )
+                fn.SetExt( GetDefaultPlotExtension( PLOT_FORMAT::DXF ) );
             else
                 BuildPlotFileName( &fn, aOutputPath, layerName, fileExt );
         }
@@ -165,10 +184,11 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
             jobfile_writer->AddGbrFile( layer, fullname );
         }
 
-        if( m_plotOpts.GetFormat() != PLOT_FORMAT::PDF
-            || !m_plotOpts.m_PDFSingle
-            || ( pageNum == 1 && m_plotOpts.GetFormat() == PLOT_FORMAT::PDF
-                    && m_plotOpts.m_PDFSingle ) )
+        if( ( plot_format != PLOT_FORMAT::PDF && plot_format != PLOT_FORMAT::DXF )
+            || ( !m_plotOpts.m_PDFSingle && !m_plotOpts.GetDXFMultiLayeredExportOption() )
+            || ( pageNum == 1
+                 && ( ( plot_format == PLOT_FORMAT::PDF && m_plotOpts.m_PDFSingle )
+                      || ( plot_format == PLOT_FORMAT::DXF && m_plotOpts.GetDXFMultiLayeredExportOption() ) ) ) )
         {
             // this will only be used by pdf
             wxString pageNumber = wxString::Format( "%d", pageNum );
@@ -187,12 +207,14 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
             if( aSheetPath.has_value() )
                 sheetPath = aSheetPath.value();
 
+            m_plotOpts.SetLayersToExport( layersToExport );
             plotter = StartPlotBoard( m_board, &m_plotOpts, layer, layerName, fn.GetFullPath(),
                                       sheetName, sheetPath, pageName, pageNumber, finalPageCount );
         }
 
         if( plotter )
         {
+            plotter->SetLayer( layer );
             plotter->SetTitle( ExpandTextVars( m_board->GetTitleBlock().GetTitle(), &textResolver ) );
 
             if( m_plotOpts.m_PDFMetadata )
@@ -208,14 +230,22 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
                     plotter->SetSubject( msg );
             }
 
-            PlotBoardLayers( m_board, plotter, plotSequence, m_plotOpts );
-            PlotInteractiveLayer( m_board, plotter, m_plotOpts );
-
-
-            if( m_plotOpts.GetFormat() == PLOT_FORMAT::PDF && m_plotOpts.m_PDFSingle
-                && i != layersToPlot.size() - 1 )
+            try
             {
-                wxString     pageNumber = wxString::Format( "%zu", pageNum + 1 );
+                PlotBoardLayers( m_board, plotter, plotSequence, m_plotOpts );
+                PlotInteractiveLayer( m_board, plotter, m_plotOpts );
+            }
+            catch( ... )
+            {
+                success = false;
+                break;
+            }
+
+            if( m_plotOpts.GetFormat() == PLOT_FORMAT::PDF
+                    && m_plotOpts.m_PDFSingle
+                    && i != layersToPlot.size() - 1 )
+            {
+                wxString     pageNumber = wxString::Format( "%d", pageNum + 1 );
                 size_t       nextI = i + 1;
                 PCB_LAYER_ID nextLayer = layersToPlot[nextI];
 
@@ -237,12 +267,20 @@ bool PCB_PLOTTER::Plot( const wxString& aOutputPath,
             }
 
             // last page
-            if( m_plotOpts.GetFormat() != PLOT_FORMAT::PDF
-                    || !m_plotOpts.m_PDFSingle
+            if( (plot_format != PLOT_FORMAT::PDF && plot_format != PLOT_FORMAT::DXF)
+                    || (!m_plotOpts.m_PDFSingle && !m_plotOpts.GetDXFMultiLayeredExportOption())
                     || i == aLayersToPlot.size() - 1
                     || pageNum == finalPageCount )
             {
-                plotter->EndPlot();
+                try
+                {
+                    plotter->EndPlot();
+                }
+                catch( ... )
+                {
+                    success = false;
+                }
+
                 delete plotter->RenderSettings();
                 delete plotter;
                 plotter = nullptr;
@@ -357,6 +395,23 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
         aOpts.SetIncludeGerberNetlistInfo( gJob->m_includeNetlistAttributes );
         aOpts.SetCreateGerberJobFile( gJob->m_createJobsFile );
         aOpts.SetGerberPrecision( gJob->m_precision );
+        // Always disable plot pad holes
+        aOpts.SetDrillMarksType( DRILL_MARKS::NO_DRILL_SHAPE );
+    }
+    else
+    {
+        // Scale, doesn't apply to GERBER
+        aOpts.SetScale( aJob->m_scale );
+        aOpts.SetAutoScale( !aJob->m_scale );
+        aOpts.SetScaleSelection( scaleToSelection( aJob->m_scale ) );
+        // Drill marks doesn't apply to GERBER
+        switch( aJob->m_drillShapeOption )
+        {
+        case DRILL_MARKS::NO_DRILL_SHAPE:    aOpts.SetDrillMarksType( DRILL_MARKS::NO_DRILL_SHAPE );    break;
+        case DRILL_MARKS::SMALL_DRILL_SHAPE: aOpts.SetDrillMarksType( DRILL_MARKS::SMALL_DRILL_SHAPE ); break;
+        default:
+        case DRILL_MARKS::FULL_DRILL_SHAPE:  aOpts.SetDrillMarksType( DRILL_MARKS::FULL_DRILL_SHAPE );  break;
+        }
     }
 
     if( aJob->m_plotFormat == JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::SVG )
@@ -369,14 +424,12 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
     if( aJob->m_plotFormat == JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::DXF )
     {
         JOB_EXPORT_PCB_DXF* dxfJob = static_cast<JOB_EXPORT_PCB_DXF*>( aJob );
-        aOpts.SetDXFPlotUnits( dxfJob->m_dxfUnits == JOB_EXPORT_PCB_DXF::DXF_UNITS::INCH
-                                                                                ? DXF_UNITS::INCH
-                                                                                : DXF_UNITS::MM );
-
-        aOpts.SetPlotMode( dxfJob->m_plotGraphicItemsUsingContours ? OUTLINE_MODE::SKETCH
-                                                                   : OUTLINE_MODE::FILLED );
-
+        aOpts.SetDXFPlotUnits( dxfJob->m_dxfUnits == JOB_EXPORT_PCB_DXF::DXF_UNITS::INCH ? DXF_UNITS::INCH
+                                                                                         : DXF_UNITS::MM );
+        aOpts.SetDXFPlotMode( dxfJob->m_plotGraphicItemsUsingContours ? DXF_OUTLINE_MODE::SKETCH
+                                                                      : DXF_OUTLINE_MODE::FILLED );
         aOpts.SetDXFPlotPolygonMode( dxfJob->m_polygonMode );
+        aOpts.SetDXFMultiLayeredExportOption( dxfJob->m_genMode == JOB_EXPORT_PCB_DXF::GEN_MODE::SINGLE );
     }
 
     if( aJob->m_plotFormat == JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::PDF )
@@ -386,6 +439,16 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
         aOpts.m_PDFBackFPPropertyPopups = pdfJob->m_pdfBackFPPropertyPopups;
         aOpts.m_PDFMetadata = pdfJob->m_pdfMetadata;
         aOpts.m_PDFSingle = pdfJob->m_pdfSingle;
+        aOpts.m_PDFBackgroundColor = COLOR4D( pdfJob->m_pdfBackgroundColor );
+    }
+
+    if( aJob->m_plotFormat == JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::POST )
+    {
+        JOB_EXPORT_PCB_PS* psJob = static_cast<JOB_EXPORT_PCB_PS*>( aJob );
+        aOpts.SetWidthAdjust( KiROUND( psJob->m_trackWidthCorrection * pcbIUScale.IU_PER_MM ) );
+        aOpts.SetFineScaleAdjustX( psJob->m_XScaleAdjust );
+        aOpts.SetFineScaleAdjustY( psJob->m_YScaleAdjust );
+        aOpts.SetA4Output( psJob->m_forceA4 );
     }
 
     aOpts.SetUseAuxOrigin( aJob->m_useDrillOrigin );
@@ -413,36 +476,26 @@ void PCB_PLOTTER::PlotJobToPlotOpts( PCB_PLOT_PARAMS& aOpts, JOB_EXPORT_PCB_PLOT
     case JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::POST:   aOpts.SetFormat( PLOT_FORMAT::POST );   break;
     case JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::SVG:    aOpts.SetFormat( PLOT_FORMAT::SVG );    break;
     case JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::DXF:    aOpts.SetFormat( PLOT_FORMAT::DXF );    break;
-    case JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::HPGL:   aOpts.SetFormat( PLOT_FORMAT::HPGL );   break;
+    case JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::HPGL:   /* no longer supported */               break;
     case JOB_EXPORT_PCB_PLOT::PLOT_FORMAT::PDF:    aOpts.SetFormat( PLOT_FORMAT::PDF );    break;
     }
 
-    switch( aJob->m_drillShapeOption )
-    {
-    case DRILL_MARKS::NO_DRILL_SHAPE:    aOpts.SetDrillMarksType( DRILL_MARKS::NO_DRILL_SHAPE );    break;
-    case DRILL_MARKS::SMALL_DRILL_SHAPE: aOpts.SetDrillMarksType( DRILL_MARKS::SMALL_DRILL_SHAPE ); break;
-    default:
-    case DRILL_MARKS::FULL_DRILL_SHAPE:  aOpts.SetDrillMarksType( DRILL_MARKS::FULL_DRILL_SHAPE );  break;
-    }
-
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    wxString          theme = aJob->m_colorTheme;
+    wxString theme = aJob->m_colorTheme;
 
     // Theme may be empty when running from a job in GUI context, so use the GUI settings.
     if( theme.IsEmpty() )
     {
-        PCBNEW_SETTINGS* pcbSettings = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-        theme = pcbSettings->m_ColorTheme;
+        if( PCBNEW_SETTINGS* pcbSettings = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" ) )
+            theme = pcbSettings->m_ColorTheme;
     }
 
-    COLOR_SETTINGS* colors = mgr.GetColorSettings( aJob->m_colorTheme );
+    COLOR_SETTINGS* colors = ::GetColorSettings( theme );
 
-    if( colors->GetFilename() != theme )
+    if( colors->GetFilename() != theme && !aOpts.GetBlackAndWhite() )
     {
-        aReporter.Report( wxString::Format(
-                _( "Color theme '%s' not found, will use theme from PCB Editor settings.\n" ),
-                theme ),
-            RPT_SEVERITY_WARNING );
+        aReporter.Report( wxString::Format( _( "Color theme '%s' not found, will use theme from PCB Editor.\n" ),
+                                            theme ),
+                          RPT_SEVERITY_WARNING );
     }
 
     aOpts.SetColorSettings( colors );

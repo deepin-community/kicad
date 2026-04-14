@@ -327,8 +327,13 @@ public:
     void ProcessLinePair( PCB_SHAPE& aLineA, PCB_SHAPE& aLineB ) override;
 
 private:
+    // Lazily load board outline polygons (outer outline + any holes)
+    bool EnsureBoardOutline() const;
+
     PARAMETERS m_params;
     bool m_haveNarrowMouths;
+    mutable bool m_boardOutlineCached = false;
+    mutable SHAPE_POLY_SET m_boardOutline; ///< Cached board outline polygons
 };
 
 
@@ -342,6 +347,11 @@ public:
             ITEM_MODIFICATION_ROUTINE( aBoard, aHandler )
     {
     }
+
+    /**
+     * @brief False if the order of the polygons matters
+     */
+    virtual bool IsCommutative() const = 0;
 
     void ProcessShape( PCB_SHAPE& aPcbShape );
 
@@ -369,7 +379,7 @@ private:
     bool         m_firstPolygon = true;
     int          m_width = 0;
     PCB_LAYER_ID m_layer = PCB_LAYER_ID::UNDEFINED_LAYER;
-    bool         m_filled = false;
+    FILL_T       m_fillMode = FILL_T::NO_FILL;
 };
 
 class POLYGON_MERGE_ROUTINE : public POLYGON_BOOLEAN_ROUTINE
@@ -379,6 +389,8 @@ public:
             POLYGON_BOOLEAN_ROUTINE( aBoard, aHandler )
     {
     }
+
+    bool IsCommutative() const override { return true; }
 
     wxString                GetCommitDescription() const override;
     std::optional<wxString> GetStatusMessage() const override;
@@ -396,6 +408,8 @@ public:
     {
     }
 
+    bool IsCommutative() const override { return false; }
+
     wxString                GetCommitDescription() const override;
     std::optional<wxString> GetStatusMessage() const override;
 
@@ -411,6 +425,8 @@ public:
             POLYGON_BOOLEAN_ROUTINE( aBoard, aHandler )
     {
     }
+
+    bool IsCommutative() const override { return true; }
 
     wxString                GetCommitDescription() const override;
     std::optional<wxString> GetStatusMessage() const override;

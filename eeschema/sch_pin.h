@@ -24,6 +24,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include <pin_type.h>
 #include <sch_item.h>
@@ -113,15 +114,41 @@ public:
     void SetVisible( bool aVisible ) { m_hidden = !aVisible; }
 
     const wxString& GetName() const;
-    wxString GetShownName() const;
-    void SetName( const wxString& aName );
+    const wxString& GetShownName() const;
+    void            SetName( const wxString& aName );
     /**
      * Get the name without any alternates
      */
     const wxString& GetBaseName() const;
 
-    const wxString& GetNumber() const { return m_number; }
-    wxString GetShownNumber() const;
+    const wxString&       GetNumber() const { return m_number; }
+    const wxString&       GetShownNumber() const;
+    std::vector<wxString> GetStackedPinNumbers( bool* aValid = nullptr ) const;
+
+    /**
+     * Return the count of logical pins represented by this pin's stacked notation.
+     *
+     * This is a fast alternative to GetStackedPinNumbers().size() that avoids
+     * allocating and populating a vector of strings.
+     *
+     * @param aValid Optional pointer to bool that will be set to indicate if the
+     *               stacked notation is valid (true) or malformed (false).
+     * @return The number of logical pins represented (always >= 1).
+     */
+    int GetStackedPinCount( bool* aValid = nullptr ) const;
+
+    /**
+     * Return the smallest logical pin number if this pin uses stacked
+     * notation and it is valid.  Otherwise returns std::nullopt.
+     */
+    std::optional<wxString> GetSmallestLogicalNumber() const;
+
+    /**
+     * Return the pin number to be used for deterministic operations such as
+     * auto‑generated net names.  For stacked pins this is the smallest logical
+     * number; otherwise it is the shown number.
+     */
+    wxString GetEffectivePadNumber() const;
     void SetNumber( const wxString& aNumber );
 
     int GetNameTextSize() const;
@@ -150,10 +177,17 @@ public:
     }
 
     wxString GetAlt() const { return m_alt; }
-    void SetAlt( const wxString& aAlt ) { m_alt = aAlt; }
 
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
+    /**
+     * Set the name of the alternate pin.
+     *
+     * @note If the alternate pin is the same as the default pin name or does not exist in the
+     *       list of pin alternates, it's set to an empty string which results in the alternate
+     *       being set to the default pin.
+     *
+     * @param is the name of the pin alternate in #m_alternates.
+     */
+    void SetAlt( const wxString& aAlt );
 
     /**
      * Return the pin real orientation (PIN_UP, PIN_DOWN, PIN_RIGHT, PIN_LEFT),
@@ -195,6 +229,18 @@ public:
      * and of type POWER_IN, or is a legacy invisible global power pin on a symbol.
      */
     bool IsGlobalPower() const;
+
+    /**
+     * Local power pin is the same except that it is sheet-local and it does not support the legacy
+     * hidden pin mode
+     */
+    bool IsLocalPower() const;
+
+    /**
+     * Check if the pin is _either_ a global or local power pin.
+     * @see IsGlobalPower() and IsLocalPower()
+     */
+    bool IsPower() const;
 
     int GetPenWidth() const override { return 0; }
 
@@ -317,32 +363,6 @@ protected:
     void validateExtentsCache( KIFONT::FONT* aFont, int aSize, const wxString& aText,
                                EXTENTS_CACHE* aCache ) const;
 
-    /**
-     * Print the pin symbol without text.
-     *
-     * If \a aColor != 0, draw with \a aColor, else with the normal pin color.
-     */
-    void printPinSymbol( const SCH_RENDER_SETTINGS *aSettings, const VECTOR2I &aPos,
-                         PIN_ORIENTATION aOrientation, bool aDimmed );
-
-    /**
-     * Put the pin number and pin text info, given the pin line coordinates.
-     *
-     * The line must be vertical or horizontal.
-     * If aDrawPinName == false the pin name is not printed.
-     * If aDrawPinNum = false the pin number is not printed.
-     * If aTextInside then the text is been put inside,otherwise all is drawn outside.
-     * Pin Name:    substring between '~' is negated
-     */
-    void printPinTexts( const RENDER_SETTINGS* aSettings, const VECTOR2I& aPinPos,
-                        PIN_ORIENTATION aPinOrient, int aTextInside, bool aDrawPinNum,
-                        bool aDrawPinName, bool aDimmed );
-
-    /**
-     * Draw the electrical type text of the pin (only for the footprint editor).
-     */
-    void printPinElectricalTypeName( const RENDER_SETTINGS* aSettings, const VECTOR2I& aPosition,
-                                     PIN_ORIENTATION aOrientation, bool aDimmed );
     std::ostream& operator<<( std::ostream& aStream );
 
 private:

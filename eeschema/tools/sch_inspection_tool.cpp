@@ -23,6 +23,7 @@
  */
 
 #include "tools/sch_inspection_tool.h"
+#include "dialog_change_symbols.h"
 
 #include <sch_symbol.h>
 #include <id.h>
@@ -40,7 +41,6 @@
 #include <sch_edit_frame.h>
 #include <symbol_edit_frame.h>
 #include <symbol_viewer_frame.h>
-#include <symbol_lib_table.h>
 #include <eda_doc.h>
 #include <sch_marker.h>
 #include <project.h>
@@ -48,6 +48,7 @@
 #include <dialogs/html_message_box.h>
 #include <dialogs/dialog_erc.h>
 #include <dialogs/dialog_book_reporter.h>
+#include <libraries/symbol_library_adapter.h>
 #include <widgets/wx_html_report_box.h>
 #include <widgets/symbol_diff_widget.h>
 #include <math/util.h>      // for KiROUND
@@ -204,40 +205,13 @@ void SCH_INSPECTION_TOOL::CrossProbe( const SCH_MARKER* aMarker )
 
 wxString SCH_INSPECTION_TOOL::InspectERCErrorMenuText( const std::shared_ptr<RC_ITEM>& aERCItem )
 {
-    auto menuDescription =
-            [&]( const TOOL_ACTION& aAction )
-            {
-                wxString   menuItemLabel = aAction.GetMenuLabel();
-                wxMenuBar* menuBar = m_frame->GetMenuBar();
-
-                for( size_t ii = 0; ii < menuBar->GetMenuCount(); ++ii )
-                {
-                    for( wxMenuItem* menuItem : menuBar->GetMenu( ii )->GetMenuItems() )
-                    {
-                        if( menuItem->GetItemLabelText() == menuItemLabel )
-                        {
-                            wxString menuTitleLabel = menuBar->GetMenuLabelText( ii );
-
-                            menuTitleLabel.Replace( wxS( "&" ), wxS( "&&" ) );
-                            menuItemLabel.Replace( wxS( "&" ), wxS( "&&" ) );
-
-                            return wxString::Format( _( "Run %s > %s" ),
-                                                     menuTitleLabel,
-                                                     menuItemLabel );
-                        }
-                    }
-                }
-
-                return wxString::Format( _( "Run %s" ), aAction.GetFriendlyName() );
-            };
-
     if( aERCItem->GetErrorCode() == ERCE_BUS_TO_NET_CONFLICT )
     {
-        return menuDescription( SCH_ACTIONS::showBusSyntaxHelp );
+        return m_frame->GetRunMenuCommandDescription( SCH_ACTIONS::showBusSyntaxHelp );
     }
     else if( aERCItem->GetErrorCode() == ERCE_LIB_SYMBOL_MISMATCH )
     {
-        return menuDescription( SCH_ACTIONS::diffSymbol );
+        return m_frame->GetRunMenuCommandDescription( SCH_ACTIONS::diffSymbol );
     }
 
     return wxEmptyString;
@@ -250,7 +224,7 @@ void SCH_INSPECTION_TOOL::InspectERCError( const std::shared_ptr<RC_ITEM>& aERCI
 
     wxCHECK( frame, /* void */ );
 
-    EDA_ITEM* a = frame->GetItem( aERCItem->GetMainItemID() );
+    EDA_ITEM* a = frame->ResolveItem( aERCItem->GetMainItemID() );
 
     if( aERCItem->GetErrorCode() == ERCE_BUS_TO_NET_CONFLICT )
     {
@@ -375,9 +349,10 @@ void SCH_INSPECTION_TOOL::DiffSymbol( SCH_SYMBOL* symbol )
     wxCHECK( dialog, /* void */ );
 
     dialog->DeleteAllPages();
+    dialog->SetUserItemID( symbol->m_Uuid );
 
     wxString symbolDesc = wxString::Format( _( "Symbol %s" ),
-                                            symbol->GetField( REFERENCE_FIELD )->GetText() );
+                                            symbol->GetField( FIELD_T::REFERENCE )->GetText() );
     LIB_ID   libId = symbol->GetLibId();
     wxString libName = libId.GetLibNickname();
     wxString symbolName = libId.GetLibItemName();
@@ -392,16 +367,15 @@ void SCH_INSPECTION_TOOL::DiffSymbol( SCH_SYMBOL* symbol )
 
     r->Report( "" );
 
-    SYMBOL_LIB_TABLE*    libTable = PROJECT_SCH::SchSymbolLibTable( &m_frame->Prj() );
-    const LIB_TABLE_ROW* libTableRow = libTable->FindRow( libName );
+    SYMBOL_LIBRARY_ADAPTER* libs = PROJECT_SCH::SymbolLibAdapter( &m_frame->Prj() );
 
-    if( !libTableRow )
+    if( !libs->HasLibrary( libName, false ) )
     {
         r->Report( _( "The library is not included in the current configuration." )
                    + wxS( "&nbsp;&nbsp;&nbsp" )
                    + wxS( "<a href='$CONFIG'>" ) + _( "Manage Symbol Libraries" ) + wxS( "</a>" ) );
     }
-    else if( !libTable->HasLibrary( libName, true ) )
+    else if( !libs->HasLibrary( libName, true ) )
     {
         r->Report( _( "The library is not enabled in the current configuration." )
                    + wxS( "&nbsp;&nbsp;&nbsp" )
@@ -414,7 +388,7 @@ void SCH_INSPECTION_TOOL::DiffSymbol( SCH_SYMBOL* symbol )
 
         try
         {
-            if( LIB_SYMBOL* libAlias = libTable->LoadSymbol( libName, symbolName ) )
+            if( LIB_SYMBOL* libAlias = libs->LoadSymbol( libName, symbolName ) )
                 flattenedLibSymbol = libAlias->Flatten();
         }
         catch( const IO_ERROR& )
@@ -532,7 +506,7 @@ int SCH_INSPECTION_TOOL::ShowDatasheet( const TOOL_EVENT& aEvent )
             return 0;
 
         SCH_SYMBOL* symbol = (SCH_SYMBOL*) selection.Front();
-        SCH_FIELD*  field = symbol->GetField( DATASHEET_FIELD );
+        SCH_FIELD*  field = symbol->GetField( FIELD_T::DATASHEET );
 
         // Use GetShownText() to resolve any text variables, but don't allow adding extra text
         // (ie: the field name)

@@ -22,6 +22,7 @@
 #include <wx/choice.h>
 #include <wx/sizer.h>
 #include <wx/checkbox.h>
+#include <wx/gbsizer.h>
 #include <wx/panel.h>
 #include <wx/simplebook.h>
 #include <wx/textctrl.h>
@@ -41,15 +42,21 @@ class PANEL_EESCHEMA_EDITING_OPTIONS_BASE : public RESETTABLE_PANEL
 		wxStaticLine* m_staticline3;
 		wxStaticText* m_staticText24;
 		wxChoice* m_choiceLineMode;
+		wxStaticText* m_staticTextArcEdit;
+		wxChoice* m_choiceArcMode;
 		wxCheckBox* m_mouseDragIsDrag;
 		wxCheckBox* m_cbAutoStartWires;
 		wxCheckBox* m_escClearsNetHighlight;
+		wxCheckBox* m_checkAutoAnnotate;
+		wxCheckBox* m_checkAllowUnconstrainedPinSwaps;
 		wxStaticText* m_staticText26;
 		wxStaticLine* m_staticline4;
 		wxStaticText* m_borderColorLabel;
 		COLOR_SWATCH* m_borderColorSwatch;
 		wxStaticText* m_backgroundColorLabel;
 		COLOR_SWATCH* m_backgroundColorSwatch;
+		wxStaticText* m_powerSymbolLabel;
+		wxChoice* m_choicePower;
 		wxSimplebook* m_leftClickCmdsBook;
 		wxPanel* m_pageWinLin;
 		wxStaticText* m_leftClickLabel;

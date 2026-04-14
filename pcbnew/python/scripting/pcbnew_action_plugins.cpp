@@ -283,31 +283,9 @@ void PCB_EDIT_FRAME::RunActionPlugin( ACTION_PLUGIN* aActionPlugin )
     BOARD*  currentPcb  = GetBoard();
     bool    fromEmpty   = false;
 
-    // Append tracks:
-    for( PCB_TRACK* item : currentPcb->Tracks() )
+    for( BOARD_ITEM* item : currentPcb->GetItemSet() )
     {
         ITEM_PICKER picker( nullptr, item, UNDO_REDO::CHANGED );
-        itemsList.PushItem( picker );
-    }
-
-    // Append footprints:
-    for( FOOTPRINT* item : currentPcb->Footprints() )
-    {
-        ITEM_PICKER picker( nullptr, item, UNDO_REDO::CHANGED );
-        itemsList.PushItem( picker );
-    }
-
-    // Append drawings
-    for( BOARD_ITEM* item : currentPcb->Drawings() )
-    {
-        ITEM_PICKER picker( nullptr, item, UNDO_REDO::CHANGED );
-        itemsList.PushItem( picker );
-    }
-
-    // Append zones outlines
-    for( ZONE* zone : currentPcb->Zones() )
-    {
-        ITEM_PICKER picker( nullptr, zone, UNDO_REDO::CHANGED );
         itemsList.PushItem( picker );
     }
 
@@ -366,44 +344,14 @@ void PCB_EDIT_FRAME::RunActionPlugin( ACTION_PLUGIN* aActionPlugin )
         oldBuffer->PushItem( deletedItemsList.GetItemWrapper( i ) );
     }
 
-    // Find new footprints
-    for( FOOTPRINT* item : currentPcb->Footprints() )
+    // Find new items
+    for( BOARD_ITEM* item : currentPcb->GetItemSet() )
     {
         if( !oldBuffer->ContainsItem( item ) )
         {
             ITEM_PICKER picker( nullptr, item, UNDO_REDO::NEWITEM );
             oldBuffer->PushItem( picker );
             commit.Added( item );
-        }
-    }
-
-    for( PCB_TRACK* item : currentPcb->Tracks() )
-    {
-        if( !oldBuffer->ContainsItem( item ) )
-        {
-            ITEM_PICKER picker( nullptr, item, UNDO_REDO::NEWITEM );
-            oldBuffer->PushItem( picker );
-            commit.Added( item );
-        }
-    }
-
-    for( BOARD_ITEM* item : currentPcb->Drawings() )
-    {
-        if( !oldBuffer->ContainsItem( item ) )
-        {
-            ITEM_PICKER picker( nullptr, item, UNDO_REDO::NEWITEM );
-            oldBuffer->PushItem( picker );
-            commit.Added( item );
-        }
-    }
-
-    for( ZONE* zone : currentPcb->Zones() )
-    {
-        if( !oldBuffer->ContainsItem( zone ) )
-        {
-            ITEM_PICKER picker( nullptr, zone, UNDO_REDO::NEWITEM );
-            oldBuffer->PushItem( picker );
-            commit.Added( zone );
         }
     }
 
@@ -446,7 +394,7 @@ void PCB_EDIT_FRAME::RebuildAndRefresh()
 
     for( EDA_ITEM* item : selection.GetItems() )
     {
-        if( !item->IsSelected() )
+        if( !item->IsSelected() && item->IsBOARD_ITEM() )
             to_remove.push_back( static_cast<BOARD_ITEM*>( item ) );
     }
 
@@ -483,15 +431,36 @@ void PCB_EDIT_FRAME::buildActionPluginMenus( ACTION_MENU* actionMenu )
     if( !actionMenu ) // Should not occur.
         return;
 
+    int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
+
     for( int ii = 0; ii < ACTION_PLUGINS::GetActionsCount(); ii++ )
     {
         wxMenuItem* item;
         ACTION_PLUGIN* ap = ACTION_PLUGINS::GetAction( ii );
-        const wxBitmap& bitmap = ap->iconBitmap.IsOk() ? ap->iconBitmap :
-                                                         KiBitmap( BITMAPS::puzzle_piece );
 
-        item = KIUI::AddMenuItem( actionMenu, wxID_ANY, ap->GetName(), ap->GetDescription(),
-                                  bitmap );
+        wxBitmapBundle bundle;
+
+        if( ap->iconBitmap.IsOk() && ap->iconBitmap.GetHeight() > 0 )
+        {
+            wxBitmap bmp = ap->iconBitmap;
+            wxSize   size = bmp.GetSize();
+            double   defScale = (double) iconSize / size.GetHeight();
+            wxSize   defSize( iconSize, wxRound( size.GetWidth() * defScale ) );
+
+            wxBitmap bmp1 = bmp;
+            wxBitmapHelpers::Rescale( bmp1, defSize );
+
+            wxBitmap bmp2 = bmp;
+            wxBitmapHelpers::Rescale( bmp2, defSize * 2 );
+
+            bundle = wxBitmapBundle::FromBitmaps( bmp1, bmp2 );
+        }
+        else
+        {
+            bundle = KiBitmapBundleDef( BITMAPS::puzzle_piece, iconSize );
+        }
+
+        item = KIUI::AddMenuItem( actionMenu, wxID_ANY, ap->GetName(), ap->GetDescription(), bundle );
 
         Connect( item->GetId(), wxEVT_COMMAND_MENU_SELECTED,
                  wxCommandEventHandler( PCB_EDIT_FRAME::OnActionPluginMenu ) );
@@ -501,10 +470,12 @@ void PCB_EDIT_FRAME::buildActionPluginMenus( ACTION_MENU* actionMenu )
 }
 
 
-void PCB_EDIT_FRAME::AddActionPluginTools()
+void PCB_EDIT_FRAME::addActionPluginTools( ACTION_TOOLBAR* aToolbar )
 {
-    bool need_separator = true;
+    bool                                     need_separator = true;
     const std::vector<LEGACY_OR_API_PLUGIN>& orderedPlugins = GetOrderedActionPlugins();
+
+    int iconSize = Pgm().GetCommonSettings()->m_Appearance.toolbar_icon_size;
 
     for( const auto& entry : orderedPlugins )
     {
@@ -518,20 +489,34 @@ void PCB_EDIT_FRAME::AddActionPluginTools()
         {
             if( need_separator )
             {
-                m_mainToolBar->AddScaledSeparator( this );
+                aToolbar->AddScaledSeparator( this );
                 need_separator = false;
             }
 
             // Add button
-            wxBitmap bitmap;
+            wxBitmapBundle bundle;
 
-            if ( ap->iconBitmap.IsOk() )
-                bitmap = KiScaledBitmap( ap->iconBitmap, this );
+            if( ap->iconBitmap.IsOk() && ap->iconBitmap.GetHeight() > 0 )
+            {
+                wxBitmap bmp = ap->iconBitmap;
+                wxSize   size = bmp.GetSize();
+                double   defScale = (double) iconSize / size.GetHeight();
+                wxSize   defSize( iconSize, wxRound( size.GetWidth() * defScale ) );
+
+                wxBitmap bmp1 = bmp;
+                wxBitmapHelpers::Rescale( bmp1, defSize );
+
+                wxBitmap bmp2 = bmp;
+                wxBitmapHelpers::Rescale( bmp2, defSize * 2 );
+
+                bundle = wxBitmapBundle::FromBitmaps( bmp1, bmp2 );
+            }
             else
-                bitmap = KiScaledBitmap( BITMAPS::puzzle_piece, this );
+            {
+                bundle = KiBitmapBundleDef( BITMAPS::puzzle_piece, iconSize );
+            }
 
-            wxAuiToolBarItem* button = m_mainToolBar->AddTool( wxID_ANY, wxEmptyString,
-                                                               bitmap, ap->GetName() );
+            wxAuiToolBarItem* button = aToolbar->AddTool( wxID_ANY, wxEmptyString, bundle, ap->GetName() );
 
             Connect( button->GetId(), wxEVT_COMMAND_MENU_SELECTED,
                      wxCommandEventHandler( PCB_EDIT_FRAME::OnActionPluginButton ) );
@@ -545,33 +530,34 @@ void PCB_EDIT_FRAME::AddActionPluginTools()
 
 std::vector<LEGACY_OR_API_PLUGIN> PCB_EDIT_FRAME::GetOrderedActionPlugins()
 {
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-
-    std::vector<ACTION_PLUGIN*> plugins;
+    PCBNEW_SETTINGS*                  cfg = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+    std::vector<ACTION_PLUGIN*>       plugins;
     std::vector<LEGACY_OR_API_PLUGIN> orderedPlugins;
 
     for( int i = 0; i < ACTION_PLUGINS::GetActionsCount(); i++ )
         plugins.push_back( ACTION_PLUGINS::GetAction( i ) );
 
     // First add plugins that have entries in settings
-    for( const auto& pair : cfg->m_VisibleActionPlugins )
+    if( cfg )
     {
-        auto loc = std::find_if( plugins.begin(), plugins.end(),
-                [pair] ( ACTION_PLUGIN* plugin )
-                {
-                    return plugin->GetPluginPath() == pair.first;
-                } );
-
-        if( loc != plugins.end() )
+        for( const auto& [path, show] : cfg->m_VisibleActionPlugins )
         {
-            orderedPlugins.push_back( *loc );
-            plugins.erase( loc );
+            auto loc = std::find_if( plugins.begin(), plugins.end(),
+                    [&path] ( ACTION_PLUGIN* plugin )
+                    {
+                        return plugin->GetPluginPath() == path;
+                    } );
+
+            if( loc != plugins.end() )
+            {
+                orderedPlugins.push_back( *loc );
+                plugins.erase( loc );
+            }
         }
     }
 
     // Now append new plugins that have not been configured yet
-    for( auto remaining_plugin : plugins )
+    for( ACTION_PLUGIN* remaining_plugin : plugins )
         orderedPlugins.push_back( remaining_plugin );
 
     // Finally append API plugins
@@ -582,22 +568,21 @@ std::vector<LEGACY_OR_API_PLUGIN> PCB_EDIT_FRAME::GetOrderedActionPlugins()
 }
 
 
-bool PCB_EDIT_FRAME::GetActionPluginButtonVisible( const wxString& aPluginPath,
-                                                   bool aPluginDefault )
+bool PCB_EDIT_FRAME::GetActionPluginButtonVisible( const wxString& aPluginPath, bool aPluginDefault )
 {
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-
-    for( const auto& [path, visible] : cfg->m_VisibleActionPlugins )
+    if( PCBNEW_SETTINGS* cfg = GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" ) )
     {
-        if( path == aPluginPath )
-            return visible;
-    }
+        for( const auto& [path, visible] : cfg->m_VisibleActionPlugins )
+        {
+            if( path == aPluginPath )
+                return visible;
+        }
 
-    for( const auto& [identifier, visible] : cfg->m_Plugins.actions )
-    {
-        if( identifier == aPluginPath )
-            return visible;
+        for( const auto& [identifier, visible] : cfg->m_Plugins.actions )
+        {
+            if( identifier == aPluginPath )
+                return visible;
+        }
     }
 
     // Plugin is not in settings, return default.

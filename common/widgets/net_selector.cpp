@@ -38,13 +38,12 @@ class NET_SELECTOR_COMBOPOPUP : public FILTER_COMBOPOPUP
 public:
     NET_SELECTOR_COMBOPOPUP() :
             m_netinfoList( nullptr ),
-            m_board( nullptr ),
             m_selectedNetcode( 0 )
     { }
 
     wxString GetStringValue() const override
     {
-        if( m_selectedNetcode == -1 )
+        if( !m_netinfoList || ( m_selectedNetcode == -1 ) )
             return m_indeterminateLabel;
 
         NETINFO_ITEM* netInfo = m_netinfoList->GetNetItem( m_selectedNetcode );
@@ -65,11 +64,6 @@ public:
     {
         m_indeterminateLabel = aIndeterminateLabel;
         rebuildList();
-    }
-
-    void SetBoard( BOARD* aBoard )
-    {
-        m_board = aBoard;
     }
 
     void SetIndeterminate() { m_selectedNetcode = -1; }
@@ -117,38 +111,33 @@ public:
             m_selectedNetcode = 0;
             GetComboCtrl()->SetValue( NO_NET );
         }
-        else if( escapedNetName.StartsWith( CREATE_NET, &remainingName ) &&
-                !remainingName.IsEmpty() )
+        else if( m_netinfoList && escapedNetName.StartsWith( CREATE_NET, &remainingName ) && !remainingName.IsEmpty() )
         {
             // Remove the first character ':' and all whitespace
             remainingName = remainingName.Mid( 1 ).Trim().Trim( false );
 
-            BOARD*        board  = m_netinfoList->GetParent();
-            NETINFO_ITEM *newnet = new NETINFO_ITEM( m_board, remainingName, 0 );
+            if( BOARD* board = m_netinfoList->GetParent() )
+            {
+                NETINFO_ITEM *newnet = new NETINFO_ITEM( board, remainingName, 0 );
 
-            wxASSERT( board );
-
-            if( board )
                 board->Add( newnet );
+                rebuildList();
 
-            rebuildList();
-
-            if( newnet->GetNetCode() > 0 )
-            {
-                m_selectedNetcode = newnet->GetNetCode();
-                GetComboCtrl()->SetValue( UnescapeString( remainingName ) );
-            }
-            else
-            {
-                // This indicates that the NETINFO_ITEM was not successfully appended to the
-                // list for unknown reasons
-                if( board )
+                if( newnet->GetNetCode() > 0 )
+                {
+                    m_selectedNetcode = newnet->GetNetCode();
+                    GetComboCtrl()->SetValue( UnescapeString( remainingName ) );
+                }
+                else
+                {
+                    // This indicates that the NETINFO_ITEM was not successfully appended to the
+                    // list for unknown reasons
                     board->Remove( newnet );
-
-                delete newnet;
+                    delete newnet;
+                }
             }
         }
-        else
+        else if( m_netinfoList )
         {
             NETINFO_ITEM* netInfo = m_netinfoList->GetNetItem( escapedNetName );
 
@@ -171,6 +160,9 @@ public:
 protected:
     void getListContent( wxArrayString& aNetnames ) override
     {
+        if( !m_netinfoList )
+            return;
+
         wxString      netstring = getFilterValue();
         wxString      filter = netstring.Lower();
 
@@ -213,10 +205,9 @@ protected:
             aNetnames.push_back( m_indeterminateLabel );
     }
 
+protected:
     const NETINFO_LIST*          m_netinfoList;
     wxString                     m_indeterminateLabel;
-    BOARD*                       m_board;
-
     int                          m_selectedNetcode;
 
     std::map<wxString, wxString> m_unescapedNetNameMap;
@@ -225,7 +216,7 @@ protected:
 
 NET_SELECTOR::NET_SELECTOR( wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size,
                             long style ) :
-        FILTER_COMBOBOX( parent, id, pos, size, style )
+        FILTER_COMBOBOX( parent, id, pos, size, style|wxCB_READONLY )
 {
     m_netSelectorPopup = new NET_SELECTOR_COMBOPOPUP();
     setFilterPopup( m_netSelectorPopup );
@@ -242,12 +233,6 @@ void NET_SELECTOR::SetIndeterminateString( const wxString& aString )
 {
     m_indeterminateString = aString;
     m_netSelectorPopup->SetIndeterminateLabel( aString );
-}
-
-
-void NET_SELECTOR::SetBoard( BOARD* aBoard )
-{
-    m_netSelectorPopup->SetBoard( aBoard );
 }
 
 

@@ -22,6 +22,7 @@
 #ifndef _CONNECTION_GRAPH_H
 #define _CONNECTION_GRAPH_H
 
+#include <memory>
 #include <mutex>
 #include <utility>
 #include <vector>
@@ -31,6 +32,7 @@
 #include <sch_item.h>
 #include <wx/treectrl.h>
 #include <advanced_config.h>
+#include <progress_reporter.h>
 
 
 #ifdef DEBUG
@@ -70,7 +72,8 @@ public:
         SHEET_PIN,
         HIER_LABEL,
         LOCAL_LABEL,
-        POWER_PIN,
+        LOCAL_POWER_PIN,
+        GLOBAL_POWER_PIN,
         GLOBAL
     };
 
@@ -91,11 +94,6 @@ public:
               m_driver_connection( nullptr )
     {}
 
-    ~CONNECTION_SUBGRAPH()
-    {
-        for( SCH_CONNECTION* connection : m_bus_element_connections )
-            delete connection;
-    }
 
     friend class CONNECTION_GRAPH;
 
@@ -217,9 +215,13 @@ public:
 
     // Use this to keep a connection pointer that is not owned by any item
     // This will be destroyed with the subgraph
-    void StoreImplicitConnection( SCH_CONNECTION* aConnection )
+    SCH_CONNECTION* StoreImplicitConnection( std::unique_ptr<SCH_CONNECTION> aConnection )
     {
-        m_bus_element_connections.insert( aConnection );
+        SCH_CONNECTION* raw = aConnection.get();
+
+        m_bus_element_connections.insert( std::move( aConnection ) );
+
+        return raw;
     }
 
 private:
@@ -297,6 +299,7 @@ private:
     std::unordered_set<CONNECTION_SUBGRAPH*> m_hier_children;
 
     /// A cache of escaped netnames from schematic items.
+    mutable std::mutex m_driver_name_cache_mutex;
     mutable std::unordered_map<SCH_ITEM*, wxString> m_driver_name_cache;
 
     /// Fully-resolved driver for the subgraph (might not exist in this subgraph).
@@ -314,9 +317,19 @@ private:
     /// Cache for driver connection.
     SCH_CONNECTION* m_driver_connection;
 
+    // A comparator for unique_ptr<SCH_CONNECTION> to allow storage in a set
+    struct CompareConnectionPtr
+    {
+        bool operator()( const std::unique_ptr<SCH_CONNECTION>& aLeft,
+                         const std::unique_ptr<SCH_CONNECTION>& aRight ) const
+        {
+            return aLeft.get() < aRight.get();
+        }
+    };
+
     /// A cache of connections that are part of this subgraph but that don't have
     /// an owning element (i.e. bus members)
-    std::set<SCH_CONNECTION*> m_bus_element_connections;
+    std::set<std::unique_ptr<SCH_CONNECTION>, CompareConnectionPtr> m_bus_element_connections;
 
     std::mutex m_driver_mutex;
 };
@@ -367,6 +380,15 @@ public:
         Reset();
     }
 
+    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
+    // will only land us in trouble.
+    CONNECTION_GRAPH( const CONNECTION_GRAPH& ) = delete;
+    CONNECTION_GRAPH& operator=( const CONNECTION_GRAPH& ) = delete;
+
+    // Define QA friend functions to allow testing of private methods
+    friend void boost_test_update_symbol_connectivity();
+    friend void boost_test_update_generic_connectivity();
+
     void Reset();
 
     void SetSchematic( SCHEMATIC* aSchematic )
@@ -389,7 +411,8 @@ public:
      * @param aChangedItemHandler an optional handler to receive any changed items
      */
     void Recalculate( const SCH_SHEET_LIST& aSheetList, bool aUnconditional = false,
-                      std::function<void( SCH_ITEM* )>* aChangedItemHandler = nullptr );
+                      std::function<void( SCH_ITEM* )>* aChangedItemHandler = nullptr,
+                      PROGRESS_REPORTER* aProgressReporter = nullptr );
 
     /**
      * Return a bus alias pointer for the given name if it exists (from cache)
@@ -491,6 +514,34 @@ public:
     }
 
 private:
+
+    /**
+     * Update the connectivity of a symbol and its pins.
+     * This is called by updateItemConnectivity() for each symbol
+     * in the schematic.
+     */
+    void updateSymbolConnectivity( const SCH_SHEET_PATH& aSheet,
+                                   SCH_SYMBOL* aSymbol,
+                                   std::map<VECTOR2I, std::vector<SCH_ITEM*>>& aConnectionMap );
+
+    /**
+     * Update the connectivity of a pin and its connections.
+     * This is called by updateItemConnectivity() for each pin
+     * in the schematic.
+     */
+    void updatePinConnectivity( const SCH_SHEET_PATH& aSheet,
+                                SCH_PIN* aPin,
+                                SCH_CONNECTION* aConnection );
+
+    /**
+     * Update the connectivity of items that are not pins or symbols.
+     * This is called by updateItemConnectivity() for each item
+     * in the schematic that is not a symbol or pin.
+     */
+    void updateGenericItemConnectivity( const SCH_SHEET_PATH& aSheet,
+                                        SCH_ITEM* aItem,
+                                        std::map<VECTOR2I, std::vector<SCH_ITEM*>>& aConnectionMap );
+
     /**
      * Update the graphical connectivity between items (i.e. where they touch)
      * The items passed in must be on the same sheet.

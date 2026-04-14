@@ -24,15 +24,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include <settings/common_settings.h>
 #include <advanced_config.h>
 #include <bitmaps.h>
 #include <file_history.h>
 #include <kiplatform/policy.h>
+#include <kiway.h>
+#include <local_history.h>
 #include <paths.h>
 #include <policy_keys.h>
 #include <tool/action_manager.h>
 #include <tool/action_toolbar.h>
 #include <tool/tool_manager.h>
+#include <tool/selection.h>
 #include <tools/kicad_manager_control.h>
 #include <tools/kicad_manager_actions.h>
 #include "kicad_manager_frame.h"
@@ -40,6 +44,8 @@
 #include "kicad_id.h"
 #include <widgets/wx_menubar.h>
 #include <wx/dir.h>
+#include <wx/utils.h>
+#include <local_history.h>
 
 
 void KICAD_MANAGER_FRAME::doReCreateMenuBar()
@@ -74,17 +80,12 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
     openRecentMenu->SetTitle( _( "Open Recent" ) );
 
     fileMenu->Add( KICAD_MANAGER_ACTIONS::newProject );
-    fileMenu->Add( KICAD_MANAGER_ACTIONS::newFromTemplate );
 
-    if( Pgm().GetCommonSettings()->m_Git.enableGit )
-    {
+    if( Pgm().GetCommonSettings() && Pgm().GetCommonSettings()->m_Git.enableGit )
         fileMenu->Add( KICAD_MANAGER_ACTIONS::newFromRepository );
-    }
 
     if( wxDir::Exists( PATHS::GetStockDemosPath() ) )
-    {
         fileMenu->Add( KICAD_MANAGER_ACTIONS::openDemoProject );
-    }
 
     fileMenu->Add( KICAD_MANAGER_ACTIONS::openProject );
 
@@ -103,6 +104,16 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
     fileMenu->Add( KICAD_MANAGER_ACTIONS::closeProject );
 
     fileMenu->AppendSeparator();
+    wxMenuItem* restoreItem = fileMenu->Add( KICAD_MANAGER_ACTIONS::restoreLocalHistory );
+    ACTION_CONDITIONS historyCond;
+    historyCond.Enable( [&]( const SELECTION& )
+    {
+        return Pgm().GetCommonSettings()->m_System.local_history_enabled
+               && Kiway().LocalHistory().HistoryExists( Prj().GetProjectPath() );
+    } );
+    RegisterUIUpdateHandler( restoreItem->GetId(), historyCond );
+
+    fileMenu->AppendSeparator();
     fileMenu->Add( ACTIONS::saveAs );
 
     fileMenu->AppendSeparator();
@@ -112,6 +123,10 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
     importMenu->SetTitle( _( "Import Non-KiCad Project..." ) );
     importMenu->SetIcon( BITMAPS::import_project );
 
+    importMenu->Add( _( "Altium Project..." ),
+                     _( "Import Altium Schematic and PCB (*.PrjPcb)" ),
+                     ID_IMPORT_ALTIUM_PROJECT,
+                     BITMAPS::import_project );
     importMenu->Add( _( "CADSTAR Project..." ),
                      _( "Import CADSTAR Archive Schematic and PCB (*.csa, *.cpa)" ),
                      ID_IMPORT_CADSTAR_ARCHIVE_PROJECT,
@@ -131,18 +146,20 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
                      _( "Import EasyEDA (JLCEDA) Professional schematic and board" ),
                      ID_IMPORT_EASYEDAPRO_PROJECT, BITMAPS::import_project );
 
+    importMenu->Add( _( "PADS Project..." ),
+                     _( "Import PADS Logic schematic and PADS ASCII PCB (*.asc, *.txt)" ),
+                     ID_IMPORT_PADS_PROJECT, BITMAPS::import_project );
+
+    importMenu->Add( _( "gEDA / Lepton EDA Project..." ),
+                     _( "Import gEDA or Lepton EDA schematic and PCB layout" ),
+                     ID_IMPORT_GEDA_PROJECT,
+                     BITMAPS::import_project );
+
     fileMenu->Add( importMenu );
 
     fileMenu->AppendSeparator();
-    fileMenu->Add( _( "&Archive Project..." ),
-                   _( "Archive all needed project files into zip archive" ),
-                   ID_SAVE_AND_ZIP_FILES,
-                   BITMAPS::zip );
-
-    fileMenu->Add( _( "&Unarchive Project..." ),
-                   _( "Unarchive project files from zip archive" ),
-                   ID_READ_ZIP_ARCHIVE,
-                   BITMAPS::unzip );
+    fileMenu->Add( KICAD_MANAGER_ACTIONS::archiveProject );
+    fileMenu->Add( KICAD_MANAGER_ACTIONS::unarchiveProject );
 
     fileMenu->AppendSeparator();
     fileMenu->AddQuitOrClose( nullptr, wxS( "KiCad" ) );
@@ -160,18 +177,30 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
     editMenu->Add( ACTIONS::copy );
     editMenu->Add( ACTIONS::paste );
 
+    wxString editCfgEnv;
+    if( wxGetEnv( wxS( "KICAD_EDIT_ADVANCED_CFG" ), &editCfgEnv ); editCfgEnv == wxS( "1" ) )
+    {
+        editMenu->Add( _( "Edit Advanced Config..." ),
+                        _( "Edit advanced settings" ),
+                        ID_EDIT_ADVANCED_CFG,
+                        BITMAPS::editor );
+    }
+
     //-- View menu -----------------------------------------------------------
     //
     ACTION_MENU* viewMenu = new ACTION_MENU( false, controlTool );
 
+    ACTION_MENU* panelsMenu = new ACTION_MENU( false, controlTool );
+    panelsMenu->SetTitle( _( "Panels" ) );
+    panelsMenu->Add( KICAD_MANAGER_ACTIONS::showLocalHistory, ACTION_MENU::CHECK );
+    viewMenu->Add( panelsMenu );
+
+    viewMenu->AppendSeparator();
     viewMenu->Add( ACTIONS::zoomRedraw );
 
     viewMenu->AppendSeparator();
     viewMenu->Add( KICAD_MANAGER_ACTIONS::openTextEditor );
-    viewMenu->Add( _( "Browse Project Files" ),
-                   _( "Open project directory in file browser" ),
-                   ID_BROWSE_IN_FILE_EXPLORER,
-                   BITMAPS::directory_browser );
+    viewMenu->Add( KICAD_MANAGER_ACTIONS::openProjectDirectory );
 
 #ifdef __APPLE__
     // Add a separator only on macOS because the OS adds menu items to the view menu after ours
@@ -214,8 +243,7 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
     prefsMenu->Add( ACTIONS::configurePaths );
     prefsMenu->Add( ACTIONS::showSymbolLibTable );
     prefsMenu->Add( ACTIONS::showFootprintLibTable );
-    if( ADVANCED_CFG::GetCfg().m_EnableDesignBlocks )
-        prefsMenu->Add( ACTIONS::showDesignBlockLibTable );
+    prefsMenu->Add( ACTIONS::showDesignBlockLibTable );
     prefsMenu->Add( ACTIONS::openPreferences );
 
     prefsMenu->AppendSeparator();
@@ -233,56 +261,4 @@ void KICAD_MANAGER_FRAME::doReCreateMenuBar()
 
     SetMenuBar( menuBar );
     delete oldMenuBar;
-}
-
-
-/**
- * @brief (Re)Create the left vertical toolbar
- */
-void KICAD_MANAGER_FRAME::RecreateBaseLeftToolbar()
-{
-    if( m_mainToolBar )
-    {
-        m_mainToolBar->ClearToolbar();
-    }
-    else
-    {
-        m_mainToolBar = new ACTION_TOOLBAR( this, ID_H_TOOLBAR, wxDefaultPosition, wxDefaultSize,
-                                            KICAD_AUI_TB_STYLE | wxAUI_TB_VERTICAL );
-        m_mainToolBar->SetAuiManager( &m_auimgr );
-    }
-
-    // New
-    m_mainToolBar->Add( KICAD_MANAGER_ACTIONS::newProject );
-    m_mainToolBar->Add( KICAD_MANAGER_ACTIONS::openProject );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->AddTool( ID_SAVE_AND_ZIP_FILES, wxEmptyString,
-                            KiBitmapBundle( BITMAPS::zip ),
-                            KiDisabledBitmapBundle( BITMAPS::zip ),
-                            wxITEM_NORMAL,
-                            _( "Archive all project files" ),
-                            wxEmptyString, nullptr );
-
-    m_mainToolBar->AddTool( ID_READ_ZIP_ARCHIVE, wxEmptyString,
-                            KiBitmapBundle( BITMAPS::unzip ),
-                            KiDisabledBitmapBundle( BITMAPS::unzip ),
-                            wxITEM_NORMAL,
-                            _( "Unarchive project files from zip archive" ),
-                            wxEmptyString, nullptr );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->Add( ACTIONS::zoomRedraw );
-
-    m_mainToolBar->AddScaledSeparator( this );
-    m_mainToolBar->AddTool( ID_BROWSE_IN_FILE_EXPLORER, wxEmptyString,
-                            KiBitmapBundle( BITMAPS::directory_browser ),
-#ifdef __APPLE__
-                            _( "Reveal project folder in Finder" ) );
-#else
-                            _( "Open project directory in file explorer" ) );
-#endif
-
-    // Create m_mainToolBar
-    m_mainToolBar->KiRealize();
 }

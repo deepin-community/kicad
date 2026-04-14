@@ -26,6 +26,7 @@
 #include <wx/msgdlg.h>
 #include <fmt/format.h>
 
+#include <widgets/wx_infobar.h>
 #include <tool/tool_manager.h>
 #include <tool/picker_tool.h>
 #include <drawing_sheet/ds_data_item.h>
@@ -314,7 +315,7 @@ int PL_EDIT_TOOL::Main( const TOOL_EVENT& aEvent )
         m_frame->OnModify();
 
     if( unselect )
-        m_toolMgr->RunAction( PL_ACTIONS::clearSelection );
+        m_toolMgr->RunAction( ACTIONS::selectionClear );
     else
         m_toolMgr->PostEvent( EVENTS::SelectedEvent );
 
@@ -477,7 +478,7 @@ int PL_EDIT_TOOL::InteractiveDelete( const TOOL_EVENT& aEvent )
                 m_toolMgr->GetTool<PL_SELECTION_TOOL>()->UnbrightenItem( m_pickerItem );
 
             // Wake the selection tool after exiting to ensure the cursor gets updated
-            m_toolMgr->PostAction( PL_ACTIONS::selectionActivate );
+            m_toolMgr->PostAction( ACTIONS::selectionActivate );
         } );
 
     m_toolMgr->RunAction( ACTIONS::pickerTool, &aEvent );
@@ -544,16 +545,13 @@ int PL_EDIT_TOOL::Paste( const TOOL_EVENT& aEvent )
 {
     PL_SELECTION&  selection = m_selectionTool->GetSelection();
     DS_DATA_MODEL& model = DS_DATA_MODEL::GetTheInstance();
-    bool           createdAnything = false;
 
-    if( std::unique_ptr<wxImage> clipImg = GetImageFromClipboard() )
+    if( std::unique_ptr<wxBitmap> clipImg = GetImageFromClipboard() )
     {
         auto image = std::make_unique<BITMAP_BASE>();
-        image->SetImage( *clipImg );
+        image->SetImage( clipImg->ConvertToImage() );
         auto dataItem = std::make_unique<DS_DATA_ITEM_BITMAP>( image.release() );
         model.Append( dataItem.release() );
-
-        createdAnything = true;
     }
     else
     {
@@ -561,12 +559,7 @@ int PL_EDIT_TOOL::Paste( const TOOL_EVENT& aEvent )
 
         const std::string clipText = GetClipboardUTF8();
         model.SetPageLayout( clipText.c_str(), true, wxT( "clipboard" ) );
-        createdAnything = true;
     }
-
-    // Nothing pasteable
-    if( !createdAnything )
-        return 0;
 
     // Build out draw items and select the first of each data item
     for( DS_DATA_ITEM* dataItem : model.GetItems() )

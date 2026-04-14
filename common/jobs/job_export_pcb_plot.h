@@ -24,7 +24,6 @@
 #include <plotprint_opts.h>
 #include <layer_ids.h>
 #include <lseq.h>
-#include <wx/string.h>
 #include "job.h"
 
 class KICOMMON_API JOB_EXPORT_PCB_PLOT : public JOB
@@ -51,6 +50,7 @@ public:
     wxString m_filename;
     wxString m_colorTheme;
     wxString m_drawingSheet;
+    wxString m_variant;
 
     /**
      * Common Options
@@ -58,6 +58,7 @@ public:
     bool m_mirror;
     bool m_blackAndWhite;
     bool m_negative;
+    double m_scale;
 
     bool m_sketchPadsOnFabLayers;
     bool m_hideDNPFPsOnFabLayers;
@@ -79,4 +80,6 @@ public:
 
     ///< Used by SVG/DXF/PDF/Gerbers
     bool m_useDrillOrigin;
+
+    bool m_checkZonesBeforePlot;
 };

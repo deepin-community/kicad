@@ -42,6 +42,7 @@ DIALOG_CLEANUP_GRAPHICS::DIALOG_CLEANUP_GRAPHICS( PCB_BASE_FRAME* aParent,
 {
     m_changesTreeModel = new RC_TREE_MODEL( m_parentFrame, m_changesDataView );
     m_changesDataView->AssociateModel( m_changesTreeModel );
+    m_changesDataView->SetLayoutDirection( wxLayout_LeftToRight );
 
     if( aIsFootprintEditor )
     {
@@ -108,7 +109,7 @@ void DIALOG_CLEANUP_GRAPHICS::doCleanup( bool aDryRun )
     if( !aDryRun )
     {
         // Clear current selection list to avoid selection of deleted items
-        m_parentFrame->GetToolManager()->RunAction( PCB_ACTIONS::selectionClear );
+        m_parentFrame->GetToolManager()->RunAction( ACTIONS::selectionClear );
 
         // ... and to keep the treeModel from trying to refresh a deleted item
         m_changesTreeModel->Update( nullptr, RPT_SEVERITY_ACTION );
@@ -139,15 +140,18 @@ void DIALOG_CLEANUP_GRAPHICS::doCleanup( bool aDryRun )
 
 void DIALOG_CLEANUP_GRAPHICS::OnSelectItem( wxDataViewEvent& aEvent )
 {
-    const KIID&   itemID = RC_TREE_MODEL::ToUUID( aEvent.GetItem() );
-    BOARD_ITEM*   item = m_parentFrame->GetBoard()->GetItem( itemID );
-    WINDOW_THAWER thawer( m_parentFrame );
+    const KIID& itemID = RC_TREE_MODEL::ToUUID( aEvent.GetItem() );
 
-    if( item && !item->GetLayerSet().test( m_parentFrame->GetActiveLayer() ) )
-        m_parentFrame->SetActiveLayer( item->GetLayerSet().UIOrder().front() );
+    if( BOARD_ITEM* item = m_parentFrame->GetBoard()->ResolveItem( itemID, true ) )
+    {
+        WINDOW_THAWER thawer( m_parentFrame );
 
-    m_parentFrame->FocusOnItem( item );
-    m_parentFrame->GetCanvas()->Refresh();
+        if( !item->GetLayerSet().test( m_parentFrame->GetActiveLayer() ) )
+            m_parentFrame->SetActiveLayer( item->GetLayerSet().UIOrder().front() );
+
+        m_parentFrame->FocusOnItem( item );
+        m_parentFrame->GetCanvas()->Refresh();
+    }
 
     aEvent.Skip();
 }

@@ -21,6 +21,10 @@
 
 #include <optional>
 
+#include <core/typeinfo.h>
+
+#include <board_connected_item.h>
+
 #include "pns_node.h"
 #include "pns_itemset.h"
 #include "pns_topology.h"
@@ -28,6 +32,7 @@
 #include "pns_diff_pair.h"
 #include "pns_router.h"
 #include "pns_solid.h"
+
 
 namespace PNS {
 
@@ -37,13 +42,19 @@ DP_MEANDER_PLACER::DP_MEANDER_PLACER( ROUTER* aRouter ) :
     m_world       = nullptr;
     m_currentNode = nullptr;
 
-    m_padToDieP = 0;
-    m_padToDieN = 0;
+    m_padToDieLengthP = 0;
+    m_padToDieLengthN = 0;
+
+    m_padToDieDelayP = 0;
+    m_padToDieDelayN = 0;
 
     // Init temporary variables (do not leave uninitialized members)
     m_initialSegment = nullptr;
     m_lastLength     = 0;
+    m_lastDelay = 0;
     m_lastStatus     = TOO_SHORT;
+
+    m_netClass = nullptr;
 }
 
 
@@ -107,29 +118,48 @@ bool DP_MEANDER_PLACER::Start( const VECTOR2I& aP, ITEM* aStartItem )
     m_tunedPathP = topo.AssembleTuningPath( Router()->GetInterface(), m_originPair.PLine().GetLink( 0 ), &m_startPad_p,
                                             &m_endPad_p );
 
-    m_padToDieP = 0;
+    m_padToDieLengthP = 0;
+    m_padToDieDelayP = 0;
 
     if( m_startPad_p )
-        m_padToDieP += m_startPad_p->GetPadToDie();
+    {
+        m_padToDieLengthP += m_startPad_p->GetPadToDie();
+        m_padToDieDelayP += m_startPad_p->GetPadToDieDelay();
+    }
 
     if( m_endPad_p )
-        m_padToDieP += m_endPad_p->GetPadToDie();
+    {
+        m_padToDieLengthP += m_endPad_p->GetPadToDie();
+        m_padToDieDelayP += m_endPad_p->GetPadToDieDelay();
+    }
 
     m_tunedPathN = topo.AssembleTuningPath( Router()->GetInterface(), m_originPair.NLine().GetLink( 0 ), &m_startPad_n,
                                             &m_endPad_n );
 
-    m_padToDieN = 0;
+    m_padToDieLengthN = 0;
+    m_padToDieDelayN = 0;
 
     if( m_startPad_n )
-        m_padToDieN += m_startPad_n->GetPadToDie();
+    {
+        m_padToDieLengthN += m_startPad_n->GetPadToDie();
+        m_padToDieDelayN += m_startPad_n->GetPadToDieDelay();
+    }
 
     if( m_endPad_n )
-        m_padToDieN += m_endPad_n->GetPadToDie();
+    {
+        m_padToDieLengthN += m_endPad_n->GetPadToDie();
+        m_padToDieDelayN += m_endPad_n->GetPadToDieDelay();
+    }
 
     m_world->Remove( m_originPair.PLine() );
     m_world->Remove( m_originPair.NLine() );
 
     m_currentWidth = m_originPair.Width();
+
+    const BOARD_CONNECTED_ITEM* conItem = static_cast<BOARD_CONNECTED_ITEM*>( aStartItem->GetSourceItem() );
+    m_netClass = conItem->GetEffectiveNetClass();
+
+    calculateTimeDomainTargets();
 
     return true;
 }
@@ -142,8 +172,16 @@ void DP_MEANDER_PLACER::release()
 
 long long int DP_MEANDER_PLACER::origPathLength() const
 {
-    long long int totalP = m_padToDieP + lineLength( m_tunedPathP, m_startPad_p, m_endPad_p );
-    long long int totalN = m_padToDieN + lineLength( m_tunedPathN, m_startPad_n, m_endPad_n );
+    long long int totalP = m_padToDieLengthP + lineLength( m_tunedPathP, m_startPad_p, m_endPad_p );
+    long long int totalN = m_padToDieLengthN + lineLength( m_tunedPathN, m_startPad_n, m_endPad_n );
+    return std::max( totalP, totalN );
+}
+
+
+int64_t DP_MEANDER_PLACER::origPathDelay() const
+{
+    const int64_t totalP = m_padToDieDelayP + lineDelay( m_tunedPathP, m_startPad_p, m_endPad_p );
+    const int64_t totalN = m_padToDieDelayP + lineDelay( m_tunedPathN, m_startPad_n, m_endPad_n );
     return std::max( totalP, totalN );
 }
 
@@ -169,6 +207,8 @@ bool DP_MEANDER_PLACER::pairOrientation( const DIFF_PAIR::COUPLED_SEGMENTS& aPai
 
 bool DP_MEANDER_PLACER::Move( const VECTOR2I& aP, ITEM* aEndItem )
 {
+    calculateTimeDomainTargets();
+
     if( m_currentStart == aP )
         return false;
 
@@ -184,6 +224,18 @@ bool DP_MEANDER_PLACER::Move( const VECTOR2I& aP, ITEM* aEndItem )
 
     m_originPair.CP().Split( m_currentStart, aP, preP, tunedP, postP );
     m_originPair.CN().Split( m_currentStart, aP, preN, tunedN, postN );
+
+    // Bail out early if the tuned sections are empty (issue #22041). This can happen when the
+    // split points are too close together or outside the line chain.
+    if( tunedP.PointCount() == 0 || tunedN.PointCount() == 0 )
+    {
+        m_finalShapeP = m_originPair.CP();
+        m_finalShapeN = m_originPair.CN();
+        m_lastLength  = origPathLength();
+        m_lastStatus  = TOO_SHORT;
+
+        return false;
+    }
 
     auto updateStatus =
             [&]()
@@ -316,19 +368,20 @@ bool DP_MEANDER_PLACER::Move( const VECTOR2I& aP, ITEM* aEndItem )
         {
             ssize_t arcIndex = tunedN.ArcIndex( curIndexN );
 
-            m_result.AddPtAndArc( tunedP.CPoint( -1 ), tunedN.Arc( arcIndex ) );
+            m_result.AddPtAndArc( tunedP.CLastPoint(), tunedN.Arc( arcIndex ) );
         }
         else
         {
-            m_result.AddCorner( tunedP.CPoint( -1 ), tunedN.CPoint( curIndexN ) );
+            m_result.AddCorner( tunedP.CLastPoint(), tunedN.CPoint( curIndexN ) );
         }
 
         curIndexN = tunedN.NextShape( curIndexN );
     }
 
-    m_result.AddCorner( tunedP.CPoint( -1 ), tunedN.CPoint( -1 ) );
+    m_result.AddCorner( tunedP.CLastPoint(), tunedN.CLastPoint() );
 
     long long int dpLen = origPathLength();
+    int64_t       dpDelay = origPathDelay();
 
     m_lastStatus = TUNED;
 
@@ -336,10 +389,24 @@ bool DP_MEANDER_PLACER::Move( const VECTOR2I& aP, ITEM* aEndItem )
     {
         m_lastStatus = TOO_LONG;
         m_lastLength = dpLen;
+        m_lastDelay = dpDelay;
     }
     else
     {
         m_lastLength = dpLen - std::max( tunedP.Length(), tunedN.Length() );
+
+        if( m_settings.m_isTimeDomain )
+        {
+            int64_t tunedPDelay = m_router->GetInterface()->CalculateDelayForShapeLineChain(
+                    tunedP, GetOriginPair().Width(), true, GetOriginPair().Gap(), m_router->GetCurrentLayer(),
+                    m_netClass );
+            int64_t tunedNDelay = m_router->GetInterface()->CalculateDelayForShapeLineChain(
+                    tunedN, GetOriginPair().Width(), true, GetOriginPair().Gap(), m_router->GetCurrentLayer(),
+                    m_netClass );
+
+            m_lastDelay = dpDelay - std::max( tunedPDelay, tunedNDelay );
+        }
+
         tuneLineLength( m_result, m_settings.m_targetLength.Opt() - dpLen );
     }
 
@@ -358,6 +425,19 @@ bool DP_MEANDER_PLACER::Move( const VECTOR2I& aP, ITEM* aEndItem )
         }
 
         m_lastLength += std::max( tunedP.Length(), tunedN.Length() );
+
+        if( m_settings.m_isTimeDomain )
+        {
+            int64_t tunedPDelay = m_router->GetInterface()->CalculateDelayForShapeLineChain(
+                    tunedP, GetOriginPair().Width(), true, GetOriginPair().Gap(), m_router->GetCurrentLayer(),
+                    m_netClass );
+            int64_t tunedNDelay = m_router->GetInterface()->CalculateDelayForShapeLineChain(
+                    tunedN, GetOriginPair().Width(), true, GetOriginPair().Gap(), m_router->GetCurrentLayer(),
+                    m_netClass );
+
+            m_lastDelay += std::max( tunedPDelay, tunedNDelay );
+        }
+
         updateStatus();
     }
 
@@ -500,12 +580,21 @@ int DP_MEANDER_PLACER::CurrentLayer() const
 }
 
 
-long long int DP_MEANDER_PLACER::TuningResult() const
+long long int DP_MEANDER_PLACER::TuningLengthResult() const
 {
     if( m_lastLength )
         return m_lastLength;
     else
         return origPathLength();
+}
+
+
+int64_t DP_MEANDER_PLACER::TuningDelayResult() const
+{
+    if( m_lastDelay )
+        return m_lastDelay;
+    else
+        return origPathDelay();
 }
 
 
@@ -523,4 +612,36 @@ const std::vector<NET_HANDLE> DP_MEANDER_PLACER::CurrentNets() const
     return rv;
 }
 
+
+void DP_MEANDER_PLACER::calculateTimeDomainTargets()
+{
+    // If this is a time domain tuning, calculate the target length for the desired total delay
+    if( m_settings.m_isTimeDomain )
+    {
+        const int64_t curDelay = origPathDelay();
+
+        const int64_t desiredDelayMin = m_settings.m_targetLengthDelay.Min();
+        const int64_t desiredDelayOpt = m_settings.m_targetLengthDelay.Opt();
+        const int64_t desiredDelayMax = m_settings.m_targetLengthDelay.Max();
+
+        const int64_t delayDifferenceOpt = desiredDelayOpt - curDelay;
+
+        const int64_t curLength = origPathLength();
+        const int64_t lengthDiffMin = m_router->GetInterface()->CalculateLengthForDelay(
+                desiredDelayOpt - desiredDelayMin, GetOriginPair().Width(), true, GetOriginPair().Gap(),
+                m_router->GetCurrentLayer(), m_netClass );
+        int64_t lengthDiffOpt = m_router->GetInterface()->CalculateLengthForDelay(
+                std::abs( delayDifferenceOpt ), GetOriginPair().Width(), true, GetOriginPair().Gap(),
+                m_router->GetCurrentLayer(), m_netClass );
+        const int64_t lengthDiffMax = m_router->GetInterface()->CalculateLengthForDelay(
+                desiredDelayMax - desiredDelayOpt, GetOriginPair().Width(), true, GetOriginPair().Gap(),
+                m_router->GetCurrentLayer(), m_netClass );
+
+        lengthDiffOpt = delayDifferenceOpt > 0 ? lengthDiffOpt : -lengthDiffOpt;
+
+        m_settings.m_targetLength.SetMin( curLength + lengthDiffOpt - lengthDiffMin );
+        m_settings.m_targetLength.SetOpt( curLength + lengthDiffOpt );
+        m_settings.m_targetLength.SetMax( curLength + lengthDiffOpt + lengthDiffMax );
+    }
+}
 }

@@ -85,11 +85,17 @@ public:
 
     void SetReplaceFootprints( bool aEnabled ) { m_replaceFootprints = aEnabled; }
 
+    void SetTransferGroups( bool aEnabled ) { m_transferGroups = aEnabled; }
+
     void SetOverrideLocks( bool aOverride ) { m_overrideLocks = aOverride; }
 
     void SetDeleteUnusedFootprints( bool aEnabled ) { m_deleteUnusedFootprints = aEnabled; }
 
     void SetLookupByTimestamp( bool aEnabled ) { m_lookupByTimestamp = aEnabled; }
+
+    void SetUpdateFields( bool aEnabled ) { m_updateFields = aEnabled; }
+
+    void SetRemoveExtraFields( bool aEnabled ) { m_removeExtraFields = aEnabled; }
 
     std::vector<FOOTPRINT*> GetAddedFootprints() const { return m_addedFootprints; }
 
@@ -103,19 +109,30 @@ private:
     VECTOR2I estimateFootprintInsertionPosition();
 
     FOOTPRINT* addNewFootprint( COMPONENT* aComponent );
+    FOOTPRINT* addNewFootprint( COMPONENT* aComponent, const LIB_ID& aFootprintId );
 
     FOOTPRINT* replaceFootprint( NETLIST& aNetlist, FOOTPRINT* aFootprint,
                                  COMPONENT* aNewComponent );
 
-    bool updateFootprintParameters( FOOTPRINT* aPcbFootprint, COMPONENT* aNetlistComponent );
+    bool updateFootprintParameters( FOOTPRINT* aFootprint, COMPONENT* aNetlistComponent );
+
+    bool updateFootprintGroup( FOOTPRINT* aPcbFootprint, COMPONENT* aNetlistComponent );
 
     bool updateComponentPadConnections( FOOTPRINT* aFootprint, COMPONENT* aNewComponent );
 
-    void updateComponentClass( FOOTPRINT* aFootprint, COMPONENT* aNewComponent );
+    bool updateComponentClass( FOOTPRINT* aFootprint, COMPONENT* aNewComponent );
+
+    bool updateComponentUnits( FOOTPRINT* aFootprint, COMPONENT* aNewComponent );
+
+    void applyComponentVariants( COMPONENT* aComponent,
+                                 const std::vector<FOOTPRINT*>& aFootprints,
+                                 const LIB_ID& aBaseFpid );
 
     void cacheCopperZoneConnections();
 
     bool updateCopperZoneNets( NETLIST& aNetlist );
+
+    bool updateGroups( NETLIST& aNetlist );
 
     bool testConnectivity( NETLIST& aNetlist, std::map<COMPONENT*, FOOTPRINT*>& aFootprintMap );
 
@@ -134,8 +151,11 @@ private:
     bool m_deleteUnusedFootprints;
     bool m_isDryRun;
     bool m_replaceFootprints;
+    bool m_transferGroups; // copy component group associations from schematic to PCB
     bool m_lookupByTimestamp;
     bool m_overrideLocks;
+    bool m_updateFields;
+    bool m_removeExtraFields;
 
     int m_warningCount;
     int m_errorCount;

@@ -444,7 +444,7 @@ void CADSTAR_ARCHIVE_PARSER::VERTEX::Parse( XNODE* aNode, PARSER_CONTEXT* aConte
 
     if( aNodeName == wxT( "PT" ) )
     {
-        Type     = VERTEX_TYPE::POINT;
+        Type     = VERTEX_TYPE::VT_POINT;
         Center.x = UNDEFINED_VALUE;
         Center.y = UNDEFINED_VALUE;
         End.Parse( aNode, aContext );
@@ -484,9 +484,9 @@ void CADSTAR_ARCHIVE_PARSER::VERTEX::Parse( XNODE* aNode, PARSER_CONTEXT* aConte
 
 void CADSTAR_ARCHIVE_PARSER::VERTEX::AppendToChain( SHAPE_LINE_CHAIN* aChainToAppendTo,
         const std::function<VECTOR2I( const VECTOR2I& )> aCadstarToKicadPointCallback,
-        double aAccuracy ) const
+        int aAccuracy ) const
 {
-    if( Type == VERTEX_TYPE::POINT )
+    if( Type == VERTEX_TYPE::VT_POINT )
     {
         aChainToAppendTo->Append( aCadstarToKicadPointCallback( End ) );
         return;
@@ -504,7 +504,7 @@ void CADSTAR_ARCHIVE_PARSER::VERTEX::AppendToChain( SHAPE_LINE_CHAIN* aChainToAp
 SHAPE_ARC CADSTAR_ARCHIVE_PARSER::VERTEX::BuildArc( const VECTOR2I& aPrevPoint,
         const std::function<VECTOR2I( const VECTOR2I& )> aCadstarToKicadPointCallback ) const
 {
-    wxCHECK_MSG( Type != VERTEX_TYPE::POINT, SHAPE_ARC(),
+    wxCHECK_MSG( Type != VERTEX_TYPE::VT_POINT, SHAPE_ARC(),
                  "Can't build an arc for a straight segment!" );
 
     VECTOR2I startPoint = aPrevPoint;
@@ -598,7 +598,7 @@ void CADSTAR_ARCHIVE_PARSER::SHAPE::Parse( XNODE* aNode, PARSER_CONTEXT* aContex
 
 SHAPE_LINE_CHAIN CADSTAR_ARCHIVE_PARSER::SHAPE::OutlineAsChain(
         const std::function<VECTOR2I( const VECTOR2I& )> aCadstarToKicadPointCallback,
-        double aAccuracy  ) const
+        int aMaxError  ) const
 {
     SHAPE_LINE_CHAIN outline;
 
@@ -606,7 +606,7 @@ SHAPE_LINE_CHAIN CADSTAR_ARCHIVE_PARSER::SHAPE::OutlineAsChain(
         return outline;
 
     for( const auto& vertex : Vertices )
-        vertex.AppendToChain( &outline, aCadstarToKicadPointCallback, aAccuracy );
+        vertex.AppendToChain( &outline, aCadstarToKicadPointCallback, aMaxError );
 
     if( Type != SHAPE_TYPE::OPENSHAPE )
     {
@@ -622,14 +622,14 @@ SHAPE_LINE_CHAIN CADSTAR_ARCHIVE_PARSER::SHAPE::OutlineAsChain(
 
 SHAPE_POLY_SET CADSTAR_ARCHIVE_PARSER::SHAPE::ConvertToPolySet(
         const std::function<VECTOR2I( const VECTOR2I& )> aCadstarToKicadPointCallback,
-        double aAccuracy  ) const
+        int aMaxError ) const
 {
     SHAPE_POLY_SET polyset;
 
     // We shouldn't convert openshapes to polyset!
     wxCHECK( Type != SHAPE_TYPE::OPENSHAPE, polyset );
 
-    polyset.AddOutline( OutlineAsChain( aCadstarToKicadPointCallback, aAccuracy ) );
+    polyset.AddOutline( OutlineAsChain( aCadstarToKicadPointCallback, aMaxError ) );
 
     for( const auto& cutout : Cutouts )
     {
@@ -639,12 +639,12 @@ SHAPE_POLY_SET CADSTAR_ARCHIVE_PARSER::SHAPE::ConvertToPolySet(
             continue;
 
         for( const auto& cutoutVertex : cutout.Vertices )
-            cutoutVertex.AppendToChain( &hole, aCadstarToKicadPointCallback, aAccuracy );
+            cutoutVertex.AppendToChain( &hole, aCadstarToKicadPointCallback, aMaxError );
 
         hole.SetClosed( true );
 
         // Append after closing, to ensre first and last point remain the same
-        cutout.Vertices.at( 0 ).AppendToChain( &hole, aCadstarToKicadPointCallback, aAccuracy );
+        cutout.Vertices.at( 0 ).AppendToChain( &hole, aCadstarToKicadPointCallback, aMaxError );
 
         polyset.AddHole( hole );
     }
@@ -1791,7 +1791,7 @@ CADSTAR_PIN_TYPE CADSTAR_ARCHIVE_PARSER::PART::GetPinType( XNODE* aNode )
     wxString pinTypeStr = GetXmlAttributeIDString( aNode, 0 );
 
     std::map<wxString, CADSTAR_PIN_TYPE> pinTypeMap = {
-        { wxT( "INPUT" ),               CADSTAR_PIN_TYPE::INPUT },
+        { wxT( "INPUT" ),               CADSTAR_PIN_TYPE::PIN_INPUT },
         { wxT( "OUTPUT_OR" ),           CADSTAR_PIN_TYPE::OUTPUT_OR },
         { wxT( "OUTPUT_NOT_OR" ),       CADSTAR_PIN_TYPE::OUTPUT_NOT_OR },
         { wxT( "OUTPUT_NOT_NORM_OR" ),  CADSTAR_PIN_TYPE::OUTPUT_NOT_NORM_OR },
@@ -2492,8 +2492,7 @@ XNODE* CADSTAR_ARCHIVE_PARSER::LoadArchiveFile( const wxString& aFileName,
             {
                 delete rootNode;
 
-                // @spellingerror
-                THROW_IO_ERROR( _( "File import cancelled by user." ) );
+                THROW_IO_ERROR( _( "File import canceled by user." ) );
             }
 
             aProgressReporter->SetCurrentProgress( currentProgress() );
@@ -2785,7 +2784,7 @@ void CADSTAR_ARCHIVE_PARSER::FixTextPositionNoAlignment( EDA_TEXT* aKiCadTextIte
 {
     if( !aKiCadTextItem->GetText().IsEmpty() )
     {
-        VECTOR2I positionOffset( 0, aKiCadTextItem->GetInterline() );
+        VECTOR2I positionOffset( 0, aKiCadTextItem->GetInterline( nullptr ) );
         RotatePoint( positionOffset, aKiCadTextItem->GetTextAngle() );
 
         //Count num of additional lines
@@ -2817,7 +2816,7 @@ void CADSTAR_ARCHIVE_PARSER::checkPoint()
         m_progressReporter->AdvanceProgress();
 
         if( !m_progressReporter->KeepRefreshing() )
-            THROW_IO_ERROR( _( "File import cancelled by user." ) );
+            THROW_IO_ERROR( _( "File import canceled by user." ) );
     }
 }
 

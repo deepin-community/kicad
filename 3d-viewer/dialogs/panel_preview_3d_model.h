@@ -59,10 +59,15 @@ wxDECLARE_EVENT( wxCUSTOM_PANEL_SHOWN_EVENT, wxCommandEvent );
 class WX_INFOBAR;
 class S3D_CACHE;
 class FILENAME_RESOLVER;
+class EMBEDDED_FILES;
 class BOARD;
 class BOARD_ADAPTER;
 class FOOTPRINT;
+#if defined(__linux__) || defined(__FreeBSD__)
+class SPNAV_VIEWER_PLUGIN;
+#else
 class NL_FOOTPRINT_PROPERTIES_PLUGIN;
+#endif
 
 #define PANEL_PREVIEW_3D_MODEL_ID  wxID_HIGHEST + 1244
 
@@ -96,6 +101,8 @@ public:
      * footprint that is on the preview dummy board.
      */
     void UpdateDummyFootprint( bool aRelaodRequired = true );
+
+    void SetEmbeddedFilesDelegate( EMBEDDED_FILES* aDelegate );
 
     /**
      * Get the dummy footprint that is used for previewing the 3D model.
@@ -155,6 +162,8 @@ private:
     wxString formatScaleValue( double aValue );
     wxString formatRotationValue( double aValue );
     wxString formatOffsetValue( double aValue );
+
+    void evalRotationValue( TEXT_CTRL_EVAL* aRotationControl );
 
 	void View3DISO( wxCommandEvent& event ) override
     {
@@ -226,7 +235,11 @@ private:
     /// The 3d viewer Render initial settings (must be saved and restored)
     EDA_3D_VIEWER_SETTINGS::RENDER_SETTINGS          m_initialRender;
 
+#if defined(__linux__) || defined(__FreeBSD__)
+    std::unique_ptr<SPNAV_VIEWER_PLUGIN> m_spaceMouse;
+#else
     std::unique_ptr<NL_FOOTPRINT_PROPERTIES_PLUGIN>  m_spaceMouse;
+#endif
 };
 
 #endif  // PANEL_PREVIEW_3D_MODEL_H

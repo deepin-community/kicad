@@ -23,7 +23,6 @@
 #define JOB_PCB_RENDER_H
 
 #include <kicommon.h>
-#include <wx/string.h>
 #include "job.h"
 #include <optional>
 #include <math/vector3.h>
@@ -60,7 +59,8 @@ public:
     {
         BASIC,
         HIGH,
-        USER
+        USER,
+        JOB_SETTINGS
     };
 
     enum class BG_STYLE
@@ -85,14 +85,18 @@ public:
     BG_STYLE    m_bgStyle = BG_STYLE::DEFAULT;
     int         m_width = 0;
     int         m_height = 0;
-    std::string m_colorPreset;
+    std::string m_appearancePreset;
+    bool        m_useBoardStackupColors = true;
     SIDE        m_side = SIDE::TOP;
     double      m_zoom = 1.0;
     bool        m_perspective = false;
     VECTOR3D    m_rotation;
     VECTOR3D    m_pan;
     VECTOR3D    m_pivot;
+    bool        m_proceduralTextures = false;
     bool        m_floor = false;
+    bool        m_antiAlias = true;
+    bool        m_postProcess = false;
     VECTOR3D    m_lightTopIntensity;
     VECTOR3D    m_lightBottomIntensity;
     VECTOR3D    m_lightCameraIntensity;

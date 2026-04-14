@@ -40,12 +40,13 @@ enum COL_ORDER
     COL_POSY,
     COL_VISIBLE,
     COL_UNIT,
-    COL_DEMORGAN,
+    COL_BODY_STYLE,
 
     COL_COUNT // keep as last
 };
 
 
+class ACTION_MENU;
 class PIN_TABLE_DATA_MODEL;
 class SYMBOL_EDIT_FRAME;
 
@@ -53,7 +54,8 @@ class SYMBOL_EDIT_FRAME;
 class DIALOG_LIB_EDIT_PIN_TABLE : public DIALOG_LIB_EDIT_PIN_TABLE_BASE
 {
 public:
-    DIALOG_LIB_EDIT_PIN_TABLE( SYMBOL_EDIT_FRAME* parent, LIB_SYMBOL* aSymbol );
+    DIALOG_LIB_EDIT_PIN_TABLE( SYMBOL_EDIT_FRAME* parent, LIB_SYMBOL* aSymbol,
+                               const std::vector<SCH_PIN*>& aSelectedPins );
     ~DIALOG_LIB_EDIT_PIN_TABLE() override;
 
     bool TransferDataToWindow() override;
@@ -66,9 +68,12 @@ public:
     void OnCellEdited( wxGridEvent& event ) override;
     void OnCellSelected( wxGridEvent& event ) override;
     void OnRebuildRows( wxCommandEvent& event ) override;
+    void OnMenu( wxCommandEvent& event ) override;
     void OnGroupSelected( wxCommandEvent& event ) override;
     void OnFilterCheckBox( wxCommandEvent& event ) override;
     void OnFilterChoice( wxCommandEvent& event ) override;
+    void OnImportButtonClick( wxCommandEvent& event ) override;
+    void OnExportButtonClick( wxCommandEvent& event ) override;
     void OnUpdateUI( wxUpdateUIEvent& event ) override;
     void OnCancel( wxCommandEvent& event ) override;
     void OnClose( wxCloseEvent& event ) override;
@@ -86,9 +91,11 @@ protected:
     int                   m_originalColWidths[ COL_COUNT ];
     std::bitset<64>       m_columnsShown;
     LIB_SYMBOL*           m_symbol;
-    std::vector<SCH_PIN*> m_pins;       // a copy of the pins owned by me
+    std::vector<SCH_PIN*> m_pins;       // a copy of the pins owned by the dialog
     bool                  m_modified;   ///< true when there are unsaved changes
     wxSize                m_size;
 
     PIN_TABLE_DATA_MODEL* m_dataModel;
+
+    std::unique_ptr<ACTION_MENU> m_menu;
 };

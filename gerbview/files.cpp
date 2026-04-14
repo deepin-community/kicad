@@ -39,6 +39,7 @@
 #include <widgets/wx_progress_reporters.h>
 #include "widgets/gerbview_layer_widget.h"
 #include <tool/tool_manager.h>
+#include <kiplatform/ui.h>
 
 // HTML Messages used more than one time:
 #define MSG_NO_MORE_LAYER _( "<b>No more available layers</b> in GerbView to load files" )
@@ -48,14 +49,10 @@
 
 void GERBVIEW_FRAME::OnGbrFileHistory( wxCommandEvent& event )
 {
-    wxString fn;
+    wxString filename = GetFileFromHistory( event.GetId(), _( "Gerber files" ) );
 
-    fn = GetFileFromHistory( event.GetId(), _( "Gerber files" ) );
-
-    if( !fn.IsEmpty() )
-    {
-        LoadGerberFiles( fn );
-    }
+    if( !filename.IsEmpty() )
+        LoadGerberFiles( filename );
 }
 
 void GERBVIEW_FRAME::OnClearGbrFileHistory( wxCommandEvent& aEvent )
@@ -66,38 +63,43 @@ void GERBVIEW_FRAME::OnClearGbrFileHistory( wxCommandEvent& aEvent )
 
 void GERBVIEW_FRAME::OnDrlFileHistory( wxCommandEvent& event )
 {
-    wxString fn;
+    wxString filename = GetFileFromHistory( event.GetId(), _( "Drill files" ), &m_drillFileHistory );
 
-    fn = GetFileFromHistory( event.GetId(), _( "Drill files" ), &m_drillFileHistory );
-
-    if( !fn.IsEmpty() )
-    {
-        LoadExcellonFiles( fn );
-    }
+    if( !filename.IsEmpty() )
+        LoadExcellonFiles( filename );
 }
 
 
 void GERBVIEW_FRAME::OnClearDrlFileHistory( wxCommandEvent& aEvent )
 {
-    ClearFileHistory( &m_drillFileHistory );
+    m_drillFileHistory.ClearFileHistory();
+
+    if( GetMenuBar() )
+    {
+        ReCreateMenuBar();
+        GetMenuBar()->Refresh();
+    }
 }
 
 
 void GERBVIEW_FRAME::OnZipFileHistory( wxCommandEvent& event )
 {
-    wxString filename;
-    filename = GetFileFromHistory( event.GetId(), _( "Zip files" ), &m_zipFileHistory );
+    wxString filename = GetFileFromHistory( event.GetId(), _( "Zip files" ), &m_zipFileHistory );
 
     if( !filename.IsEmpty() )
-    {
         LoadZipArchiveFile( filename );
-    }
 }
 
 
 void GERBVIEW_FRAME::OnClearZipFileHistory( wxCommandEvent& aEvent )
 {
-    ClearFileHistory( &m_zipFileHistory );
+    m_zipFileHistory.ClearFileHistory();
+
+    if( GetMenuBar() )
+    {
+        ReCreateMenuBar();
+        GetMenuBar()->Refresh();
+    }
 }
 
 
@@ -112,7 +114,13 @@ void GERBVIEW_FRAME::OnJobFileHistory( wxCommandEvent& event )
 
 void GERBVIEW_FRAME::OnClearJobFileHistory( wxCommandEvent& aEvent )
 {
-    ClearFileHistory( &m_jobFileHistory );
+    m_jobFileHistory.ClearFileHistory();
+
+    if( GetMenuBar() )
+    {
+        ReCreateMenuBar();
+        GetMenuBar()->Refresh();
+    }
 }
 
 
@@ -142,7 +150,14 @@ bool GERBVIEW_FRAME::LoadFileOrShowDialog( const wxString& aFileName,
 
         wxFileDialog dlg( this, dialogTitle, currentPath, filename.GetFullName(), dialogFiletypes,
                           wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_MULTIPLE | wxFD_CHANGE_DIR );
-        dlg.SetFilterIndex( lastGerberFileWildcard );
+
+        KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
+        wxArrayString dummy1, dummy2;
+        const int nWildcards = wxParseCommonDialogsFilter( dialogFiletypes, dummy1, dummy2 );
+
+        if( lastGerberFileWildcard >= 0 && lastGerberFileWildcard < nWildcards )
+            dlg.SetFilterIndex( lastGerberFileWildcard );
 
         if( dlg.ShowModal() == wxID_CANCEL )
             return false;
@@ -300,8 +315,7 @@ bool GERBVIEW_FRAME::LoadListOfGerberAndDrillFiles( const wxString&      aPath,
 
         if( !progress && ( aFilenameList.GetCount() > 1 ) )
         {
-            progress = std::make_unique<WX_PROGRESS_REPORTER>( this, _( "Loading files..." ), 1,
-                                                               false );
+            progress = std::make_unique<WX_PROGRESS_REPORTER>( this, _( "Load Files" ), 1, PR_CAN_ABORT );
             progress->SetMaxProgress( aFilenameList.GetCount() - 1 );
             progress->Report( wxString::Format( _("Loading %u/%zu %s..." ),
                                                 ii+1,
@@ -571,8 +585,8 @@ bool GERBVIEW_FRAME::unarchiveFiles( const wxString& aFullFileName, REPORTER* aR
 
             if( read_ok )
             {
-                view->SetLayerHasNegatives( GERBER_DRAW_LAYER( layer ),
-                                            GetGbrImage( layer )->HasNegativeItems() );
+                if( GERBER_FILE_IMAGE* gbrImage = GetGbrImage( layer ) )
+                    view->SetLayerHasNegatives( GERBER_DRAW_LAYER( layer ), gbrImage->HasNegativeItems() );
             }
         }
 
@@ -648,6 +662,8 @@ bool GERBVIEW_FRAME::LoadZipArchiveFile( const wxString& aFullFileName )
                           FILEEXT::ZipFileWildcard(),
                           wxFD_OPEN | wxFD_FILE_MUST_EXIST | wxFD_CHANGE_DIR );
 
+        KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
         if( dlg.ShowModal() == wxID_CANCEL )
             return false;
 
@@ -685,6 +701,17 @@ bool GERBVIEW_FRAME::LoadZipArchiveFile( const wxString& aFullFileName )
 
     return true;
 }
+
+
+void GERBVIEW_FRAME::ClearFileHistory()
+{
+    m_drillFileHistory.ClearFileHistory();
+    m_zipFileHistory.ClearFileHistory();
+    m_jobFileHistory.ClearFileHistory();
+
+    EDA_DRAW_FRAME::ClearFileHistory();
+}
+
 
 void GERBVIEW_FRAME::DoWithAcceptedFiles()
 {

@@ -57,6 +57,9 @@ public:
     int SaveAs( const TOOL_EVENT& aEvent );
     int SaveCopy( const TOOL_EVENT& aEvent );
     int Revert( const TOOL_EVENT& aEvent );
+    int RescueAutosave( const TOOL_EVENT& aEvent );
+    int OpenNonKicadBoard( const TOOL_EVENT& aEvent );
+    int ExportFootprints( const TOOL_EVENT& aEvent );
     int PageSettings( const TOOL_EVENT& aEvent );
     int Plot( const TOOL_EVENT& aEvent );
 
@@ -71,7 +74,18 @@ public:
     int ExportNetlist( const TOOL_EVENT& aEvent );
     int GenerateDrillFiles( const TOOL_EVENT& aEvent );
     int GeneratePosFile( const TOOL_EVENT& aEvent );
-    int GenerateFabFiles( const TOOL_EVENT& aEvent );
+    int GenerateGerbers( const TOOL_EVENT& aEvent );
+    int ExportGenCAD( const TOOL_EVENT& aEvent );
+    int ExportVRML( const TOOL_EVENT& aEvent );
+    int ExportIDF( const TOOL_EVENT& aEvent );
+    int ExportSTEP( const TOOL_EVENT& aEvent );
+    int ExportCmpFile( const TOOL_EVENT& aEvent );
+    int ExportHyperlynx( const TOOL_EVENT& aEvent );
+    int GenBOMFileFromBoard( const TOOL_EVENT& aEvent );
+    int GenFootprintsReport( const TOOL_EVENT& aEvent );
+    int GenD356File( const TOOL_EVENT& aEvent );
+    int GenIPC2581File( const TOOL_EVENT& aEvent );
+    int GenerateODBPPFiles( const TOOL_EVENT& aEvent );
     int RepairBoard( const TOOL_EVENT& aEvent );
 
     int UpdatePCBFromSchematic( const TOOL_EVENT& aEvent );
@@ -82,12 +96,14 @@ public:
     int ToggleNetInspector( const TOOL_EVENT& aEvent );
     int ToggleSearch( const TOOL_EVENT& aEvent );
     int TogglePythonConsole( const TOOL_EVENT& aEvent );
+    int ToggleLibraryTree( const TOOL_EVENT& aEvent );
 
     // Track & via size control
     int TrackWidthInc( const TOOL_EVENT& aEvent );
     int TrackWidthDec( const TOOL_EVENT& aEvent );
     int ViaSizeInc( const TOOL_EVENT& aEvent );
     int ViaSizeDec( const TOOL_EVENT& aEvent );
+    int AutoTrackWidth( const TOOL_EVENT& aEvent );
 
     // Zone actions
     int ZoneMerge( const TOOL_EVENT& aEvent );
@@ -132,6 +148,10 @@ public:
     static void DoSetDrillOrigin( KIGFX::VIEW* aView, PCB_BASE_FRAME* aFrame,
                                   EDA_ITEM* aItem, const VECTOR2D& aPoint );
 
+    // Line-mode handlers
+    int ChangeLineMode( const TOOL_EVENT& aEvent );
+    int OnAngleSnapModeChanged( const TOOL_EVENT& aEvent );
+
 private:
     ///< How to modify a property for selected items.
     enum MODIFY_MODE { ON, OFF, TOGGLE };
@@ -147,11 +167,8 @@ private:
     PCB_EDIT_FRAME*  m_frame;
     bool             m_inPlaceFootprint;      // Re-entrancy guard for tool.
     bool             m_placingFootprint;      // Re-entrancy guard for placement loop.
-    bool             m_inPlaceTarget;         // Re-entrancy guard.
 
     std::unique_ptr<KIGFX::ORIGIN_VIEWITEM> m_placeOrigin;
-
-    static const int WIDTH_STEP; ///< How does line width change after one -/+ key press.
 };
 
 #endif

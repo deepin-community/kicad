@@ -40,24 +40,29 @@
 
 KIGIT_COMMON::KIGIT_COMMON( git_repository* aRepo ) :
         m_repo( aRepo ), m_connType( GIT_CONN_TYPE::GIT_CONN_LOCAL ), m_testedTypes( 0 ),
-        m_nextPublicKey( 0 )
+        m_nextPublicKey( 0 ), m_secretFetched( false )
 {}
+
 
 KIGIT_COMMON::KIGIT_COMMON( const KIGIT_COMMON& aOther ) :
         // Initialize base class and member variables
         m_repo( aOther.m_repo ),
+        m_projectDir( aOther.m_projectDir ),
         m_connType( aOther.m_connType ),
         m_remote( aOther.m_remote ),
         m_hostname( aOther.m_hostname ),
         m_username( aOther.m_username ),
         m_password( aOther.m_password ),
         m_testedTypes( aOther.m_testedTypes ),
+
         // The mutex is default-initialized, not copied
         m_gitActionMutex(),
         m_publicKeys( aOther.m_publicKeys ),
-        m_nextPublicKey( aOther.m_nextPublicKey )
+        m_nextPublicKey( aOther.m_nextPublicKey ),
+        m_secretFetched( aOther.m_secretFetched )
 {
 }
+
 
 KIGIT_COMMON::~KIGIT_COMMON()
 {}
@@ -67,6 +72,24 @@ git_repository* KIGIT_COMMON::GetRepo() const
 {
     return m_repo;
 }
+
+
+wxString KIGIT_COMMON::GetProjectDir() const
+{
+    if( !m_projectDir.IsEmpty() )
+        return m_projectDir;
+
+    if( m_repo )
+    {
+        const char* workdir = git_repository_workdir( m_repo );
+
+        if( workdir )
+            return wxString( workdir );
+    }
+
+    return wxEmptyString;
+}
+
 
 wxString KIGIT_COMMON::GetCurrentBranchName() const
 {
@@ -97,6 +120,25 @@ wxString KIGIT_COMMON::GetCurrentBranchName() const
     }
 
     return wxString( branchName );
+}
+
+
+wxString KIGIT_COMMON::GetPassword()
+{
+    if( !m_secretFetched )
+    {
+        if( m_connType != GIT_CONN_TYPE::GIT_CONN_LOCAL && !m_remote.IsEmpty() )
+        {
+            wxString secret;
+
+            if( KIPLATFORM::SECRETS::GetSecret( m_remote, m_username, secret ) )
+                m_password = secret;
+        }
+
+        m_secretFetched = true;
+    }
+
+    return m_password;
 }
 
 
@@ -238,7 +280,7 @@ std::pair<std::set<wxString>,std::set<wxString>> KIGIT_COMMON::GetDifferentFiles
         std::set<wxString> modified_set;
         git_revwalk* walker = nullptr;
 
-        if( !m_repo || !from_oid )
+        if( !m_repo || !from_oid || IsCancelled() )
             return modified_set;
 
         if( git_revwalk_new( &walker, m_repo ) != GIT_OK )
@@ -266,6 +308,10 @@ std::pair<std::set<wxString>,std::set<wxString>> KIGIT_COMMON::GetDifferentFiles
         // iterate over all local commits not in remote
         while( git_revwalk_next( &oid, walker ) == GIT_OK )
         {
+            // Check for cancellation to allow early exit during shutdown
+            if( IsCancelled() )
+                return modified_set;
+
             if( git_commit_lookup( &commit, m_repo, &oid ) != GIT_OK )
             {
                 wxLogTrace( traceGit, "Failed to lookup commit: %s", KIGIT_COMMON::GetLastGitError() );
@@ -292,7 +338,7 @@ std::pair<std::set<wxString>,std::set<wxString>> KIGIT_COMMON::GetDifferentFiles
                     {
                         std::set<wxString>* modified_set_internal = static_cast<std::set<wxString>*>( payload );
                         wxString filePath = wxString::Format( "%s%s", root, git_tree_entry_name( entry ) );
-                        modified_set_internal->insert( filePath );
+                        modified_set_internal->insert( std::move( filePath ) );
                         return 0; // continue walking
                     },
                     &modified_set );
@@ -351,7 +397,7 @@ std::pair<std::set<wxString>,std::set<wxString>> KIGIT_COMMON::GetDifferentFiles
 
     std::pair<std::set<wxString>,std::set<wxString>> modified_files;
 
-    if( !m_repo )
+    if( !m_repo || IsCancelled() )
         return modified_files;
 
     git_reference* head = nullptr;
@@ -544,6 +590,7 @@ wxString KIGIT_COMMON::GetRemotename() const
     return retval;
 }
 
+
 void KIGIT_COMMON::SetSSHKey( const wxString& aKey )
 {
     auto it = std::find( m_publicKeys.begin(), m_publicKeys.end(), aKey );
@@ -645,6 +692,10 @@ void KIGIT_COMMON::UpdateCurrentBranchInfo()
     wxString remote_name = GetRemotename();
     git_remote* remote = nullptr;
 
+    m_remote.clear();
+    m_password.clear();
+    m_secretFetched = false;
+
     if( git_remote_lookup( &remote, m_repo, remote_name.ToStdString().c_str() ) == GIT_OK )
     {
         const char* url = git_remote_url( remote );
@@ -655,12 +706,10 @@ void KIGIT_COMMON::UpdateCurrentBranchInfo()
         git_remote_free( remote );
     }
 
-    // Find the stored password if it exists
-    KIPLATFORM::SECRETS::GetSecret( m_remote, m_username, m_password );
-
     updateConnectionType();
     updatePublicKeys();
 }
+
 
 KIGIT_COMMON::GIT_CONN_TYPE KIGIT_COMMON::GetConnType() const
 {
@@ -681,6 +730,7 @@ KIGIT_COMMON::GIT_CONN_TYPE KIGIT_COMMON::GetConnType() const
 
     return GIT_CONN_TYPE::GIT_CONN_LOCAL;
 }
+
 
 void KIGIT_COMMON::updateConnectionType()
 {
@@ -725,6 +775,7 @@ void KIGIT_COMMON::updateConnectionType()
         {
             // SSH format: git@hostname:path
             size_t colonPos = m_remote.find( ':' );
+
             if( colonPos != wxString::npos )
                 m_hostname = m_remote.Mid( 4, colonPos - 4 );
         }
@@ -748,6 +799,8 @@ void KIGIT_COMMON::updateConnectionType()
                 m_hostname = host;
         }
     }
+
+    m_secretFetched = !m_password.IsEmpty();
 }
 
 
@@ -772,7 +825,7 @@ int KIGIT_COMMON::HandleSSHKeyAuthentication( git_cred** aOut, const wxString& a
     wxLogTrace( traceGit, "Testing %s\n", sshKey );
 
     if( git_credential_ssh_key_new( aOut, aUsername.mbc_str(), sshPubKey.mbc_str(), sshKey.mbc_str(),
-                                password.mbc_str() ) != GIT_OK )
+                                    password.mbc_str() ) != GIT_OK )
     {
         wxLogTrace( traceGit, "Failed to create SSH key credential for %s: %s",
                     aUsername, KIGIT_COMMON::GetLastGitError() );
@@ -792,6 +845,7 @@ int KIGIT_COMMON::HandlePlaintextAuthentication( git_cred** aOut, const wxString
 
     return GIT_OK;
 }
+
 
 int KIGIT_COMMON::HandleSSHAgentAuthentication( git_cred** aOut, const wxString& aUsername )
 {
@@ -830,6 +884,12 @@ extern "C" int progress_cb( const char* str, int len, void* aPayload )
 {
     KIGIT_REPO_MIXIN* parent = reinterpret_cast<KIGIT_REPO_MIXIN*>( aPayload );
 
+    if( parent->GetCommon()->IsCancelled() )
+    {
+        wxLogTrace( traceGit, "Progress CB cancelled" );
+        return GIT_EUSER;
+    }
+
     wxString progressMessage( str, len );
     parent->UpdateProgress( 0, 0, progressMessage );
 
@@ -844,6 +904,11 @@ extern "C" int transfer_progress_cb( const git_transfer_progress* aStats, void* 
     wxString progressMessage = wxString::Format( _( "Received %u of %u objects" ),
                                                  aStats->received_objects,
                                                  aStats->total_objects );
+    if( parent->GetCommon()->IsCancelled() )
+    {
+        wxLogTrace( traceGit, "Transfer progress cancelled" );
+        return GIT_EUSER;
+    }
 
     parent->UpdateProgress( aStats->received_objects, aStats->total_objects, progressMessage );
 
@@ -942,6 +1007,7 @@ extern "C" int credentials_cb( git_cred** aOut, const char* aUrl, const char* aU
         wxString username = parent->GetUsername().Trim().Trim( false );
         wxLogTrace( traceGit, "Username credential for %s at %s with allowed type %d",
                     username, aUrl, aAllowedTypes );
+
         if( git_credential_username_new( aOut, username.ToStdString().c_str() ) != GIT_OK )
         {
             wxLogTrace( traceGit, "Failed to create username credential for %s: %s",
@@ -979,6 +1045,7 @@ extern "C" int credentials_cb( git_cred** aOut, const char* aUrl, const char* aU
 
         git_error_clear();
         git_error_set_str( GIT_ERROR_NET, _( "Unable to authenticate" ).mbc_str() );
+
         // Otherwise, we did try something but we failed, so return an authentication error
         return GIT_EAUTH;
     }

@@ -1,0 +1,188 @@
+{
+  "jobs": [
+    {
+      "description": "",
+      "id": "2c7cee5e-2273-4982-b653-9021d46a52cb",
+      "settings": {
+        "black_and_white": true,
+        "check_zones": false,
+        "create_gerber_job_file": true,
+        "crossout_dnp_footprints_on_fab_layers": true,
+        "description": "",
+        "disable_aperture_macros": false,
+        "drawing_sheet": "",
+        "drill_shape": "none",
+        "hide_dnp_footprints_on_fab_layers": false,
+        "include_netlist_attributes": true,
+        "layers": [
+          "In3.Cu",
+          "In4.Cu",
+          "In5.Cu",
+          "In6.Cu",
+          "In7.Cu",
+          "In8.Cu",
+          "In9.Cu",
+          "In10.Cu",
+          "In11.Cu",
+          "In12.Cu",
+          "In13.Cu",
+          "In14.Cu",
+          "In15.Cu",
+          "In16.Cu",
+          "In17.Cu",
+          "In18.Cu",
+          "In19.Cu",
+          "In20.Cu",
+          "In21.Cu",
+          "In22.Cu",
+          "In23.Cu",
+          "In24.Cu",
+          "In25.Cu",
+          "In26.Cu",
+          "In27.Cu",
+          "In28.Cu",
+          "In29.Cu",
+          "In30.Cu"
+        ],
+        "layers_to_include_on_all_layers": [],
+        "mirror": false,
+        "negative": false,
+        "output_filename": "",
+        "plot_drawing_sheet": false,
+        "plot_footprint_values": true,
+        "plot_pad_numbers": false,
+        "plot_ref_des": true,
+        "precision": 5,
+        "sketch_dnp_footprints_on_fab_layers": true,
+        "sketch_pads_on_fab_layers": false,
+        "subtract_solder_mask_from_silk": false,
+        "use_drill_origin": false,
+        "use_protel_file_extension": true,
+        "use_x2_format": true
+      },
+      "type": "pcb_export_gerbers"
+    },
+    {
+      "description": "",
+      "id": "76a7a240-db94-4042-a0e1-0a1fce4331d9",
+      "settings": {
+        "description": "",
+        "exclude_bom": false,
+        "exclude_dnp": false,
+        "exclude_footprints_with_th": false,
+        "format": "ascii",
+        "gerber_board_edge": true,
+        "negate_bottom_x": false,
+        "output_filename": "",
+        "side": "both",
+        "single_file": false,
+        "smd_only": false,
+        "units": "mm",
+        "use_drill_place_file_origin": true
+      },
+      "type": "pcb_export_pos"
+    },
+    {
+      "description": "",
+      "id": "bae3775d-fe12-42f2-a040-6c2ff5df6a2e",
+      "settings": {
+        "board_only": false,
+        "board_outlines_chaining_epsilon": 0.01,
+        "cut_vias_in_body": false,
+        "description": "",
+        "export_board_body": true,
+        "export_components": true,
+        "export_inner_copper": false,
+        "export_pads": false,
+        "export_silkscreen": false,
+        "export_soldermask": false,
+        "export_tracks": false,
+        "export_zones": false,
+        "fill_all_vias": false,
+        "format": "step",
+        "fuse_shapes": false,
+        "include_dnp": true,
+        "include_unspecified": true,
+        "occt_format": 0,
+        "optimize_step": true,
+        "output_filename": ".step",
+        "overwrite": false,
+        "subst_models": true,
+        "use_defined_origin": false,
+        "use_drill_origin": false,
+        "use_grid_origin": false,
+        "use_pcb_center_origin": false,
+        "user_origin.x": 108.75,
+        "user_origin.y": 94.0,
+        "vrml_model_dir": "",
+        "vrml_relative_paths": false
+      },
+      "type": "pcb_export_3d"
+    },
+    {
+      "description": "",
+      "id": "e93066f5-223b-4683-9a0e-3b3706977d8e",
+      "settings": {
+        "black_and_white": false,
+        "color_theme": "KiCad Classic",
+        "description": "",
+        "drawing_sheet": "",
+        "format": "pdf",
+        "min_pen_width": 847,
+        "output_dir": "",
+        "page_size": "auto",
+        "pdf_hierarchical_links": true,
+        "pdf_metadata": true,
+        "pdf_property_popups": true,
+        "plot_all": true,
+        "plot_drawing_sheet": true,
+        "show_hop_over": false,
+        "use_background_color": true
+      },
+      "type": "sch_export_plot_pdf"
+    },
+    {
+      "description": "",
+      "id": "c48517e7-242d-4278-a7ef-852b0fd6dec7",
+      "settings": {
+        "description": "",
+        "fail_on_error": false,
+        "format": "report",
+        "output_filename": "tinytapeout-demo-erc.rpt",
+        "severity": 48,
+        "units": "mm"
+      },
+      "type": "sch_erc"
+    }
+  ],
+  "meta": {
+    "version": 1
+  },
+  "outputs": [
+    {
+      "description": "fab_archive",
+      "id": "76d906d5-a7d7-4c67-88d3-71d3256cecd6",
+      "only": [
+        "2c7cee5e-2273-4982-b653-9021d46a52cb",
+        "76a7a240-db94-4042-a0e1-0a1fce4331d9"
+      ],
+      "settings": {
+        "format": "zip",
+        "output_path": "${KIPRJMOD}/out.zip"
+      },
+      "type": "archive"
+    },
+    {
+      "description": "",
+      "id": "6e5cbbc1-0909-4247-9809-369aba5cd298",
+      "only": [
+        "e93066f5-223b-4683-9a0e-3b3706977d8e",
+        "c48517e7-242d-4278-a7ef-852b0fd6dec7"
+      ],
+      "settings": {
+        "output_path": "doc/"
+      },
+      "type": "folder"
+    }
+  ]
+}

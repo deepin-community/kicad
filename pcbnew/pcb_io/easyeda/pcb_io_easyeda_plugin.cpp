@@ -34,6 +34,7 @@
 #include <board.h>
 #include <footprint.h>
 #include <board_design_settings.h>
+#include <project/net_settings.h>
 #include <reporter.h>
 
 #include <wx/log.h>
@@ -142,7 +143,8 @@ BOARD* PCB_IO_EASYEDA::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
     m_props = aProperties;
     m_board = aAppendToMe ? aAppendToMe : new BOARD();
 
-    fontconfig::FONTCONFIG::SetReporter( &WXLOG_REPORTER::GetInstance() );
+    // Collect the font substitution warnings (RAII - automatically reset on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( &LOAD_INFO_REPORTER::GetInstance() );
 
     // Give the filename to the board if it's new
     if( !aAppendToMe )
@@ -153,7 +155,7 @@ BOARD* PCB_IO_EASYEDA::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
         m_progressReporter->Report( wxString::Format( _( "Loading %s..." ), aFileName ) );
 
         if( !m_progressReporter->KeepRefreshing() )
-            THROW_IO_ERROR( _( "Open cancelled by user." ) );
+            THROW_IO_ERROR( _( "File import canceled by user." ) );
     }
 
     PCB_IO_EASYEDA_PARSER parser( nullptr );
@@ -245,7 +247,7 @@ BOARD* PCB_IO_EASYEDA::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
         parser.ParseBoard( m_board, origin, m_loadedFootprints, doc.shape );
 
         // Center the board
-        BOX2I     outlineBbox = m_board->ComputeBoundingBox( true );
+        BOX2I     outlineBbox = m_board->ComputeBoundingBox( true, true );
         PAGE_INFO pageInfo = m_board->GetPageSettings();
 
         VECTOR2D pageCenter( pcbIUScale.MilsToIU( pageInfo.GetWidthMils() / 2 ),
@@ -264,16 +266,12 @@ BOARD* PCB_IO_EASYEDA::LoadBoard( const wxString& aFileName, BOARD* aAppendToMe,
     }
     catch( nlohmann::json::exception& e )
     {
-        THROW_IO_ERROR(
-                wxString::Format( _( "Error loading board '%s': %s" ), aFileName, e.what() ) );
+        THROW_IO_ERROR( wxString::Format( _( "Error loading board '%s': %s" ), aFileName, e.what() ) );
     }
     catch( std::exception& e )
     {
-        THROW_IO_ERROR(
-                wxString::Format( _( "Error loading board '%s': %s" ), aFileName, e.what() ) );
+        THROW_IO_ERROR( wxString::Format( _( "Error loading board '%s': %s" ), aFileName, e.what() ) );
     }
-
-    return m_board;
 }
 
 
@@ -329,7 +327,7 @@ void PCB_IO_EASYEDA::FootprintEnumerate( wxArrayString&  aFootprintNames,
 
                     std::map<wxString, wxString> paramMap;
 
-                    for( int i = 1; i < paramParts.size(); i += 2 )
+                    for( int i = 1; i < (int) paramParts.size(); i += 2 )
                     {
                         wxString key = paramParts[i - 1];
                         wxString value = paramParts[i];
@@ -359,9 +357,7 @@ void PCB_IO_EASYEDA::FootprintEnumerate( wxArrayString&  aFootprintNames,
                 c_para = doc.head.c_para;
 
             if( c_para )
-            {
                 packageName = get_def( *c_para, wxS( "package" ), packageName );
-            }
 
             aFootprintNames.Add( packageName );
         }
@@ -383,7 +379,8 @@ FOOTPRINT* PCB_IO_EASYEDA::FootprintLoad( const wxString& aLibraryPath,
                                           const wxString& aFootprintName, bool aKeepUUID,
                                           const std::map<std::string, UTF8>* aProperties )
 {
-    fontconfig::FONTCONFIG::SetReporter( nullptr );
+    // Suppress font substitution warnings (RAII - automatically restored on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( nullptr );
 
     PCB_IO_EASYEDA_PARSER parser( nullptr );
 
@@ -437,7 +434,7 @@ FOOTPRINT* PCB_IO_EASYEDA::FootprintLoad( const wxString& aLibraryPath,
 
                     std::map<wxString, wxString> paramMap;
 
-                    for( int i = 1; i < paramParts.size(); i += 2 )
+                    for( int i = 1; i < (int) paramParts.size(); i += 2 )
                     {
                         wxString key = paramParts[i - 1];
                         wxString value = paramParts[i];
@@ -461,9 +458,8 @@ FOOTPRINT* PCB_IO_EASYEDA::FootprintLoad( const wxString& aLibraryPath,
                     {
                         parts.RemoveAt( 0 );
 
-                        FOOTPRINT* footprint =
-                                parser.ParseFootprint( origin, orientation, layer, nullptr,
-                                                       paramMap, m_loadedFootprints, parts );
+                        FOOTPRINT* footprint = parser.ParseFootprint( origin, orientation, layer, nullptr,
+                                                                      paramMap, m_loadedFootprints, parts );
 
                         if( !footprint )
                             return nullptr;
@@ -506,8 +502,8 @@ FOOTPRINT* PCB_IO_EASYEDA::FootprintLoad( const wxString& aLibraryPath,
 
                 VECTOR2D origin( doc.head.x, doc.head.y );
 
-                FOOTPRINT* footprint = parser.ParseFootprint(
-                        origin, ANGLE_0, F_Cu, nullptr, *c_para, m_loadedFootprints, doc.shape );
+                FOOTPRINT* footprint = parser.ParseFootprint( origin, ANGLE_0, F_Cu, nullptr, *c_para,
+                                                              m_loadedFootprints, doc.shape );
 
                 if( !footprint )
                     return nullptr;

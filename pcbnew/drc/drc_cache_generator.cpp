@@ -23,6 +23,8 @@
 
 #include <common.h>
 #include <board_design_settings.h>
+#include <pad.h>
+#include <pcb_board_outline.h>
 #include <footprint.h>
 #include <thread_pool.h>
 #include <zone.h>
@@ -42,16 +44,62 @@ bool DRC_CACHE_GENERATOR::Run()
     LSET           boardCopperLayers = LSET::AllCuMask( m_board->GetCopperLayerCount() );
     thread_pool&   tp = GetKiCadThreadPool();
 
-
     largestClearance = std::max( largestClearance, m_board->GetMaxClearanceValue() );
 
-    if( m_drcEngine->QueryWorstConstraint( PHYSICAL_CLEARANCE_CONSTRAINT, worstConstraint ) )
+    // Only consider unconditional constraints for the global maximum.  Conditional constraints
+    // (like the barcode physical clearance default) apply only to specific item types and
+    // should not inflate the R-tree query radius for all items on the board.
+    if( m_drcEngine->QueryWorstConstraint( PHYSICAL_CLEARANCE_CONSTRAINT, worstConstraint, true ) )
         largestPhysicalClearance = worstConstraint.GetValue().Min();
 
-    if( m_drcEngine->QueryWorstConstraint( PHYSICAL_HOLE_CLEARANCE_CONSTRAINT, worstConstraint ) )
+    if( m_drcEngine->QueryWorstConstraint( PHYSICAL_HOLE_CLEARANCE_CONSTRAINT, worstConstraint, true ) )
         largestPhysicalClearance = std::max( largestPhysicalClearance, worstConstraint.GetValue().Min() );
 
+    // If the unconditional max is 0, check for conditional constraints that may still apply.
+    // Only include the conditional maximum if matching items actually exist on the board.
+    if( largestPhysicalClearance <= 0 )
+    {
+        int conditionalMax = 0;
+
+        if( m_drcEngine->QueryWorstConstraint( PHYSICAL_CLEARANCE_CONSTRAINT, worstConstraint ) )
+            conditionalMax = worstConstraint.GetValue().Min();
+
+        if( m_drcEngine->QueryWorstConstraint( PHYSICAL_HOLE_CLEARANCE_CONSTRAINT, worstConstraint ) )
+            conditionalMax = std::max( conditionalMax, worstConstraint.GetValue().Min() );
+
+        if( conditionalMax > 0 )
+        {
+            bool hasMatchingItems = false;
+
+            forEachGeometryItem( { PCB_BARCODE_T }, LSET::AllLayersMask(),
+                    [&]( BOARD_ITEM* item ) -> bool
+                    {
+                        hasMatchingItems = true;
+                        return false;
+                    } );
+
+            if( hasMatchingItems )
+                largestPhysicalClearance = conditionalMax;
+        }
+    }
+
+    // Ensure algorithmic safety
+    largestClearance = std::min( largestClearance, INT_MAX / 3 );
+    largestPhysicalClearance = std::min( largestPhysicalClearance, INT_MAX / 3 );
+
     std::set<ZONE*> allZones;
+
+    auto cacheBBoxes =
+            []( ZONE* zone, const LSET& copperLayers )
+            {
+                zone->Outline()->BuildBBoxCaches();
+
+                for( PCB_LAYER_ID layer : copperLayers )
+                {
+                    if( SHAPE_POLY_SET* fill = zone->GetFill( layer ) )
+                        fill->BuildBBoxCaches();
+                }
+            };
 
     for( ZONE* zone : m_board->Zones() )
     {
@@ -61,8 +109,11 @@ bool DRC_CACHE_GENERATOR::Run()
         {
             m_board->m_DRCZones.push_back( zone );
 
-            if( ( zone->GetLayerSet() & boardCopperLayers ).any() )
+            LSET zoneCopperLayers = zone->GetLayerSet() & boardCopperLayers;
+
+            if( zoneCopperLayers.any() )
             {
+                cacheBBoxes( zone, zoneCopperLayers );
                 m_board->m_DRCCopperZones.push_back( zone );
             }
         }
@@ -78,8 +129,13 @@ bool DRC_CACHE_GENERATOR::Run()
             {
                 m_board->m_DRCZones.push_back( zone );
 
-                if( ( zone->GetLayerSet() & boardCopperLayers ).any() )
+                LSET zoneCopperLayers = zone->GetLayerSet() & boardCopperLayers;
+
+                if( zoneCopperLayers.any() )
+                {
+                    cacheBBoxes( zone, zoneCopperLayers );
                     m_board->m_DRCCopperZones.push_back( zone );
+                }
             }
         }
     }
@@ -130,12 +186,13 @@ bool DRC_CACHE_GENERATOR::Run()
         PCB_SHAPE_T,
         PCB_FIELD_T, PCB_TEXT_T, PCB_TEXTBOX_T,
         PCB_TABLE_T, PCB_TABLECELL_T,
-        PCB_DIMENSION_T
+        PCB_DIMENSION_T,
+        PCB_BARCODE_T
     };
 
-    forEachGeometryItem( itemTypes, LSET::AllCuMask(), countItems );
+    forEachGeometryItem( itemTypes, boardCopperLayers, countItems );
 
-    std::future<void> retn = tp.submit(
+    std::future<void> retn = tp.submit_task(
             [&]()
             {
                 std::unique_lock<std::shared_mutex> writeLock( m_board->m_CachesMutex );
@@ -143,7 +200,7 @@ bool DRC_CACHE_GENERATOR::Run()
                 if( !m_board->m_CopperItemRTreeCache )
                     m_board->m_CopperItemRTreeCache = std::make_shared<DRC_RTREE>();
 
-                forEachGeometryItem( itemTypes, LSET::AllCuMask(), addToCopperTree );
+                forEachGeometryItem( itemTypes, boardCopperLayers, addToCopperTree );
             } );
 
     std::future_status status = retn.wait_for( std::chrono::milliseconds( 250 ) );
@@ -202,7 +259,13 @@ bool DRC_CACHE_GENERATOR::Run()
             };
 
     for( ZONE* zone : allZones )
-        returns.emplace_back( tp.submit( cache_zones, zone ) );
+    {
+        returns.emplace_back( tp.submit_task(
+                [cache_zones, zone]
+                {
+                    return cache_zones( zone );
+                } ) );
+    }
 
     done.store( 1 );
 
@@ -231,6 +294,11 @@ bool DRC_CACHE_GENERATOR::Run()
         }
     }
 
+    m_board->UpdateBoardOutline();
+
+    if( m_board->BoardOutline() )
+        m_board->BoardOutline()->GetOutline().BuildBBoxCaches();
+
     std::shared_ptr<CONNECTIVITY_DATA> connectivity = m_board->GetConnectivity();
 
     connectivity->ClearRatsnest();
@@ -239,4 +307,3 @@ bool DRC_CACHE_GENERATOR::Run()
 
     return !m_drcEngine->IsCancelled();
 }
-

@@ -1,0 +1,3957 @@
+# Command Line Interface, German Translation
+# Copyright (C) 2026 Free Software Foundation, Inc.
+# This file is distributed under the same license as the PACKAGE package.
+# Lorenz Bewig <robotaxi@arcor.de>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: 2026-01-31 09:44+0100\n"
+"PO-Revision-Date: 2026-01-29 23:38+0100\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4\n"
+
+#. type: Title =
+#: cli.adoc:7
+#, no-wrap
+msgid "KiCad Command-Line Interface"
+msgstr "KiCad Befehlszeilenschnittstelle"
+
+#. type: Plain text
+#: cli.adoc:12
+msgid "_KiCad {kicad-version-short} Reference Manual_"
+msgstr "_KiCad {kicad-version-short} Referenzhandbuch_"
+
+#. type: Plain text
+#: cli.adoc:15
+#, no-wrap
+msgid "*Copyright*\n"
+msgstr "*Copyright*\n"
+
+#. type: Plain text
+#: cli.adoc:21
+msgid ""
+"This document is Copyright (C) 2023-2024 by its contributors as listed "
+"below. You may distribute it and/or modify it under the terms of either the "
+"GNU General Public License (http://www.gnu.org/licenses/gpl.html), version 3 "
+"or later, or the Creative Commons Attribution License (http://"
+"creativecommons.org/licenses/by/3.0/), version 3.0 or later."
+msgstr ""
+"Dieses Dokument unterliegt dem Copyright (C) 2023-2025 der unten "
+"aufgeführten Mitwirkenden. Sie dürfen es unter den Bedingungen der GNU "
+"General Public License (http://www.gnu.org/licenses/gpl.html), Version 3 "
+"oder höher, oder der Creative Commons Attribution License (http://"
+"creativecommons.org/licenses/by/3.0/), Version 3.0 oder höher, verbreiten "
+"und/oder verändern."
+
+#. type: Plain text
+#: cli.adoc:23
+msgid "All trademarks within this guide belong to their legitimate owners."
+msgstr ""
+"Alle Markenzeichen in diesem Leitfaden gehören ihren rechtmäßigen "
+"Eigentümern."
+
+#. type: Plain text
+#: cli.adoc:26
+#, no-wrap
+msgid "*Contributors*\n"
+msgstr "*Mitwirkende*\n"
+
+#. type: Plain text
+#: cli.adoc:28
+msgid "Graham Keeth"
+msgstr "Graham Keeth"
+
+#. type: Plain text
+#: cli.adoc:31
+#, no-wrap
+msgid "*Feedback*\n"
+msgstr "*Feedback*\n"
+
+#. type: Plain text
+#: cli.adoc:35
+msgid ""
+"The KiCad project welcomes feedback, bug reports, and suggestions related to "
+"the software or its documentation. For more information on how to submit "
+"feedback or report an issue, please see the instructions at https://www."
+"kicad.org/help/report-an-issue/"
+msgstr ""
+"Das KiCad-Projekt freut sich über Rückmeldungen, Fehlerberichte und "
+"Vorschläge in Bezug auf die Software oder ihre Dokumentation. Weitere "
+"Informationen zum Einreichen von Feedback oder zum Melden eines Problems "
+"finden Sie in den Anweisungen unter https://www.kicad.org/help/report-an-"
+"issue/"
+
+#. type: Plain text
+#: cli.adoc:37
+#, no-wrap
+msgid "*Software and Documentation Version*\n"
+msgstr "Version der Software und Dokumentation\n"
+
+#. type: Plain text
+#: cli.adoc:40
+msgid ""
+"This user manual is based on KiCad {kicad-version-long}. Functionality and "
+"appearance may be different in other versions of KiCad."
+msgstr ""
+"Dieses Benutzerhandbuch basiert auf KiCad {kicad-version-long}. "
+"Funktionalität und Aussehen können sich in anderen Versionen von KiCad "
+"unterscheiden."
+
+#. type: Plain text
+#: cli.adoc:42
+msgid "Documentation revision: `{doc-commit}`."
+msgstr "Revision der Dokumentation: `{doc-commit}`."
+
+#. type: Title ==
+#: cli.adoc:43
+#, no-wrap
+msgid "Introduction to the KiCad Command-Line Interface"
+msgstr "Einführung in die KiCad Befehlszeilenschnittstelle"
+
+#. type: Plain text
+#: cli.adoc:50
+msgid ""
+"KiCad provides a command-line interface, which is available by running the "
+"`kicad-cli` binary. With the command-line interface, you can perform a "
+"number of actions on schematics, PCBs, symbols, and footprints in an "
+"automated fashion, such as plotting Gerber files from a PCB design or "
+"upgrading a symbol library from a legacy file format to a modern format."
+msgstr ""
+"KiCad bietet eine Befehlszeilenschnittstelle, die durch Ausführen der "
+"Binärdatei `kicad-cli` verfügbar ist. Mit der Befehlszeilenschnittstelle "
+"können Sie eine Reihe von Aktionen für Schaltpläne, Leiterplatten, Symbole "
+"und Footprints automatisiert ausführen, z. B. das Plotten von Gerber-Dateien "
+"aus einem Leiterplattenentwurf oder das Aktualisieren einer Symbolbibliothek "
+"von einem älteren Dateiformat auf ein modernes Format."
+
+#. type: Plain text
+#: cli.adoc:53
+#, no-wrap
+msgid ""
+"On macOS, the `kicad-cli` executable is located at\n"
+"      `/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`.\n"
+msgstr ""
+"Unter macOS befindet sich die Anwendung `kicad-cli` unter\n"
+"      `/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`.\n"
+
+#. type: Plain text
+#: cli.adoc:58
+msgid ""
+"The `kicad-cli` command has 6 subcommands: `fp`, `jobset`, `pcb`, `sch`, "
+"`sym`, and `version`. Each subcommand may have its own subcommands and "
+"arguments. For example, to export Gerber files from a PCB you could run "
+"`kicad-cli pcb export gerbers example.kicad_pcb`."
+msgstr ""
+"`kicad-cli` verfügt über 6 Unterbefehle: `fp`, `jobset`, `pcb`, `sch`, `sym` "
+"und `version`. Jeder Unterbefehl kann eigene Unterbefehle und Argumente "
+"haben. Um beispielsweise Gerber-Dateien aus einer Leiterplatte zu "
+"exportieren, könnten Sie `kicad-cli pcb export gerbers example.kicad_pcb` "
+"ausführen."
+
+#. type: Plain text
+#: cli.adoc:63
+msgid ""
+"You can add the `--help` or `-h` flag to see information about each "
+"subcommand. For example, running `kicad-cli pcb -h` prints usage information "
+"about the `pcb` subcommand, and `kicad-cli pcb export gerbers -h` prints "
+"usage information specifically for the `pcb export gerbers` subcommand."
+msgstr ""
+"Sie können das Flag `--help` oder `-h` hinzufügen, um Informationen zu den "
+"einzelnen Unterbefehlen anzuzeigen. Wenn Sie beispielsweise `kicad-cli pcb -"
+"h` ausführen, werden Informationen zur Verwendung des Unterbefehls `pcb` "
+"angezeigt, und wenn Sie `kicad-cli pcb export gerbers -h` ausführen, werden "
+"Informationen zur Verwendung speziell für den Unterbefehl `pcb export "
+"gerbers` angezeigt."
+
+#. type: Title ==
+#: cli.adoc:64
+#, no-wrap
+msgid "Footprint commands"
+msgstr "Footprint-Befehle"
+
+#. type: Plain text
+#: cli.adoc:68
+msgid ""
+"The `fp` subcommand exports footprints to another format or upgrades the "
+"footprint libraries to the current version of the KiCad footprint file "
+"format."
+msgstr ""
+"Der Unterbefehl `fp` exportiert Footprints in ein anderes Format oder "
+"aktualisiert die Footprint-Bibliotheken auf die aktuelle Version des KiCad-"
+"Footprint-Dateiformats."
+
+#. type: Title ===
+#: cli.adoc:69
+#, no-wrap
+msgid "Footprint export"
+msgstr "Footprint-Export"
+
+#. type: Plain text
+#: cli.adoc:73
+msgid ""
+"The `fp export svg` command exports one or more footprints from the "
+"specified library into SVG files."
+msgstr ""
+"Der Befehl `fp export svg` exportiert einen oder mehrere Footprints aus der "
+"angegebenen Bibliothek in SVG-Dateien."
+
+#. type: Plain text
+#: cli.adoc:75
+msgid ""
+"Usage: `kicad-cli fp export svg [--help] [--output OUTPUT_DIR] [--layers "
+"LAYER_LIST] [--define-var KEY=VALUE] [--theme VAR] [--footprint "
+"FOOTPRINT_NAME] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-"
+"layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-"
+"on-fab-layers] [--black-and-white] INPUT_DIR`"
+msgstr ""
+"Verwendung: `kicad-cli fp export svg [--help] [--output OUTPUT_DIR] [--"
+"layers LAYER_LIST] [--define-var KEY=VALUE] [--theme VAR] [--footprint "
+"FOOTPRINT_NAME] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-"
+"layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-"
+"on-fab-layers] [--black-and-white] INPUT_DIR`"
+
+#. type: Plain text
+#: cli.adoc:77 cli.adoc:142 cli.adoc:170 cli.adoc:216 cli.adoc:273 cli.adoc:352
+#: cli.adoc:430 cli.adoc:496 cli.adoc:583 cli.adoc:628 cli.adoc:723
+#: cli.adoc:798 cli.adoc:931 cli.adoc:956 cli.adoc:993 cli.adoc:1090
+#: cli.adoc:1169 cli.adoc:1219 cli.adoc:1316 cli.adoc:1351 cli.adoc:1433
+#: cli.adoc:1511 cli.adoc:1593 cli.adoc:1671 cli.adoc:1764 cli.adoc:1811
+#: cli.adoc:1889 cli.adoc:1960 cli.adoc:1991 cli.adoc:2047 cli.adoc:2112
+#: cli.adoc:2159 cli.adoc:2188 cli.adoc:2241 cli.adoc:2292 cli.adoc:2319
+#: cli.adoc:2369 cli.adoc:2399 cli.adoc:2451
+msgid "Positional arguments:"
+msgstr "Positionsargumente:"
+
+#. type: Table
+#: cli.adoc:81
+#, no-wrap
+msgid ""
+"| `INPUT_DIR`\n"
+"    | Footprint library directory to export (`.pretty`).\n"
+msgstr ""
+"| `INPUT_DIR`\n"
+"    | Zu exportierendes Footprint-Bibliotheksverzeichnis (`.pretty`).\n"
+
+#. type: Plain text
+#: cli.adoc:84 cli.adoc:151 cli.adoc:178 cli.adoc:281 cli.adoc:360 cli.adoc:438
+#: cli.adoc:504 cli.adoc:591 cli.adoc:636 cli.adoc:731 cli.adoc:806
+#: cli.adoc:882 cli.adoc:939 cli.adoc:964 cli.adoc:1001 cli.adoc:1098
+#: cli.adoc:1177 cli.adoc:1227 cli.adoc:1359 cli.adoc:1441 cli.adoc:1519
+#: cli.adoc:1601 cli.adoc:1679 cli.adoc:1772 cli.adoc:1819 cli.adoc:1897
+#: cli.adoc:1968 cli.adoc:1999 cli.adoc:2055 cli.adoc:2120 cli.adoc:2167
+#: cli.adoc:2196 cli.adoc:2249 cli.adoc:2300 cli.adoc:2327 cli.adoc:2377
+#: cli.adoc:2407 cli.adoc:2459 cli.adoc:2483
+msgid "Optional arguments:"
+msgstr "Optionale Argumente:"
+
+#. type: Table
+#: cli.adoc:118
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the footprint SVG export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder for the exported files. One file is output for each\n"
+"      layer of each footprint in the library. When `--output` is not used,\n"
+"      the files are exported to the current directory.\n"
+"| `-l <layer list>`, `--layers <layer list>`\n"
+"    | A comma-separated list of layer names to export from the footprint, such\n"
+"      as `F.Cu,B.Cu`. If no layers are given, all layers are exported. Layer\n"
+"      names can be specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`,\n"
+"      etc.) or as user-defined (custom) layer names, but user-defined layer names\n"
+"      are matched first.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-t <theme name>`, `--theme <theme name>`\n"
+"    | The name of the theme to use for export. If no theme is given, the\n"
+"      footprint editor's currently selected theme is used.\n"
+"| `--fp <footprint>`, `--footprint <footprint>`\n"
+"    | The name of the specific footprint to export from the library. When this\n"
+"      argument is not used, all footprints in the library are exported.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Draw pad outlines and their numbers on front and back fab layers.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Don't plot text and graphics of DNP footprints on fab layers.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Plot graphics of DNP footprints in sketch mode on fab layers.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Plot an \"X\" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.\n"
+"| `--black-and-white`\n"
+"    | Export footprints in black and white.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe zum Befehl zum Exportieren von Footprint-SVG-Dateien anzeigen.\n"
+"| `-o <Ausgabeverzeichnis>`, `--output <Ausgabeverzeichnis>`\n"
+"    | Das Ausgabeverzeichnis für die exportierten Dateien. Für jede\n"
+"      Ebene jedes Footprints in der Bibliothek wird eine Datei ausgegeben. Wenn `--output` nicht verwendet wird, werden die Dateien in das aktuelle Verzeichnis exportiert.\n"
+"| `-l <Ebenenliste>`, `--layers <Ebenenliste>`\n"
+"    | Eine durch Kommas getrennte Liste der Ebenennamen, die aus dem Footprint exportiert werden sollen, z. B. `F.Cu,B.Cu`. Wenn keine Ebenen angegeben sind, werden alle Ebenen exportiert. Layernamen können als kanonische Layernamen (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte Layernamen angegeben werden, wobei benutzerdefinierte Layernamen zuerst abgeglichen werden.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `-t <Themenname>`, `--theme <Themenname>`\n"
+"    | Der Name des Themas, das für den Export verwendet werden soll. Wenn kein Thema angegeben ist, wird das derzeit im Footprinteditor ausgewählte Thema verwendet.\n"
+"| `--fp <Footprint>`, `--footprint <Footprint>`\n"
+"    | Der Name des spezifischen Footprints, der aus der Bibliothek exportiert werden soll. Wenn dieses Argument nicht verwendet wird, werden alle Footprints in der Bibliothek exportiert.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Pad-Umrisse und deren Nummern auf den vorderen und hinteren Fab-Layern zeichnen.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Text und Grafiken von DNP-Footprints nicht auf Fab-Layern plotten.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Grafiken von DNP-Footprints im Skizzenmodus auf Fab-Layern zeichnen.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Ein „X” über den Hof von DNP-Footprints auf Fab-Layern zeichnen und deren Referenzbezeichnungen durchstreichen.\n"
+"| `--black-and-white`\n"
+"    | Footprints in Schwarz-Weiß exportieren.\n"
+
+#. type: Title ===
+#: cli.adoc:120
+#, no-wrap
+msgid "Footprint upgrade"
+msgstr "Footprint-Upgrade"
+
+#. type: Plain text
+#: cli.adoc:126
+msgid ""
+"The `fp upgrade` command converts the specified footprint library from a "
+"legacy KiCad footprint format or a non-KiCad footprint format to the native "
+"format for the current version of KiCad. If the input library is already in "
+"the current file format, no action is taken."
+msgstr ""
+"Der Befehl `fp upgrade` konvertiert die angegebene Footprintbibliothek aus "
+"einem älteren KiCad-Footprint-Format oder einem Nicht-KiCad-Footprint-Format "
+"in das native Format der aktuellen KiCad-Version. Befindet sich die "
+"Eingabebibliothek bereits im aktuellen Dateiformat, wird keine Aktion "
+"durchgeführt."
+
+#. type: Plain text
+#: cli.adoc:128
+msgid "Supported input footprint formats are:"
+msgstr "Unterstützte Footprint-Eingabeformate sind:"
+
+#. type: Plain text
+#: cli.adoc:130
+msgid "KiCad footprint library (`.pretty` folder with `.kicad_mod` files)"
+msgstr "KiCad-Footprintbibliothek (Ordner `.pretty` mit `.kicad_mod`-Dateien)"
+
+#. type: Plain text
+#: cli.adoc:131
+msgid "KiCad (pre-5.0) footprint library (`.mod`, `.emp`)"
+msgstr "KiCad (vor 5.0) Footprintbibliothek (`.mod`, `.emp`)"
+
+#. type: Plain text
+#: cli.adoc:132
+msgid "Altium footprint library (`.PcbLib`)"
+msgstr "Altium-Footprintbibliothek (`.PcbLib`)"
+
+#. type: Plain text
+#: cli.adoc:133 cli.adoc:2443
+msgid "Altium integrated library (`.IntLib`)"
+msgstr "Altium integrierte Bibliothek (`.IntLib`)"
+
+#. type: Plain text
+#: cli.adoc:134
+msgid "CADSTAR PCB archive (`.cpa`)"
+msgstr "CADSTAR PCB-Archiv (`.cpa`)"
+
+#. type: Plain text
+#: cli.adoc:135 cli.adoc:2445
+msgid "EAGLE XML library (`.lbr`)"
+msgstr "EAGLE XML-Bibliothek (`.lbr`)"
+
+#. type: Plain text
+#: cli.adoc:136 cli.adoc:2446
+msgid "EasyEDA (JLCEDA) Std file (`.json`)"
+msgstr "EasyEDA (JLCEDA) Std-Datei (`.json`)"
+
+#. type: Plain text
+#: cli.adoc:137 cli.adoc:2447
+msgid "EasyEDA (JLCEDA) Pro file (`.elibz`, `.epro`, `.zip`)"
+msgstr "EasyEDA (JLCEDA) Pro-Datei (`.elibz`, `.epro`, `.zip`)"
+
+#. type: Plain text
+#: cli.adoc:138
+msgid "GEDA/PCB library (folder with `.fp` files)"
+msgstr "GEDA/PCB-Bibliothek (Ordner mit `.fp`-Dateien)"
+
+#. type: Plain text
+#: cli.adoc:140
+msgid ""
+"Usage: `kicad-cli fp upgrade [--help] [--output OUTPUT_DIR] [--force] "
+"INPUT_DIR`"
+msgstr ""
+"Verwendung: `kicad-cli fp upgrade [--help] [--output OUTPUT_DIR] [--force] "
+"INPUT_DIR`"
+
+#. type: Table
+#: cli.adoc:148
+#, no-wrap
+msgid ""
+"| `INPUT_DIR`\n"
+"    | Footprint library directory to upgrade. For KiCad format footprint\n"
+"      libraries, this is the `.pretty` directory, not a `.kicad_mod` file.\n"
+msgstr ""
+"| `INPUT_DIR`\n"
+"    | Verzeichnis der zu aktualisierenden Footprintbibliothek. Bei Footprintbibliotheken im KiCad-Format ist dies das Verzeichnis `.pretty`, nicht die Datei `.kicad_mod`.\n"
+
+#. type: Table
+#: cli.adoc:161
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the upgrade command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output directory for the upgraded footprints. When `--output` is\n"
+"      not used, the upgraded footprints are saved over the original footprints.\n"
+"| `--force`\n"
+"    | Re-save the input library even if it is already in the current file format.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe zum Upgrade-Befehl anzeigen.\n"
+"| `-o <Ausgabeverzeichnis>`, `--output <Ausgabeverzeichnis>`\n"
+"    | Das Ausgabeverzeichnis für die aktualisierten Footprints. Wenn `--output` nicht verwendet wird, werden die ursprünglichen Footprints mit den aktualisierten Footprints überschrieben.\n"
+"| `--force`\n"
+"    | Die Eingabebibliothek erneut speichern, auch wenn sie bereits im aktuellen Dateiformat vorliegt.\n"
+
+#. type: Title ==
+#: cli.adoc:163
+#, no-wrap
+msgid "Jobset commands"
+msgstr "Jobset-Befehle"
+
+#. type: Plain text
+#: cli.adoc:166
+msgid ""
+"The `jobset run` command runs a predefined xref:../kicad/kicad."
+"adoc#jobsets[jobset]."
+msgstr ""
+"Der Befehl `jobset run` führt einen vordefinierten xref:../kicad/kicad."
+"adoc#jobsets[Jobset] aus."
+
+#. type: Plain text
+#: cli.adoc:168
+msgid ""
+"Usage: `kicad-cli jobset run [--help] [--stop-on-error] [--file JOB_FILE] [--"
+"output OUTPUT] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli jobset run [--help] [--stop-on-error] [--file "
+"JOB_FILE] [--output OUTPUT] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:175
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Project file to use with the jobset.\n"
+msgstr ""
+"| `INPUT_FILE`\n"
+"    | Projektdatei, die mit dem Jobset verwendet werden soll.\n"
+
+#. type: Table
+#: cli.adoc:201
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the jobset command.\n"
+"| `--stop-on-error`\n"
+"    | As jobs are executed in sequence, stop running after a job fails. If not\n"
+"      given, jobs will continue executing after any job fails.\n"
+"| `-f <jobset file>`, `--file <jobset file>`\n"
+"    | The jobset file (`.kicad_jobset`) to run.\n"
+"| `--output <destination description or ID>`\n"
+"    | The jobset destination to generate. If no destination is specified, all\n"
+"      destinations will be generated.\n"
+"\n"
+"      The destination is specified by its description or by its unique ID.\n"
+"      The specified description must be unique; if the jobset contains more than\n"
+"      one destination with the given description, none of them will be run.\n"
+"\n"
+"      IDs are inherently unique and can be used to refer to a destination even\n"
+"      if the destination's description is not unique. The ID for each\n"
+"      destination is printed by the `jobset run` command when `--output` is not\n"
+"      used. It can also be found in the `.kicad_jobset` file under the\n"
+"      destination's `id` key.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den Befehl „jobset“ anzeigen.\n"
+"| `--stop-on-error`\n"
+"    | Da die Jobs nacheinander ausgeführt werden, wird die Ausführung nach dem Fehlschlagen eines Jobs beendet. Wenn diese Option nicht angegeben wird,\n"
+"      werden die Jobs nach dem Fehlschlagen eines Jobs weiter ausgeführt.\n"
+"| `-f <Jobset-Datei>`, `--file <Jobset-Datei>`\n"
+"    | Die auszuführende Jobset-Datei (`.kicad_jobset`).\n"
+"| `--output <Zielbeschreibung oder ID>`\n"
+"    | Das zu generierende Jobset-Ziel. Wenn kein Ziel angegeben ist, werden alle\n"
+"      Ziele generiert.\n"
+"\n"
+"      Das Ziel wird durch seine Beschreibung oder seine eindeutige ID angegeben.\n"
+"      Die angegebene Beschreibung muss eindeutig sein. Wenn der Jobset mehr als\n"
+"      ein Ziel mit der angegebenen Beschreibung enthält, wird keines davon ausgeführt.\n"
+"\n"
+"      IDs sind von Natur aus eindeutig und können verwendet werden, um auf ein Ziel zu\n"
+"       verweisen, auch wenn die Beschreibung des Ziels nicht eindeutig ist. Die ID für jedes\n"
+"      Ziel wird vom Befehl `jobset run` ausgegeben, wenn `--output` nicht\n"
+"      verwendet wird. Sie ist auch in der Datei `.kicad_jobset` unter dem\n"
+"      Schlüssel `id` des Ziels zu finden.\n"
+
+#. type: Title ==
+#: cli.adoc:204
+#, no-wrap
+msgid "PCB commands"
+msgstr "Platinenkommandos"
+
+#. type: Plain text
+#: cli.adoc:208
+msgid ""
+"The `pcb` command runs a design rule check or exports a board to various "
+"other file formats, including fabrication and 3D files."
+msgstr ""
+"Der Befehl „pcb“ führt eine Designregelprüfung durch oder exportiert eine "
+"Platine in verschiedene andere Dateiformate, darunter Fertigungs- und 3D-"
+"Dateien."
+
+#. type: Title ===
+#: cli.adoc:209
+#, no-wrap
+msgid "PCB DRC"
+msgstr "PCB DRC"
+
+#. type: Plain text
+#: cli.adoc:212
+msgid ""
+"The `pcb drc` command runs a design rule check on a board and generates a "
+"report."
+msgstr ""
+"Der Befehl „pcb drc“ führt eine Designregelprüfung auf einer Platine durch "
+"und erstellt einen Bericht."
+
+#. type: Plain text
+#: cli.adoc:214
+msgid ""
+"Usage: `kicad-cli pcb drc [--help] [--output OUTPUT_FILE] [--define-var "
+"KEY=VALUE] [--format FORMAT] [--all-track-errors] [--schematic-parity] [--"
+"units UNITS] [--severity-all] [--severity-error] [--severity-warning] [--"
+"severity-exclusions] [--exit-code-violations] [--refill-zones] [--save-"
+"board] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb drc [--help] [--output OUTPUT_FILE] [--define-var "
+"KEY=VALUE] [--format FORMAT] [--all-track-errors] [--schematic-parity] [--"
+"units UNITS] [--severity-all] [--severity-error] [--severity-warning] [--"
+"severity-exclusions] [--exit-code-violations] [--refill-zones] [--save-"
+"board] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:221
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Board file to run DRC on.\n"
+msgstr ""
+"| `INPUT_FILE`\n"
+"    | Platinendatei, auf der DRC ausgeführt werden soll.\n"
+
+#. type: Table
+#: cli.adoc:264
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the DRC command.\n"
+"| `-o <output filename>, `--output <output filename>`\n"
+"    | Output filename for the generated DRC report. When `--output` is not\n"
+"      used, the output filename will be the same as the input file, with the\n"
+"      `.rpt` or `.json` file extension, depending on the selected format.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `--format <format>`\n"
+"    | Report file format. Options are `report` (default) or `json`.\n"
+"| `--all-track-errors`\n"
+"    | Report all errors for each track.\n"
+"| `--schematic-parity`\n"
+"    | Test for parity between PCB and schematic.\n"
+"| `--units <unit>`\n"
+"    | Units to use in the report. Options are `mm` (default), `in`, or `mils`.\n"
+"| `--severity-all`\n"
+"    | Report all DRC violations. This is equivalent to using all of the other\n"
+"      DRC severity options.\n"
+"| `--severity-error`\n"
+"    | Report all error-level DRC violations. This can be combined with the other\n"
+"      DRC severity options.\n"
+"| `--severity-warning`\n"
+"    | Report all warning-level DRC violations. This can be combined with the\n"
+"      other DRC severity options.\n"
+"| `--severity-exclusions`\n"
+"    | Report all excluded DRC violations. This can be combined with the other\n"
+"      DRC severity options.\n"
+"| `--exit-code-violations`\n"
+"    | Return an exit code depending on whether or not DRC violations exist. The\n"
+"      exit code is 0 if no violations are found, and 5 if any violations are\n"
+"      found.\n"
+"| `--refill-zones`\n"
+"    | Refill all zones before running DRC.\n"
+"      The board will not be saved after refilling zones unless `--save-board` is also used.\n"
+"| `--save-board`\n"
+"    | Save the board after running DRC.\n"
+"      The board will not be saved unless `--refill-zones` is also used.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den DRC-Befehl anzeigen.\n"
+"| `-o <Ausgabedateiname>, `--output <Ausgabedateiname>`\n"
+"    | Ausgabedateiname für den generierten DRC-Bericht. Wenn `--output` nicht verwendet wird, entspricht der Ausgabedateiname dem Namen der Eingabedate mit der Dateiendung `.rpt` oder `.json`, je nach ausgewähltem Format.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `--format <Format>`\n"
+"    | Dateiformat des Berichts. Optionen sind `report` (Standard) oder `json`.\n"
+"| `--all-track-errors`\n"
+"    | Alle Fehler für jede Leiterbahn melden.\n"
+"| `--schematic-parity`\n"
+"    | Parität zwischen Leiterplatte und Schaltplan prüfen.\n"
+"| `--units <Einheit>`\n"
+"    | Im Bericht zu verwendende Einheiten. Optionen sind `mm` (Standard), `in` oder `mils`.\n"
+"| `--severity-all`\n"
+"    | Alle DRC-Verstöße melden. Dies entspricht der Verwendung aller anderen DRC-Schweregradoptionen.\n"
+"| `--severity-error`\n"
+"    | Alle DRC-Verstöße der Fehlerstufe melden. Dies kann mit den anderen DRC-Schweregradoptionen kombiniert werden.\n"
+"| `--severity-warning`\n"
+"    | Alle DRC-Verstöße der Warnstufe melden. Dies kann mit den\n"
+"      anderen DRC-Schweregradoptionen kombiniert werden.\n"
+"| `--severity-exclusions`\n"
+"    | Alle ausgeschlossenen DRC-Verstöße melden. Dies kann mit den anderen DRC-Schweregradoptionen kombiniert werden.\n"
+"| `--exit-code-violations`\n"
+"    | Einen Exit-Code zurückgeben, je nachdem, ob DRC-Verstöße vorliegen oder nicht. Der Exit-Code ist 0, wenn keine Verstöße gefunden wurden, und 5, wenn Verstöße gefunden wurden.\n"
+"| `--refill-zones`\n"
+"    | Alle Zonen vor dem Ausführen von DRC neu füllen.\n"
+"      Die Platine wird nach dem Neufüllen der Zonen nicht gespeichert, es sei denn, `--save-board` wird ebenfalls verwendet.\n"
+"| `--save-board`\n"
+"    | Die Platine nach dem Ausführen von DRC speichern. Die Platine wird nicht gespeichert, es sei denn, `--refill-zones` wird ebenfalls verwendet.\n"
+
+#. type: Title ===
+#: cli.adoc:266
+#, no-wrap
+msgid "PCB 3D PDF export"
+msgstr "PCB 3D PDF-Export"
+
+#. type: Plain text
+#: cli.adoc:269
+msgid ""
+"The `pcb export 3dpdf` command exports a board design to a PDF file "
+"containing an embedded 3D model of the board."
+msgstr ""
+"Der Befehl „pcb export 3dpdf“ exportiert ein Leiterplattendesign in eine PDF-"
+"Datei, die ein eingebettetes 3D-Modell der Leiterplatte enthält."
+
+#. type: Plain text
+#: cli.adoc:271
+msgid ""
+"Usage: `kicad-cli pcb export 3dpdf [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE]... [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--"
+"drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-"
+"board-body] [--no-components] [--component-filter VAR] [--include-tracks] [--"
+"include-pads] [--include-zones] [--include-inner-copper] [--include-"
+"silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-"
+"distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export 3dpdf [--help] [--output OUTPUT_FILE] [--"
+"define-var KEY=VALUE]... [--force] [--no-unspecified] [--no-dnp] [--grid-"
+"origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-"
+"body] [--no-board-body] [--no-components] [--component-filter VAR] [--"
+"include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] "
+"[--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-"
+"vias] [--min-distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] "
+"INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:278 cli.adoc:357 cli.adoc:435 cli.adoc:501 cli.adoc:588
+#: cli.adoc:633 cli.adoc:728 cli.adoc:803 cli.adoc:879 cli.adoc:936
+#: cli.adoc:961 cli.adoc:998 cli.adoc:1095 cli.adoc:1174 cli.adoc:1224
+#: cli.adoc:1356 cli.adoc:1438 cli.adoc:1516 cli.adoc:1598 cli.adoc:1676
+#: cli.adoc:1769 cli.adoc:1816
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Board file to export.\n"
+msgstr ""
+"| `INPUT_FILE`\n"
+"    | Zu exportierende Platinen-Datei.\n"
+
+#. type: Table
+#: cli.adoc:342 cli.adoc:1662
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the 3D PDF export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.pdf` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--force`\n"
+"    | Overwrite output file.\n"
+"| `--no-unspecified`\n"
+"    | Exclude 3D models of components with \"unspecified\" footprint type.\n"
+"| `--no-dnp`\n"
+"    | Exclude 3D models of components with \"Do not populate\" attribute.\n"
+"| `--grid-origin`\n"
+"    | Use grid origin as origin of output file.\n"
+"| `--drill-origin`\n"
+"    | Use drill origin as origin of output file.\n"
+"| `--subst-models`\n"
+"    | Replace VRML models in footprints with STEP or IGS models of the same\n"
+"      name, if they exist.\n"
+"| `--board-only`\n"
+"    | Only include the board itself in the generated model; exclude all\n"
+"      component models.\n"
+"| `--cut-vias-in-body`\n"
+"    | Cut via holes in board body even if conductor layers are not exported.\n"
+"| `--no-board-body`\n"
+"    | Exclude board body.\n"
+"| `--no-components`\n"
+"    | Exclude 3D models for components.\n"
+"| `--component-filter <reference designator list>`\n"
+"    | Only include component 3D models matching this list of reference\n"
+"      designators (comma-separated, wildcards supported)\n"
+"| `--include-tracks`\n"
+"    | Include tracks and vias on outer conductor layers in export (time consuming).\n"
+"| `--include-pads`\n"
+"    | Include pads in export (time consuming).\n"
+"| `--include-zones`\n"
+"    | Include zones in export (time consuming).\n"
+"| `--include-inner-copper`\n"
+"    | Include elements on inner conductor layers in export.\n"
+"| `--include-silkscreen`\n"
+"    | Include silkscreen graphics in export as a set of flat faces.\n"
+"| `--include-soldermask`\n"
+"    | Include solder mask layers in export as a set of flat faces.\n"
+"| `--fuse-shapes`\n"
+"    | Fuse overlapping geometry together in export (time consuming).\n"
+"| `--fill-all-vias`\n"
+"    | Don't cut via holes in conductor layers.\n"
+"| `--min-distance <min distance>`\n"
+"    | Tolerance for considering two points to be in the same location. Default:\n"
+"      `0.01mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Only include copper items belonging to nets matching this wildcard.\n"
+"| `--user-origin <output origin>`\n"
+"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den Befehl zum Exportieren von 3D PDF-Dateien anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Name der Ausgabedatei. Wenn `--output` nicht verwendet wird, entspricht der Name der Ausgabedatei dem Namen der Eingabedatei mit der Dateiendung `.pdf`.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `-f`, `--force`\n"
+"    | Ausgabedatei überschreiben.\n"
+"| `--no-unspecified`\n"
+"    | 3D-Modelle für Bauteile mit unbestimmtem Footprinttyp ausschließen.\n"
+"| `--no-dnp`\n"
+"    | 3D-Modelle von Komponenten mit dem Attribut „Nicht bestücken“ ausschließen.\n"
+"| `--grid-origin`\n"
+"    | Gitterursprung als Ursprung der Ausgabedatei verwenden.\n"
+"| `--drill-origin`\n"
+"    | Bohrungsursprung als Ursprung der Ausgabedatei verwenden.\n"
+"| `--subst-models`\n"
+"    | VRML-Modelle in Footprints durch STEP- oder IGS-Modelle mit demselben Namen ersetzen, sofern vorhanden.\n"
+"| `--board-only`\n"
+"    | Nur die Leiterplatte selbst in das generierte Modell aufnehmen; alle\n"
+"      Komponentenmodelle ausschließen.\n"
+"| `--cut-vias-in-body`\n"
+"    | Durchkontaktierungen im Leiterplattenkörper schneiden, auch wenn Leiterbahnen nicht exportiert werden.\n"
+"| `--no-board-body`\n"
+"    | Leiterplattenkörper ausschließen.\n"
+"| `--no-components`\n"
+"    | 3D-Modelle für Komponenten ausschließen.\n"
+"| `--component-filter <Referenzbezeichnerliste>`\n"
+"    | Nur 3D-Modelle von Komponenten einbeziehen, die mit dieser Liste von Referenzbezeichnern übereinstimmen (durch Kommas getrennt, Platzhalter werden unterstützt)\n"
+"| `--include-tracks`\n"
+"    | Leiterbahnen und Durchkontaktierungen auf äußeren Leiterbahnen in den Export einbeziehen (zeitaufwändig).\n"
+"| `--include-pads`\n"
+"    | Pads in den Export einbeziehen (zeitaufwändig).\n"
+"| `--include-zones`\n"
+"    | Zonen in den Export einbeziehen (zeitaufwändig).\n"
+"| `--include-inner-copper`\n"
+"    | Elemente auf inneren Leiterlagen in den Export einbeziehen.\n"
+"| `--include-silkscreen`\n"
+"    | Siebdruckgrafiken als flache Flächen in den Export einbeziehen.\n"
+"| `--include-soldermask`\n"
+"    | Lötmaskenlagen als flache Flächen in den Export einbeziehen.\n"
+"| `--fuse-shapes`\n"
+"    | Überlappende Geometrien im Export zusammenführen (zeitaufwändig).\n"
+"| `--fill-all-vias`\n"
+"    | Keine Durchkontaktierungen in Leiterbahnen schneiden.\n"
+"| `--min-distance <min distance>`\n"
+"    | Toleranz für die Betrachtung zweier Punkte als an derselben Stelle liegend. Standard: `0,01 mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Nur Kupferelemente einbeziehen, die zu Netzen gehören, die diesem Platzhalter entsprechen.\n"
+"| `--user-origin <Ausgangsursprung>`\n"
+"    | Einen benutzerdefinierten Ursprung für die Ausgabedatei mit X- und Y-Koordinaten angeben. Zum Beispiel `1x1in`, `1x1inch` oder `25,4x25,4mm`. Die Standardeinheit ist Millimeter.\n"
+
+#. type: Title ===
+#: cli.adoc:344
+#, no-wrap
+msgid "PCB BREP (OCCT) export"
+msgstr "PCB BREP (OCCT) export"
+
+#. type: Plain text
+#: cli.adoc:348
+msgid ""
+"The `pcb export brep` command exports a board design to a BREP (OCCT-native "
+"boundary representation) 3D model file."
+msgstr ""
+"Der Befehl „pcb export brep“ exportiert ein Leiterplattendesign in eine "
+"BREP-3D-Modelldatei (OCCT-native Boundary Representation)."
+
+#. type: Plain text
+#: cli.adoc:350
+msgid ""
+"Usage: `kicad-cli pcb export brep [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--"
+"drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-"
+"board-body] [--no-components] [--component-filter VAR] [--include-tracks] [--"
+"include-pads] [--include-zones] [--include-inner-copper] [--include-"
+"silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-"
+"distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export brep [--help] [--output OUTPUT_FILE] [--"
+"define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-"
+"origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-"
+"body] [--no-board-body] [--no-components] [--component-filter VAR] [--"
+"include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] "
+"[--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-"
+"vias] [--min-distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] "
+"INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:421
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the BREP export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.brep` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--force`\n"
+"    | Overwrite output file.\n"
+"| `--no-unspecified`\n"
+"    | Exclude 3D models of components with \"unspecified\" footprint type.\n"
+"| `--no-dnp`\n"
+"    | Exclude 3D models of components with \"Do not populate\" attribute.\n"
+"| `--grid-origin`\n"
+"    | Use grid origin as origin of output file.\n"
+"| `--drill-origin`\n"
+"    | Use drill origin as origin of output file.\n"
+"| `--subst-models`\n"
+"    | Replace VRML models in footprints with STEP or IGS models of the same\n"
+"      name, if they exist.\n"
+"| `--board-only`\n"
+"    | Only include the board itself in the generated model; exclude all\n"
+"      component models.\n"
+"| `--cut-vias-in-body`\n"
+"    | Cut via holes in board body even if conductor layers are not exported.\n"
+"| `--no-board-body`\n"
+"    | Exclude board body.\n"
+"| `--no-components`\n"
+"    | Exclude 3D models for components.\n"
+"| `--component-filter <reference designator list>`\n"
+"    | Only include component 3D models matching this list of reference\n"
+"      designators (comma-separated, wildcards supported)\n"
+"| `--include-tracks`\n"
+"    | Include tracks and vias on outer conductor layers in export (time consuming).\n"
+"| `--include-pads`\n"
+"    | Include pads in export (time consuming).\n"
+"| `--include-zones`\n"
+"    | Include zones in export (time consuming).\n"
+"| `--include-inner-copper`\n"
+"    | Include elements on inner conductor layers in export.\n"
+"| `--include-silkscreen`\n"
+"    | Include silkscreen graphics in export as a set of flat faces.\n"
+"| `--include-soldermask`\n"
+"    | Include solder mask layers in export as a set of flat faces.\n"
+"| `--fuse-shapes`\n"
+"    | Fuse overlapping geometry together in export (time consuming).\n"
+"| `--fill-all-vias`\n"
+"    | Don't cut via holes in conductor layers.\n"
+"| `--min-distance <min distance>`\n"
+"    | Tolerance for considering two points to be in the same location. Default:\n"
+"      `0.01mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Only include copper items belonging to nets matching this wildcard.\n"
+"| `--user-origin <output origin>`\n"
+"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den BREP-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Ausgabedateiname. Wenn `--output` nicht verwendet wird, entspricht der Ausgabedateiname dem Namen der Eingabedatei mit der Dateiendung `.brep`.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `-f`, `--force`\n"
+"    | Ausgabedatei überschreiben.\n"
+"| `--no-unspecified`\n"
+"    | 3D-Modelle für Bauteile mit unbestimmtem Footprinttyp ausschließen.\n"
+"| `--no-dnp`\n"
+"    | 3D-Modelle von Komponenten mit dem Attribut „Nicht bestücken“ ausschließen.\n"
+"| `--grid-origin`\n"
+"    | Gitterursprung als Ursprung der Ausgabedatei verwenden.\n"
+"| `--drill-origin`\n"
+"    | Bohrungsursprung als Ursprung der Ausgabedatei verwenden.\n"
+"| `--subst-models`\n"
+"    | VRML-Modelle in Footprints durch STEP- oder IGS-Modelle mit demselben\n"
+"      Namen ersetzen, sofern vorhanden.\n"
+"| `--board-only`\n"
+"    | Nur die Leiterplatte selbst in das generierte Modell aufnehmen; alle\n"
+"      Komponentenmodelle ausschließen.\n"
+"| `--cut-vias-in-body`\n"
+"    | Durchkontaktierungen im Leiterplattenkörper schneiden, auch wenn Leiterbahnen nicht exportiert werden.\n"
+"| `--no-board-body`\n"
+"    | Leiterplattenkörper ausschließen.\n"
+"| `--no-components`\n"
+"    | 3D-Modelle für Komponenten ausschließen.\n"
+"| `--component-filter <Referenzbezeichnerliste>`\n"
+"    | Nur 3D-Modelle von Komponenten einbeziehen, die dieser Liste von Referenzbezeichnern entsprechen (durch Kommas getrennt, Platzhalter werden unterstützt)\n"
+"| `--include-tracks`\n"
+"    | Leiterbahnen und Durchkontaktierungen auf äußeren Leiterbahnen in den Export einbeziehen (zeitaufwändig).\n"
+"| `--include-pads`\n"
+"    | Pads in den Export einbeziehen (zeitaufwändig).\n"
+"| `--include-zones`\n"
+"    | Zonen in den Export einbeziehen (zeitaufwändig).\n"
+"| `--include-inner-copper`\n"
+"    | Elemente auf inneren Leiterlagen in den Export einbeziehen.\n"
+"| `--include-silkscreen`\n"
+"    | Siebdruckgrafiken als flache Flächen in den Export einbeziehen.\n"
+"| `--include-soldermask`\n"
+"    | Lötmaskenlagen als flache Flächen in den Export einbeziehen.\n"
+"| `--fuse-shapes`\n"
+"    | Überlappende Geometrien im Export zusammenführen (zeitaufwändig).\n"
+"| `--fill-all-vias`\n"
+"    | Keine Durchkontaktierungen in Leiterbahnen schneiden.\n"
+"| `--min-distance <min distance>`\n"
+"    | Toleranz für die Betrachtung zweier Punkte als an derselben Stelle liegend. Standard: `0,01 mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Nur Kupferelemente einbeziehen, die zu Netzen gehören, die diesem Platzhalter entsprechen.\n"
+"| `--user-origin <Ausgangsursprung>`\n"
+"    | Einen benutzerdefinierten Ursprung für die Ausgabedatei mit X- und Y-Koordinaten angeben. Zum Beispiel `1x1in`, `1x1inch` oder `25,4x25,4mm`. Die Standardeinheit ist Millimeter.\n"
+
+#. type: Title ===
+#: cli.adoc:423
+#, no-wrap
+msgid "PCB drill file export"
+msgstr "PCB Bohrdatei Export"
+
+#. type: Plain text
+#: cli.adoc:426
+msgid "The `pcb export drill` command exports a drill file from a board."
+msgstr ""
+"Der Befehl „pcb export drill“ exportiert eine Bohrdatei aus einer Platine."
+
+#. type: Plain text
+#: cli.adoc:428
+msgid ""
+"Usage: `kicad-cli pcb export drill [--help] [--output OUTPUT_DIR] [--format "
+"FORMAT] [--drill-origin DRILL_ORIGIN] [--excellon-zeros-format ZEROS_FORMAT] "
+"[--excellon-oval-format OVAL_FORMAT] [--excellon-units UNITS] [--excellon-"
+"mirror-y] [--excellon-min-header] [--excellon-separate-th] [--generate-map] "
+"[--generate-report] [--report-path REPORT_PATH] [--generate-tenting] [--map-"
+"format MAP_FORMAT] [--gerber-precision VAR] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export drill [--help] [--output OUTPUT_DIR] [--"
+"format FORMAT] [--drill-origin DRILL_ORIGIN] [--excellon-zeros-format "
+"ZEROS_FORMAT] [--excellon-oval-format OVAL_FORMAT] [--excellon-units UNITS] "
+"[--excellon-mirror-y] [--excellon-min-header] [--excellon-separate-th] [--"
+"generate-map] [--generate-report] [--report-path REPORT_PATH] [--generate-"
+"tenting] [--map-format MAP_FORMAT] [--gerber-precision VAR] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:487
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the drill file export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output directory for the drill file(s). When `--output` is not\n"
+"      used, the drill file(s) are saved in the current directory.\n"
+"| `--format <format>`\n"
+"    | The drill file format. Options are `excellon` (default) or `gerber`.\n"
+"| `--drill-origin <origin>`\n"
+"    | The coordinate origin for the drill file. Options are `absolute` (default)\n"
+"      to use the board's absolute origin or `plot` to use the board's\n"
+"      drill/placement origin.\n"
+"| `--excellon-zeros-format <format>`\n"
+"    | The zeros format for the drill file. Options are `decimal` (default),\n"
+"      `suppressleading`, `suppresstrailing`, or `keep`. Only applies to Excellon\n"
+"      format drill files.\n"
+"| `--excellon-oval-format <format>`\n"
+"    | Control the oval holes drill mode. Options are `route` and `alternate`\n"
+"    (default). Only applies to Excellon format drill files.\n"
+"| `-u <units>`, `--excellon-units <units>`\n"
+"    | The units for the drill file. Options are `mm` (default) or `in`. Only\n"
+"      applies to Excellon format drill files.\n"
+"| `--excellon-mirror-y`\n"
+"    | Mirror the drill file in the Y direction. Only applies to Excellon format\n"
+"      drill files.\n"
+"| `--excellon-min-header`\n"
+"    | Use a minimal header in the drill file. Only applies to Excellon format\n"
+"      drill files.\n"
+"| `--excellon-separate-th`\n"
+"    | Generate separate drill files for plated and non-plated through holes.\n"
+"      Only applies to Excellon format drill files.\n"
+"| `--generate-map`\n"
+"    | Generate a map file in addition to the drill file.\n"
+"| `--generate-report`\n"
+"    | Generate a report file listing all drill hits.\n"
+"| `--report-path <report filename>`\n"
+"    | The output filename for the drill report file.\n"
+"      When `--report-path` is not used, the report filename will be the same as the input file, with the `-drill.rpt` suffix and file extension.\n"
+"| `--generate-tenting`\n"
+"    | Generate separate drill files for tented drill hits.\n"
+"      Only applies to Gerber X2 format drill files.\n"
+"| `--map-format <format>`\n"
+"    | The map file format. Options are `pdf` (default), `gerberx2`, `ps`, `dxf`,\n"
+"      or `svg`.\n"
+"| `--gerber-precision <precision>`\n"
+"    | The precision (number of digits) for the drill file. Valid options are `5`\n"
+"      or `6` (default).  Only applies to Gerber format drill files.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den Befehl zum Exportieren von Bohrdateien anzeigen.\n"
+"| `-o <Ausgabeverzeichnis>`, `--output <Ausgabeverzeichnis>`\n"
+"    | Das Ausgabeverzeichnis für die Bohrdatei(en). Wenn `--output` nicht\n"
+"      verwendet wird, werden die Bohrdatei(en) im aktuellen Verzeichnis gespeichert.\n"
+"| `--format <Format>`\n"
+"    | Das Bohrdateiformat. Optionen sind `excellon` (Standard) oder `gerber`.\n"
+"| `--drill-origin <Ursprung>`\n"
+"    | Der Koordinatenursprung für die Bohrdatei. Optionen sind `absolute` (Standard)\n"
+"      zur Verwendung des absoluten Ursprungs der Platine oder `plot` zur Verwendung des Bohr-/Platzierungsursprungs der Platine.\n"
+"| `--excellon-zeros-format <Format>`\n"
+"    | Das Nullformat für die Bohrdatei. Optionen sind `decimal` (Standard),\n"
+"      `suppressleading`, `suppresstrailing` oder `keep`. Gilt nur für Bohrdateien im Excellon-Format.\n"
+"| `--excellon-oval-format <Format>`\n"
+"    | Den Bohrmodus für ovale Löcher steuern. Optionen sind `route` und `alternate` (Standard). Gilt nur für Bohrdateien im Excellon-Format.\n"
+"| `-u <Einheit>`, `--excellon-units <Einheit>`\n"
+"    | Die Einheit für die Bohrdatei. Optionen sind `mm` (Standard) oder `in`. Gilt nur\n"
+"      für Bohrdateien im Excellon-Format.\n"
+"| `--excellon-mirror-y`\n"
+"    | Die Bohrdatei in Y-Richtung spiegeln. Gilt nur für Bohrdateien im Excellon-Format.\n"
+"| `--excellon-min-header`\n"
+"    | Einen minimalen Header in der Bohrdatei verwenden. Gilt nur für Bohrdateien im Excellon-Format.\n"
+"| `--excellon-separate-th`\n"
+"    | Separate Bohrdateien für durchkontaktierte und nicht durchkontaktierte Bohrungen erstellen. Gilt nur für Bohrdateien im Excellon-Format.\n"
+"| `--generate-map`\n"
+"    | Zusätzlich zur Bohrdatei eine Kartendatei erstellen.\n"
+"| `--generate-report`\n"
+"    | Eine Berichtdatei mit allen Bohrpunkten erstellen.\n"
+"| `--report-path <report filename>`\n"
+"    | Der Ausgabedateiname für die Bohrberichtdatei.\n"
+"      Wenn `--report-path` nicht verwendet wird, entspricht der Dateiname des Berichts dem der Eingabedatei, mit dem Suffix und der Dateiendung `-drill.rpt`.\n"
+"| `--generate-tenting`\n"
+"    | Separate Bohrdateien für überzeltete Bohrungen generieren.\n"
+"      Gilt nur für Bohrdateien im Gerber X2-Format.\n"
+"| `--map-format <Format>`\n"
+"    | Das Format der Map-Datei. Optionen sind `pdf` (Standard), `gerberx2`, `ps`, `dxf`\n"
+"      oder `svg`.\n"
+"| `--gerber-precision <precision>`\n"
+"    | Die Genauigkeit (Anzahl der Stellen) für die Bohrdatei. Gültige Optionen sind `5`\n"
+"      oder `6` (Standard).  Gilt nur für Bohrdateien im Gerber-Format.\n"
+
+#. type: Title ===
+#: cli.adoc:489
+#, no-wrap
+msgid "PCB DXF export"
+msgstr "PCB DXF-Export"
+
+#. type: Plain text
+#: cli.adoc:492
+msgid "The `pcb export dxf` command exports a board design to a DXF file."
+msgstr ""
+"Der Befehl „pcb export dxf“ exportiert ein Leiterplattendesign in eine DXF-"
+"Datei."
+
+#. type: Plain text
+#: cli.adoc:494
+msgid ""
+"Usage: `kicad-cli pcb export dxf [--help] [--output OUTPUT_DIR] [--layers "
+"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--exclude-"
+"refdes] [--exclude-value] [--sketch-pads-on-fab-layers] [--hide-DNP-"
+"footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--"
+"crossout-DNP-footprints-on-fab-layers] [--subtract-soldermask] [--use-"
+"contours] [--use-drill-origin] [--include-border-title] [--output-units "
+"UNITS] [--drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--mode-"
+"single] [--mode-multi] [--plot-invisible-text] [--scale SCALE] [--check-"
+"zones] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export dxf [--help] [--output OUTPUT_DIR] [--"
+"layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--"
+"exclude-refdes] [--exclude-value] [--sketch-pads-on-fab-layers] [--hide-DNP-"
+"footprints-on-fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--"
+"crossout-DNP-footprints-on-fab-layers] [--subtract-soldermask] [--use-"
+"contours] [--use-drill-origin] [--include-border-title] [--output-units "
+"UNITS] [--drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--mode-"
+"single] [--mode-multi] [--plot-invisible-text] [--scale SCALE] [--check-"
+"zones] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:574
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the DXF export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder or filename for the exported files. When `--mode-single`\n"
+"      is used, this is the output filename. If `--output` is not used, the\n"
+"      output filename will be the same as the input\n"
+"      file, with the `.pdf` file extension. When `--mode-multi` is used, this is\n"
+"      the output directory. If `--output` is not used, the files are exported\n"
+"      to the current directory.\n"
+"| `-l <layer list>`, `--layers <layer list>`\n"
+"    | A comma-separated list of layer names to export from the footprint, such\n"
+"      as `F.Cu,B.Cu`. At least one layer must be given. Layer names can be\n"
+"      specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`, etc.) or as\n"
+"      user-defined (custom) layer names, but user-defined layer names are matched\n"
+"      first.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the board file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Exclude footprint reference designators from plot.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Exclude footprint values from plot.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Draw pad outlines and their numbers on front and back fab layers.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Don't plot text and graphics of DNP footprints on fab layers.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Plot graphics of DNP footprints in sketch mode on fab layers.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Plot an \"X\" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.\n"
+"| `--subtract-soldermask`\n"
+"    | Remove silkscreen from areas without soldermask.\n"
+"| `--uc`, `--use-contours`\n"
+"    | Plot graphic items using their contours.\n"
+"| `--udo`, `--use-drill-origin`\n"
+"    | Plot using the drill/place file origin.\n"
+"| `-ibt`, `--include-border-title`\n"
+"    | Include sheet border and title block in plot.\n"
+"| `--ou <unit>`, `--output-units <unit>`\n"
+"    | Output units. Options are `mm` or `in` (default).\n"
+"| `--drill-shape-opt <shape>`\n"
+"    | The shape of drill marks in the plot. Options are `0` for no drill marks,\n"
+"      `1` for small marks, or `2` for actual size marks (default).\n"
+"| `--cl <layer list>`, `--common-layers <layer list>`\n"
+"    | A comma-separated list of layer names to plot on all layers, such as\n"
+"      `F.Cu,B.Cu`. Layer names can be specified as canonical layer names\n"
+"      (`F.Cu`, `In.1`, `F.Fab`, etc.) or as user-defined (custom) layer names,\n"
+"      but user-defined layer names are matched first.\n"
+"| `--mode-single`\n"
+"    | Generates a single file with the output arg path acting as the complete directory and filename path. `COMMON_LAYER_LIST` does not function in this mode. Instead `LAYER_LIST` controls all layers plotted.\n"
+"| `--mode-multi`\n"
+"    | Plot the layers to one or more DXF files, with each file representing a\n"
+"      single layer from `LAYER_LIST`. The output path specifies the directory in\n"
+"      which the files will be written.\n"
+"| `--plot-invisible-text`\n"
+"    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad\n"
+"      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the\n"
+"      board so that the text is no longer invisible.\n"
+"| `--scale <scale>`\n"
+"    | A scaling factor to use for plotting the PCB. The border and title block\n"
+"      are not scaled. A scale factor of 0 autoscales the plot.\n"
+"| `--check-zones`\n"
+"    | Check zone fills and refill zones, if required, prior to export.\n"
+"      Any zone fill updates are not saved in the board file.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den DXF-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabeverzeichnis>`, `--output <Ausgabeverzeichnis>`\n"
+"    | Das Ausgabeverzeichnis oder der Dateiname für die exportierten Dateien. Bei Verwendung von `--mode-single` ist dies der Ausgabedateiname. Wenn `--output` nicht verwendet wird, entspricht der Ausgabedateiname dem der Eingabedatei mit der Dateiendung `.pdf`. Bei Verwendung von `--mode-multi` ist dies das Ausgabeverzeichnis. Wenn `--output` nicht verwendet wird, werden die Dateien in das aktuelle Verzeichnis exportiert.\n"
+"| `-l <Ebenenliste>`, `--layers <Ebenenliste>`\n"
+"    | Eine durch Kommas getrennte Liste der aus dem Footprint zu exportierenden Layernamen, z. B. `F.Cu,B.Cu`. Es muss mindestens ein Layer angegeben werden. Layernamen können als kanonische Layernamen (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte Layernamen angegeben werden, wobei benutzerdefinierte Layernamen zuerst abgeglichen werden.\n"
+"| `--drawing-sheet <Blattpfad>`\n"
+"    | Pfad zum Zeichnungsblatt, das beim Plotten verwendet werden soll, wobei das\n"
+"      in der Board-Datei angegebene Zeichnungsblatt überschrieben wird.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden , um mehrere Variablen zu definieren.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Footprint-Referenzbezeichnungen aus dem Plot ausschließen.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Footprint-Werte aus dem Plot ausschließen.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Pad-Umrisse und deren Nummern auf vorderen und hinteren Fab-Layern zeichnen.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Text und Grafiken von DNP-Footprints nicht auf Fab-Layern plotten.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Grafiken von DNP-Footprints im Skizzenmodus auf Fab-Layern plotten.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Ein „X” über den Hof von DNP-Footprints auf Fab-Layern plotten und deren Referenzbezeichnungen durchstreichen.\n"
+"| `--subtract-soldermask`\n"
+"    | Siebdruck aus Bereichen ohne Lötmaske entfernen.\n"
+"| `--uc`, `--use-contours`\n"
+"    | Grafische Elemente anhand ihrer Konturen zeichnen.\n"
+"| `--udo`, `--use-drill-origin`\n"
+"    | Mit dem Ursprung der Bohr-/Platzierungsdatei zeichnen.\n"
+"| `-ibt`, `--include-border-title`\n"
+"    | Blätterrand und Titelblock in die Zeichnung einbeziehen.\n"
+"| `--ou <Einheit>`, `--output-units <Einheit>`\n"
+"    | Einheiten ausgeben. Optionen sind `mm` oder `in` (Standard).\n"
+"| `--drill-shape-opt <Form>`\n"
+"    | Die Form der Bohrmarkierungen in der Zeichnung. Optionen sind `0` für keine Bohrmarkierungen, `1` für kleine Markierungen oder `2` für Markierungen in tatsächlicher Größe (Standard).\n"
+"| `--cl <Ebenenliste>`, `--common-layers <Ebenenliste>`\n"
+"    | Eine durch Kommas getrennte Liste von Ebenennamen, die auf allen Ebenen gezeichnet werden sollen, z. B. `F.Cu,B.Cu`. Layer-Namen können als kanonische Layer-Namen (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte Layer-Namen angegeben werden, wobei benutzerdefinierte Layer-Namen zuerst abgeglichen werden.\n"
+"| `--mode-single`\n"
+"    | Eine einzelne Datei erstellen, wobei der Ausgabepfad als vollständiger Verzeichnis- und Dateinamenpfad fungiert. `COMMON_LAYER_LIST` funktioniert in diesem Modus nicht. Stattdessen steuert `LAYER_LIST` alle geplotteten Ebenen.\n"
+"| `--mode-multi`\n"
+"    | Die Ebenen in eine oder mehrere DXF-Dateien plotten, wobei jede Datei eine einzelne Ebene aus `LAYER_LIST` darstellt. Der Ausgabepfad gibt das Verzeichnis an, in das die Dateien geschrieben werden.\n"
+"| `--plot-invisible-text`\n"
+"    | Das Plotten von Werten und Referenzen erzwingen, auch wenn diese unsichtbar sind. Dieses Argument ist seit KiCad 9.0.1 veraltet und hat keine Wirkung mehr. Es wird in einer zukünftigen Version von KiCad entfernt werden. Um unsichtbaren Text zu plotten, bearbeiten Sie die Platine so, dass der Text nicht mehr unsichtbar ist.\n"
+"| `--scale <scale>`\n"
+"    | Ein Skalierungsfaktor, der für die Darstellung der Leiterplatte verwendet wird. Der Rand und der Titelblock werden nicht skaliert. Ein Skalierungsfaktor von 0 skaliert die Darstellung automatisch.\n"
+"| `--check-zones`\n"
+"    | Zonenfüllungen und Nachfüllzonen vor dem Export überprüfen, falls erforderlich.\n"
+"      Aktualisierungen der Zonenfüllung werden nicht in der Board-Datei gespeichert.\n"
+
+#. type: Title ===
+#: cli.adoc:576
+#, no-wrap
+msgid "PCB GenCAD export"
+msgstr "PCB GenCAD-Export"
+
+#. type: Plain text
+#: cli.adoc:579
+msgid ""
+"The `pcb export gencad` command exports a board design to a GenCAD file."
+msgstr ""
+"Der Befehl `pcb export gencad` exportiert ein Leiterplattendesign in eine "
+"GenCAD-Datei."
+
+#. type: Plain text
+#: cli.adoc:581
+msgid ""
+"Usage: `kicad-cli pcb export gencad [--help] [--output OUTPUT_FILE] [--"
+"define-var KEY=VALUE] [--flip-bottom-pads] [--unique-pins] [--unique-"
+"footprints] [--use-drill-origin] [--store-origin-coord] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export gencad [--help] [--output OUTPUT_FILE] [--"
+"define-var KEY=VALUE] [--flip-bottom-pads] [--unique-pins] [--unique-"
+"footprints] [--use-drill-origin] [--store-origin-coord] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:612
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the DXF export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.cad` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--flip-bottom-pads`\n"
+"    | Flip bottom footprint padstacks.\n"
+"| `--unique-pins`\n"
+"    | Generate unique pin names.\n"
+"| `--unique-footprints`\n"
+"    | Generate a new shape for each footprint instance (do not reuse shapes).\n"
+"| `--use-drill-origin`\n"
+"    | Use drill/place file origin as origin.\n"
+"| `--store-origin-coord`\n"
+"    | Save the origin coordinates in the file.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den DXF-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Ausgabedateiname. Wenn `--output` nicht verwendet wird, entspricht der Ausgabedateiname dem Namen der Eingabedatei mit der Dateiendung `.cad`.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `-f`, `--flip-bottom-pads`\n"
+"    | Untere Footprint-Padstacks umdrehen.\n"
+"| `--unique-pins`\n"
+"    | Eindeutige Pin-Namen generieren.\n"
+"| `--unique-footprints`\n"
+"    | Erzeugt eine neue Form für jede Footprint-Instanz (Formate werden nicht wiederverwendet).\n"
+"| `--use-drill-origin`\n"
+"    | Ursprung der Bohr-/Platzierungsdatei als Ursprung verwenden.\n"
+"| `--store-origin-coord`\n"
+"    | Ursprungskoordinaten in der Datei speichern.\n"
+
+#. type: Title ===
+#: cli.adoc:614
+#, no-wrap
+msgid "PCB Gerber export: one layer per file"
+msgstr "PCB Gerber-Export: ein Layer pro Datei"
+
+#. type: Plain text
+#: cli.adoc:618
+msgid ""
+"The `pcb export gerbers` command exports a board design to Gerber files, "
+"with one layer per file."
+msgstr ""
+"Der Befehl `pcb export gerbers` exportiert ein Leiterplattendesign in Gerber-"
+"Dateien, wobei jede Datei einen Layer enthält."
+
+#. type: Plain text
+#: cli.adoc:624 cli.adoc:715
+#, no-wrap
+msgid ""
+"Be aware that there are two distinct Gerber export commands, `gerber` and\n"
+"      `gerbers`. The `gerber` command plots multiple PCB layers to a single\n"
+"      Gerber file, while the `gerbers` command plots multiple Gerber files, with\n"
+"      one PCB layer per file. The `gerbers` command is typically the correct\n"
+"      command to use for having a PCB fabricated.\n"
+msgstr "Beachten Sie, dass es zwei unterschiedliche Gerber-Exportbefehle gibt: `gerber` und `gerbers`. Der Befehl `gerber` schreibt mehrere PCB-Layer in eine einzige Gerberdatei, während der Befehl `gerbers` mehrere Gerberdateien mit einem PCB-Layer pro Datei schreibt. Der Befehl `gerbers` ist in der Regel der richtige Befehl, um eine Platine herstellen zu lassen.\n"
+
+#. type: Plain text
+#: cli.adoc:626
+msgid ""
+"Usage: `kicad-cli pcb export gerbers [--help] [--output OUTPUT_DIR] [--"
+"layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--"
+"exclude-refdes] [--exclude-value] [--include-border-title] [--sketch-pads-on-"
+"fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-"
+"on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--no-x2] [--no-"
+"netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-"
+"file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-invisible-"
+"text] [--common-layers COMMON_LAYER_LIST] [--check-zones] [--board-plot-"
+"params] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export gerbers [--help] [--output OUTPUT_DIR] [--"
+"layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--"
+"exclude-refdes] [--exclude-value] [--include-border-title] [--sketch-pads-on-"
+"fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-"
+"on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--no-x2] [--no-"
+"netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-"
+"file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-invisible-"
+"text] [--common-layers COMMON_LAYER_LIST] [--check-zones] [--board-plot-"
+"params] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:703
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the Gerber export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder for the exported files. One file is output for each\n"
+"      layer. When `--output` is not used, the files are exported to the\n"
+"      current directory.\n"
+"| `-l <layer list>`, `--layers <layer list>`\n"
+"    | A comma-separated list of layer names to plot from the board, such as\n"
+"      `F.Cu,B.Cu`. If this argument is not used, all layers will be plotted.\n"
+"      A seperate output file is plotted for each layer. Layer names can be\n"
+"      specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`, etc.) or as\n"
+"      user-defined (custom) layer names, but user-defined layer names are matched\n"
+"      first.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the board file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Exclude footprint reference designators from plot.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Exclude footprint values from plot.\n"
+"| `--ibt`, `--include-border-title`\n"
+"    | Include the sheet border and title block.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Draw pad outlines and their numbers on front and back fab layers.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Don't plot text and graphics of DNP footprints on fab layers.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Plot graphics of DNP footprints in sketch mode on fab layers.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Plot an \"X\" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.\n"
+"| `--no-x2`\n"
+"    | Do not use the extended X2 format.\n"
+"| `--no-netlist`\n"
+"    | Do not include netlist attributes.\n"
+"| `--subtract-soldermask`\n"
+"    | Remove silkscreen from areas without soldermask.\n"
+"| `--disable-aperture-macros`\n"
+"    | Disable aperture macros.\n"
+"| `--use-drill-file-origin`\n"
+"    | Use drill/place file origin instead of absolute origin.\n"
+"| `--precision <precision>`\n"
+"    | The precision (number of digits) for the Gerber files. Valid options are\n"
+"      `5` or `6` (default).\n"
+"| `--no-protel-ext`\n"
+"    | Use `.gbr` file extension instead of Protel file extensions (`.gbl`,\n"
+"      `.gtl`, etc.).\n"
+"| `--plot-invisible-text`\n"
+"    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad\n"
+"      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the\n"
+"      board so that the text is no longer invisible.\n"
+"| `--cl <layer list>`, `--common-layers <layer list>`\n"
+"    | A comma-separated list of layer names to plot on all layers, such as\n"
+"      `F.Cu,B.Cu`. Each layer specified is included in every output file. Layer\n"
+"      names can be specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`,\n"
+"      etc.) or as user-defined (custom) layer names, but user-defined layer names\n"
+"      are matched first.\n"
+"| `--check-zones`\n"
+"    | Check zone fills and refill zones, if required, prior to export.\n"
+"      Any zone fill updates are not saved in the board file.\n"
+"| `--board-plot-params`\n"
+"    | Use the Gerber plot settings already configured in the board file.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den Gerber-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabeverzeichnis>`, `--output <Ausgabeverzeichnis>`\n"
+"    | Das Ausgabeverzeichnis für die exportierten Dateien. Für jeden Layer wird eine Datei ausgegeben. Wenn `--output` nicht verwendet wird, werden die Dateien in das aktuelle Verzeichnis exportiert.\n"
+"| `-l <Layerliste>`, `--layers <Layerliste>`\n"
+"    | Eine durch Kommas getrennte Liste der Layernamen, die aus der Platine geplottet werden sollen, z. B. `F.Cu,B.Cu`. Wenn dieses Argument nicht verwendet wird, werden alle Layer geplottet. Für jeden Layer wird eine separate Ausgabedatei erstellt. Layernamen können als kanonische Layernamen (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte Layernamen angegeben werden, wobei benutzerdefinierte Layernamen vorrangig berücksichtigt werden.\n"
+"| `--drawing-sheet <Blattpfad>`\n"
+"    | Pfad zum Zeichnungsblatt, das beim Plotten verwendet werden soll, wobei das in der Board-Datei angegebene Zeichnungsblatt überschrieben wird.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Footprint-Referenzbezeichnungen aus dem Plot ausschließen.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Footprint-Werte aus dem Plot ausschließen.\n"
+"| `--ibt`, `--include-border-title`\n"
+"    | Blattrand und Titelblock einfügen.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Pad-Umrisse und deren Nummern auf vorderen und hinteren Fab-Layern zeichnen.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Text und Grafiken von DNP-Footprints nicht auf Fab-Layern plotten.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Grafiken von DNP-Footprints im Skizzenmodus auf Fab-Layern plotten.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Ein „X” über den DNP-Footprints auf Fab-Layern einzeichnen und deren Referenzbezeichnungen durchstreichen.\n"
+"| `--no-x2`\n"
+"    | Das erweiterte X2-Format nicht verwenden.\n"
+"| `--no-netlist`\n"
+"    | Keine Netzlistenattribute einbeziehen.\n"
+"| `--subtract-soldermask`\n"
+"    | Siebdruck aus Bereichen ohne Lötmaske entfernen.\n"
+"| `--disable-aperture-macros`\n"
+"    | Aperturmakros deaktivieren.\n"
+"| `--use-drill-file-origin`\n"
+"    | Bohr-/Platzierungsdatei-Ursprung anstelle des absoluten Ursprungs verwenden.\n"
+"| `--precision <precision>`\n"
+"    | Die Genauigkeit (Anzahl der Stellen) für die Gerber-Dateien. Gültige Optionen sind\n"
+"      `5` oder `6` (Standard).\n"
+"| `--no-protel-ext`\n"
+"    | Verwenden Sie die Dateiendung `.gbr` anstelle der Protel-Dateiendungen (`.gbl`,\n"
+"      `.gtl` usw.).\n"
+"| `--plot-invisible-text`\n"
+"    | Das Plotten von Werten und Referenzen erzwingen, auch wenn diese unsichtbar sind. Dieses Argument ist seit KiCad 9.0.1 veraltet und hat keine Wirkung mehr. Es wird in einer zukünftigen Version von KiCad entfernt werden. Um unsichtbaren Text zu plotten, bearbeiten Sie die Platine so, dass der Text nicht mehr unsichtbar ist.\n"
+"| `--cl <Layerliste>`, `--common-layers <Layerliste>`\n"
+"    | Eine durch Kommas getrennte Liste von Layernamen, die auf allen Layern geplottet werden sollen, z. B. `F.Cu,B.Cu`. Jeder angegebene Layer wird in jede Ausgabedatei aufgenommen. Layernamen können als kanonische Layernamen (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte Layernamen angegeben werden, wobei benutzerdefinierte Layernamen zuerst abgeglichen werden.\n"
+"| `--check-zones`\n"
+"    | Vor dem Export bei Bedarf die Zonenfüllungen und Nachfüllzonen prüfen. Aktualisierungen der Zonenfüllungen werden nicht in der Leiterplatten-Datei gespeichert.\n"
+"      `--board-plot-params`\n"
+"    | Die bereits in der Leiterplatten-Datei konfigurierten Gerber-Plot-Einstellungen verwenden.\n"
+
+#. type: Title ===
+#: cli.adoc:705
+#, no-wrap
+msgid "PCB Gerber export: multiple layers per file"
+msgstr "PCB-Gerber-Export: mehrere Lagen pro Datei"
+
+#. type: Plain text
+#: cli.adoc:709
+msgid ""
+"The `pcb export gerber` command exports one or more board layers to a single "
+"Gerber file."
+msgstr ""
+"Der Befehl `pcb export gerber` exportiert eine oder mehrere Lagen einer "
+"Leiterplatte in eine einzelne Gerber-Datei."
+
+#. type: Plain text
+#: cli.adoc:719
+#, no-wrap
+msgid ""
+"The `pcb export gerber` command is deprecated in KiCad 9.0 and will be\n"
+"         removed in KiCad 10.0. Please use the `pcb export gerbers` command\n"
+"         instead.\n"
+msgstr "Der Befehl `pcb export gerber` ist seit KiCad 9.0 veraltet und wird in KiCad 10.0 entfernt. Bitte verwenden Sie stattdessen den Befehl `pcb export gerbers`.\n"
+
+#. type: Plain text
+#: cli.adoc:721
+msgid ""
+"Usage: `kicad-cli pcb export gerber [--help] [--output OUTPUT_FILE] [--"
+"layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--"
+"exclude-refdes] [--exclude-value] [--include-border-title] [--sketch-pads-on-"
+"fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-"
+"on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--no-x2] [--no-"
+"netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-"
+"file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-invisible-"
+"text] [--check-zones] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export gerber [--help] [--output OUTPUT_FILE] [--"
+"layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--"
+"exclude-refdes] [--exclude-value] [--include-border-title] [--sketch-pads-on-"
+"fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-"
+"on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--no-x2] [--no-"
+"netlist] [--subtract-soldermask] [--disable-aperture-macros] [--use-drill-"
+"file-origin] [--precision PRECISION] [--no-protel-ext] [--plot-invisible-"
+"text] [--check-zones] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:788
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the Gerber export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.gbr` file extension.\n"
+"| `-l <layer list>`, `--layers <layer list>`\n"
+"    | A comma-separated list of layer names to plot from the board, such as\n"
+"      `F.Cu,B.Cu`. All layers will be plotted in the output file. At least one\n"
+"      layer must be given. Layer names can be specified as canonical layer names\n"
+"      (`F.Cu`, `In.1`, `F.Fab`, etc.) or as user-defined (custom) layer names,\n"
+"      but user-defined layer names are matched first.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the board file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Exclude footprint reference designators from plot.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Exclude footprint values from plot.\n"
+"| `--ibt`, `--include-border-title`\n"
+"    | Include the sheet border and title block.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Draw pad outlines and their numbers on front and back fab layers.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Don't plot text and graphics of DNP footprints on fab layers.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Plot graphics of DNP footprints in sketch mode on fab layers.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Plot an \"X\" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.\n"
+"| `--no-x2`\n"
+"    | Do not use the extended X2 format.\n"
+"| `--no-netlist`\n"
+"    | Do not include netlist attributes.\n"
+"| `--subtract-soldermask`\n"
+"    | Remove silkscreen from areas without soldermask.\n"
+"| `--disable-aperture-macros`\n"
+"    | Disable aperture macros.\n"
+"| `--use-drill-file-origin`\n"
+"    | Use drill/place file origin instead of absolute origin.\n"
+"| `--precision <precision>`\n"
+"    | The precision (number of digits) for the Gerber files. Valid options are\n"
+"      `5` or `6` (default).\n"
+"| `--no-protel-ext`\n"
+"    | Use `.gbr` file extension instead of Protel file extensions (`.gbl`,\n"
+"      `.gtl`, etc.).\n"
+"| `--plot-invisible-text`\n"
+"    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad\n"
+"      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the\n"
+"      board so that the text is no longer invisible.\n"
+"| `--check-zones`\n"
+"    | Check zone fills and refill zones, if required, prior to export.\n"
+"      Any zone fill updates are not saved in the board file.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den Gerber-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Ausgabedateiname. Wenn `--output` nicht verwendet wird, entspricht der Ausgabedateiname dem Eingabedateinamen mit der Dateiendung `.gbr`.\n"
+"| `-l <Layerliste>`, `--layers <Layerliste>`\n"
+"    | Eine durch Kommas getrennte Liste der Layernamen, die aus der Platine geplottet werden sollen, z. B. `F.Cu,B.Cu`. Alle Layer werden in der Ausgabedatei geplottet. Es muss mindestens ein Layer angegeben werden. Layer-Namen können als kanonische  (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte Layer-Namen angegeben werden, wobei benutzerdefinierte Layer-Namen zuerst abgeglichen werden.\n"
+"| `--drawing-sheet <Zeichnungsblattpfad>`\n"
+"    | Pfad zum Zeichnungsblatt, das beim Plotten verwendet werden soll, wobei das in der Board-Datei angegebene Zeichnungsblatt überschrieben wird.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Footprint-Referenzbezeichnungen aus dem Plot ausschließen.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Footprint-Werte aus der Zeichnung ausschließen.\n"
+"| `--ibt`, `--include-border-title`\n"
+"    | Blattrand und Titelblock mit einbeziehen.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Pad-Umrisse und deren Nummern auf vorderen und hinteren Fab-Layern zeichnen.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Text und Grafiken von DNP-Footprints auf Fab-Layern nicht plotten.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Grafiken von DNP-Footprints im Skizzenmodus auf Fab-Layern plotten.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Ein „X” über den Hof von DNP-Footprints auf Fab-Layern plotten und deren Referenzbezeichnungen durchstreichen.\n"
+"| `--no-x2`\n"
+"    | Das erweiterte X2-Format nicht verwenden.\n"
+"| `--no-netlist`\n"
+"    | Keine Netlist-Attribute einbeziehen.\n"
+"| `--subtract-soldermask`\n"
+"    | Siebdruck aus Bereichen ohne Lötmaske entfernen.\n"
+"| `--disable-aperture-macros`\n"
+"    | Apertur-Makros deaktivieren.\n"
+"| `--use-drill-file-origin`\n"
+"    | Ursprung der Bohr-/Platzierungsdatei anstelle des absoluten Ursprungs verwenden.\n"
+"| `--precision <precision>`\n"
+"    | Die Genauigkeit (Anzahl der Stellen) für die Gerber-Dateien. Gültige Optionen sind\n"
+"      `5` oder `6` (Standard).\n"
+"| `--no-protel-ext`\n"
+"    | Die Dateiendung `.gbr` anstelle der Protel-Dateiendungen (`.gbl`,\n"
+"      `.gtl` usw.) verwenden.\n"
+"| `--plot-invisible-text`\n"
+"    | Das Plotten von Werten und Referenzen erzwingen, auch wenn diese unsichtbar sind. Dieses Argument ist seit KiCad 9.0.1 veraltet und hat keine Wirkung mehr. Es wird in einer zukünftigen Version von KiCad entfernt werden. Um unsichtbaren Text zu plotten, bearbeiten Sie die Platine so, dass der Text nicht mehr unsichtbar ist.\n"
+"| `--check-zones`\n"
+"    | Vor dem Export die Zonenfüllungen überprüfen und gegebenenfalls neu füllen. Aktualisierungen der Zonenfüllung werden nicht in der Board-Datei gespeichert.\n"
+
+#. type: Title ===
+#: cli.adoc:790
+#, no-wrap
+msgid "PCB GLB export"
+msgstr "PCB GLB-Export"
+
+#. type: Plain text
+#: cli.adoc:794
+msgid ""
+"The `pcb export glb` command exports a board design to a GLB (binary glTF) "
+"3D model file."
+msgstr ""
+"Der Befehl `pcb export glb` exportiert ein Leiterplattendesign in eine GLB-"
+"Datei (binäre glTF) für 3D-Modelle."
+
+#. type: Plain text
+#: cli.adoc:796
+msgid ""
+"Usage: `kicad-cli pcb export glb [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--"
+"drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-"
+"board-body] [--no-components] [--component-filter VAR] [--include-tracks] [--"
+"include-pads] [--include-zones] [--include-inner-copper] [--include-"
+"silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-"
+"distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export glb [--help] [--output OUTPUT_FILE] [--"
+"define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-"
+"origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-"
+"body] [--no-board-body] [--no-components] [--component-filter VAR] [--"
+"include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] "
+"[--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-"
+"vias] [--min-distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] "
+"INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:867
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the GLB export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.glb` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--force`\n"
+"    | Overwrite output file.\n"
+"| `--no-unspecified`\n"
+"    | Exclude 3D models of components with \"unspecified\" footprint type.\n"
+"| `--no-dnp`\n"
+"    | Exclude 3D models of components with \"Do not populate\" attribute.\n"
+"| `--grid-origin`\n"
+"    | Use grid origin as origin of output file.\n"
+"| `--drill-origin`\n"
+"    | Use drill origin as origin of output file.\n"
+"| `--subst-models`\n"
+"    | Replace VRML models in footprints with STEP or IGS models of the same name, if\n"
+"      they exist.\n"
+"| `--board-only`\n"
+"    | Only include the board itself in the generated model; exclude all\n"
+"      component models.\n"
+"| `--cut-vias-in-body`\n"
+"    | Cut via holes in board body even if conductor layers are not exported.\n"
+"| `--no-board-body`\n"
+"    | Exclude board body.\n"
+"| `--no-components`\n"
+"    | Exclude 3D models for components.\n"
+"| `--component-filter <reference designator list>`\n"
+"    | Only include component 3D models matching this list of reference\n"
+"      designators (comma-separated, wildcards supported)\n"
+"| `--include-tracks`\n"
+"    | Include tracks and vias on outer conductor layers in export (time consuming).\n"
+"| `--include-pads`\n"
+"    | Include pads in export (time consuming).\n"
+"| `--include-zones`\n"
+"    | Include zones in export (time consuming).\n"
+"| `--include-inner-copper`\n"
+"    | Include elements on inner conductor layers in export.\n"
+"| `--include-silkscreen`\n"
+"    | Include silkscreen graphics in export as a set of flat faces.\n"
+"| `--include-soldermask`\n"
+"    | Include solder mask layers in export as a set of flat faces.\n"
+"| `--fuse-shapes`\n"
+"    | Fuse overlapping geometry together in export (time consuming).\n"
+"| `--fill-all-vias`\n"
+"    | Don't cut via holes in conductor layers.\n"
+"| `--min-distance <min distance>`\n"
+"    | Tolerance for considering two points to be in the same location. Default:\n"
+"      `0.01mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Only include copper items belonging to nets matching this wildcard.\n"
+"| `--user-origin <output origin>`\n"
+"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den GLB-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Ausgabedateiname. Wenn `--output` nicht verwendet wird, entspricht der Ausgabedateiname dem Namen der Eingabedatei mit der Dateiendung `.glb`.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `-f`, `--force`\n"
+"    | Ausgabedatei überschreiben.\n"
+"| `--no-unspecified`\n"
+"    | 3D-Modelle für Bauteile mit unbestimmtem Footprinttyp ausschließen.\n"
+"| `--no-dnp`\n"
+"    | 3D-Modelle von Komponenten mit dem Attribut „Nicht bestücken“ ausschließen.\n"
+"| `--grid-origin`\n"
+"    | Gitterursprung als Ursprung der Ausgabedatei verwenden.\n"
+"| `--drill-origin`\n"
+"    | Bohrungsursprung als Ursprung der Ausgabedatei verwenden.\n"
+"| `--subst-models`\n"
+"    | VRML-Modelle in Footprints durch STEP- oder IGS-Modelle mit demselben Namen ersetzen, sofern diese vorhanden sind.\n"
+"| `--board-only`\n"
+"    | Nur die Leiterplatte selbst in das generierte Modell aufnehmen; alle Komponentenmodelle ausschließen.\n"
+"| `--cut-vias-in-body`\n"
+"    | Durchkontaktierungen im Leiterplattenkörper schneiden, auch wenn Leiterbahnen nicht exportiert werden.\n"
+"| `--no-board-body`\n"
+"    | Leiterplattenkörper ausschließen.\n"
+"| `--no-components`\n"
+"    | 3D-Modelle für Komponenten ausschließen.\n"
+"| `--component-filter <Referenzbezeichnerliste>`\n"
+"    | Nur 3D-Modelle von Komponenten einbeziehen, die mit dieser Liste von Referenzbezeichnern übereinstimmen (durch Kommas getrennt, Platzhalter werden unterstützt)\n"
+"| `--include-tracks`\n"
+"    | Tracks und Durchkontaktierungen auf den äußeren Leiterlagen in den Export einbeziehen (zeitaufwendig).\n"
+"| `--include-pads`\n"
+"    | Pads in den Export einbeziehen (zeitaufwendig).\n"
+"| `--include-zones`\n"
+"    | Zonen in den Export einbeziehen (zeitaufwendig).\n"
+"| `--include-inner-copper`\n"
+"    | Elemente auf den inneren Leiterlagen in den Export einbeziehen.\n"
+"| `--include-silkscreen`\n"
+"    | Siebdruckgrafiken als ebene Flächen in den Export einbeziehen.\n"
+"| `--include-soldermask`\n"
+"    | Lötmaskenlagen als ebene Flächen in den Export einbeziehen.\n"
+"| `--fuse-shapes`\n"
+"    | Überlappende Geometrien im Export zusammenführen (zeitaufwändig).\n"
+"| `--fill-all-vias`\n"
+"    | Keine Durchkontaktierungen in Leiterschichten schneiden.\n"
+"| `--min-distance <min distance>`\n"
+"    | Toleranz für die Betrachtung zweier Punkte als an derselben Stelle liegend. Standard: `0,01 mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Nur Kupferelemente einbeziehen, die zu Netzen gehören, die diesem Platzhalter entsprechen.\n"
+"| `--user-origin <Ausgangsursprung>`\n"
+"    | Einen benutzerdefinierten Ursprung für die Ausgabedatei mit X- und Y-Koordinaten angeben. Zum Beispiel `1x1in`, `1x1inch` oder `25,4x25,4mm`. Die Standardeinheit ist Millimeter.\n"
+
+#. type: Title ===
+#: cli.adoc:869
+#, no-wrap
+msgid "PCB IPC-2581 export"
+msgstr "PCB IPC-2581-Export"
+
+#. type: Plain text
+#: cli.adoc:872
+msgid ""
+"The `pcb export ipc2581` command exports a board design in IPC-2581 format."
+msgstr ""
+"Der Befehl `pcb export ipc2581` exportiert ein Leiterplattendesign im "
+"IPC-2581-Format."
+
+#. type: Plain text
+#: cli.adoc:874
+msgid ""
+"Usage: `kicad-cli pcb export ipc2581 [--help] [--output OUTPUT_FILE] [--"
+"drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--precision PRECISION] "
+"[--compress] [--version VAR] [--units VAR] [--bom-col-int-id FIELD_NAME] [--"
+"bom-col-mfg-pn FIELD_NAME] [--bom-col-mfg FIELD_NAME] [--bom-col-dist-pn "
+"FIELD_NAME] [--bom-col-dist FIELD_NAME] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export ipc2581 [--help] [--output OUTPUT_FILE] [--"
+"drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--precision PRECISION] "
+"[--compress] [--version VAR] [--units VAR] [--bom-col-int-id FIELD_NAME] [--"
+"bom-col-mfg-pn FIELD_NAME] [--bom-col-mfg FIELD_NAME] [--bom-col-dist-pn "
+"FIELD_NAME] [--bom-col-dist FIELD_NAME] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:922
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the IPC-2581 export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.xml` file extension.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the board file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `--precision <precision>`\n"
+"    | The precision (number of digits after the decimal separator) for the\n"
+"      exported file. The default is `6`.\n"
+"| `--compress`\n"
+"    | Compress output file as a ZIP file.\n"
+"| `--version <IPC-2581 standard version>`\n"
+"    | IPC-2581 standard version to use. Options are `B` or `C` (default).\n"
+"| `--units`\n"
+"    | Units to use in export. Options are `mm` (default) or `in`.\n"
+"| `--bom-col-int-id`\n"
+"    | Name of the part field to use for the Bill of Materials Internal ID\n"
+"      column. This can be any footprint field, or blank to omit this column.\n"
+"| `--bom-col-mfg-pn`\n"
+"    | Name of the part field to use for the Bill of Materials Manufacturer Part\n"
+"      Number column. This can be any footprint field, or blank to omit this\n"
+"      column.\n"
+"| `--bom-col-mfg`\n"
+"    | Name of the part field to use for the Bill of Materials Manufacturer\n"
+"      column. This can be any footprint field, or blank to omit this column.\n"
+"| `--bom-col-dist-pn`\n"
+"    | Name of the part field to use for the Bill of Materials Distributor Part\n"
+"      Number column. This can be any footprint field, or blank to omit this\n"
+"      column.\n"
+"| `--bom-col-dist`\n"
+"    | Name of the part field to use for the Bill of Materials Distributor\n"
+"      column. This can be any footprint field, or blank to omit this column.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den IPC-2581-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Name der Ausgabedatei. Wenn `--output` nicht verwendet wird, entspricht der Name der Ausgabedatei dem Namen der Eingabedatei mit der Dateiendung `.xml`.\n"
+"| `--drawing-sheet <Blattpfad>`\n"
+"    | Pfad zum Zeichnungsblatt, das beim Plotten verwendet werden soll, wobei das\n"
+"      in der Board-Datei angegebene Zeichnungsblatt überschrieben wird.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `--precision <Genauigkeit>`\n"
+"    | Die Genauigkeit (Anzahl der Stellen nach dem Dezimaltrennzeichen) für die exportierte Datei. Der Standardwert ist `6`.\n"
+"| `--compress`\n"
+"    | Ausgabedatei als ZIP-Datei komprimieren.\n"
+"| `--version <IPC-2581-Standardversion>`\n"
+"    | Zu verwendende IPC-2581-Standardversion. Optionen sind `B` oder `C` (Standard).\n"
+"| `--units`\n"
+"    | Beim Export zu verwendende Einheiten. Optionen sind `mm` (Standard) oder `in`.\n"
+"| `--bom-col-int-id`\n"
+"    | Name des Teilfeldes, das für die Spalte „Interne ID der Stückliste” verwendet werden soll. Dies kann ein beliebiges Footprint-Feld sein oder leer gelassen werden, um diese Spalte wegzulassen.\n"
+"| `--bom-col-mfg-pn`\n"
+"    | Name des Teilfeldes, das für die Spalte „Hersteller-Teilenummer der Stückliste” verwendet werden soll. Dies kann ein beliebiges Footprint-Feld sein oder leer gelassen werden, um diese Spalte wegzulassen.\n"
+"| `--bom-col-mfg`\n"
+"    | Name des Teilfeldes, das für die Spalte „Hersteller der Stückliste” verwendet werden soll. Dies kann ein beliebiges Footprint-Feld sein oder leer gelassen werden, um diese Spalte wegzulassen.\n"
+"| `--bom-col-dist-pn`\n"
+"    | Name des Teilfeldes, das für die Spalte „Teilenummer des Distributors in der Stückliste\" verwendet werden soll. Dies kann ein beliebiges Footprint-Feld sein oder leer gelassen werden, um diese Spalte wegzulassen.\n"
+"| `--bom-col-dist`\n"
+"    | Name des Teilfeldes, das für die Spalte „Distributor in der Stückliste\" verwendet werden soll. Dies kann ein beliebiges Footprint-Feld sein oder leer gelassen werden, um diese Spalte wegzulassen.\n"
+
+#. type: Title ===
+#: cli.adoc:924
+#, no-wrap
+msgid "PCB IPC-D-356 export"
+msgstr "PCB IPC-D-356-Export"
+
+#. type: Plain text
+#: cli.adoc:927
+msgid ""
+"The `pcb export ipcd356` command generates an IPC-D-356 netlist from the "
+"board design."
+msgstr ""
+"Der Befehl `pcb export ipcd356` generiert eine IPC-D-356-Netzliste aus dem "
+"Board-Design."
+
+#. type: Plain text
+#: cli.adoc:929
+msgid ""
+"Usage: `kicad-cli pcb export ipcd356 [--help] [--output OUTPUT_FILE] "
+"INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export ipcd356 [--help] [--output OUTPUT_FILE] "
+"INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:947
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the IPC-D-356 export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.d356` file extension.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den IPC-D-356-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Name der Ausgabedatei. Wenn `--output` nicht verwendet wird, entspricht der Name der Ausgabedatei dem Namen der Eingabedatei mit der Dateierweiterung `.d356`.\n"
+
+#. type: Title ===
+#: cli.adoc:949
+#, no-wrap
+msgid "PCB ODB++ export"
+msgstr "PCB ODB++ Export"
+
+#. type: Plain text
+#: cli.adoc:952
+msgid "The `pcb export odb` command exports a board design in ODB++ format."
+msgstr ""
+"Der Befehl `pcb export odb` exportiert ein Leiterplattendesign im ODB++-"
+"Format."
+
+#. type: Plain text
+#: cli.adoc:954
+msgid ""
+"Usage: `kicad-cli pcb export odb [--help] [--output OUTPUT_FILE] [--drawing-"
+"sheet SHEET_PATH] [--define-var KEY=VALUE] [--precision PRECISION] [--"
+"compression VAR] [--units VAR] INPUT_FILE`"
+msgstr ""
+"Verwendund: `kicad-cli pcb export odb [--help] [--output OUTPUT_FILE] [--"
+"drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--precision PRECISION] "
+"[--compression VAR] [--units VAR] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:984
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the ODB++ export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename, or folder name if no compression is used.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the board file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `--precision <precision>`\n"
+"    | The precision (number of digits after the decimal separator) for the\n"
+"      exported file. The default is `2`.\n"
+"| `--compression <mode>`\n"
+"    | Compression mode. Options are `none`, `zip` (default), or `tgz`.\n"
+"| `--units <unit>`\n"
+"    | Units to use in the output file. Options are `mm` (default) or `in`.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den ODB++-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Ausgabedateiname oder Ordnername, wenn keine Komprimierung verwendet wird.\n"
+"| `--drawing-sheet <Zeichnungsblattpfad>`\n"
+"    | Pfad zum Zeichnungsblatt, das beim Plotten verwendet werden soll, wobei das in der Board-Datei angegebene Zeichnungsblatt überschrieben wird\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `--precision <Genauigkeit>`\n"
+"    | Die Genauigkeit (Anzahl der Stellen nach dem Dezimaltrennzeichen) für die exportierte Datei. Der Standardwert ist `2`.\n"
+"| `--compression <Modus>`\n"
+"    | Komprimierungsmodus. Optionen sind `none`, `zip` (Standard) oder `tgz`.\n"
+"| `--units <Einheit>`\n"
+"    | In der Ausgabedatei zu verwendende Einheiten. Optionen sind `mm` (Standard) oder `in`.\n"
+
+#. type: Title ===
+#: cli.adoc:986
+#, no-wrap
+msgid "PCB PDF export"
+msgstr "PCB PDF-Export"
+
+#. type: Plain text
+#: cli.adoc:989
+msgid ""
+"The `pcb export pdf` command exports a board design to a PDF file. Each "
+"layer can be plotted as its own file or as a sheet within a single file."
+msgstr ""
+"Der Befehl `pcb export pdf` exportiert ein Leiterplattendesign in eine PDF-"
+"Datei. Jede Lage kann als eigene Datei oder als Blatt in einer einzelnen "
+"Datei ausgegeben werden."
+
+#. type: Plain text
+#: cli.adoc:991
+msgid ""
+"Usage: `kicad-cli pcb export pdf [--help] [--output OUTPUT_DIR] [--layers "
+"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--mirror] "
+"[--exclude-refdes] [--exclude-value] [--include-border-title] [--subtract-"
+"soldermask] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-"
+"layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-"
+"on-fab-layers] [--negative] [--black-and-white] [--theme THEME_NAME] [--"
+"drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--plot-invisible-"
+"text] [--mode-single] [--mode-separate] [--mode-multipage] [--scale SCALE] "
+"[--bg-color COLOR] [--check-zones] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export pdf [--help] [--output OUTPUT_DIR] [--"
+"layers LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--"
+"mirror] [--exclude-refdes] [--exclude-value] [--include-border-title] [--"
+"subtract-soldermask] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-"
+"fab-layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-"
+"footprints-on-fab-layers] [--negative] [--black-and-white] [--theme "
+"THEME_NAME] [--drill-shape-opt VAR] [--common-layers COMMON_LAYER_LIST] [--"
+"plot-invisible-text] [--mode-single] [--mode-separate] [--mode-multipage] [--"
+"scale SCALE] [--bg-color COLOR] [--check-zones] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:1081
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the PDF export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder or filename for the exported files. When `--mode-single`\n"
+"      or `--mode-multipage` is used, this is the output filename. If this\n"
+"      argument is not used, the output filename will be the same as the input\n"
+"      file, with the `.pdf` file extension. When `--mode-separate` is used, this is\n"
+"      the output directory. If `--output` is not used, the files are exported\n"
+"      to the current directory.\n"
+"| `-l <layer list>`, `--layers <layer list>`\n"
+"    | A comma-separated list of layer names to export from the board, such as\n"
+"      `F.Cu,B.Cu`. At least one layer must be given. Layer names can be\n"
+"      specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`, etc.) or as \n"
+"      user-defined (custom) layer names, but user-defined layer names are matched\n"
+"      first.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the board file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-m`, `--mirror`\n"
+"    | Mirror the board. This can be useful for showing bottom layers.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Exclude footprint reference designators from plot.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Exclude footprint values from plot.\n"
+"| `--ibt`, `--include-border-title`\n"
+"    | Include the sheet border and title block.\n"
+"| `--subtract-soldermask`\n"
+"    | Remove silkscreen from areas without soldermask.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Draw pad outlines and their numbers on front and back fab layers.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Don't plot text and graphics of DNP footprints on fab layers.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Plot graphics of DNP footprints in sketch mode on fab layers.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Plot an \"X\" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.\n"
+"| `-n`, `--negative`\n"
+"    | Plot in negative.\n"
+"| `--black-and-white`\n"
+"    | Plot in black and white.\n"
+"| `-t <theme name>`, `--theme <theme name>`\n"
+"    | The name of the theme to use for export. If no theme is given, the\n"
+"      board editor's currently selected theme is used.\n"
+"| `--drill-shape-opt`\n"
+"    | The shape of drill marks in the plot. Options are `0` for no drill marks,\n"
+"      `1` for small marks, or `2` for actual size marks (default).\n"
+"| `--cl <layer list>`, `--common-layers <layer list>`\n"
+"    | A comma-separated list of layer names to plot on all layers, such as\n"
+"      `F.Cu,B.Cu`. Layer names can be specified as canonical layer names\n"
+"      (`F.Cu`, `In.1`, `F.Fab`, etc.) or as user-defined (custom) layer names,\n"
+"      but user-defined layer names are matched first.\n"
+"| `--plot-invisible-text`\n"
+"    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad\n"
+"      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the\n"
+"      board so that the text is no longer invisible.\n"
+"| `--mode-single`\n"
+"    | Generates a single file with the output arg path acting as the complete directory and filename path. `COMMON_LAYER_LIST` does not function in this mode. Instead `LAYER_LIST` controls all layers plotted. All specified layers are plotted on a single page.\n"
+"| `--mode-separate`\n"
+"    | Plot the layers to one or more PDF files, with each file representing a\n"
+"      single layer from `LAYER_LIST`. The output path specifies the directory in\n"
+"      which the files will be written.\n"
+"| `--mode-multipage`\n"
+"    | Plot the layers to a single PDF file with multiple pages, with each page\n"
+"      representing a single layer from `LAYER_LIST`. The output path specifies\n"
+"      the complete directory and filename path.\n"
+"| `--scale <scale>`\n"
+"    | A scaling factor to use for plotting the PCB. The border and title block\n"
+"      are not scaled. A scale factor of 0 autoscales the plot.\n"
+"| `--bg-color <color>`\n"
+"    | A background color for the plot. The format can be hex (`#rrggbb` or\n"
+"      `#rrggbbaa`) or CSS (`rgb(r,g,b)` or `rgba(r,g,b,a)`).\n"
+"| `--check-zones`\n"
+"    | Check zone fills and refill zones, if required, prior to export.\n"
+"      Any zone fill updates are not saved in the board file.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den PDF-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabeverzeichnis>`, `--output <Ausgabeverzeichnis>`\n"
+"    | Das Ausgabeverzeichnis oder der Dateiname für die exportierten Dateien. Bei Verwendung von `--mode-single` oder `--mode-multipage` ist dies der Ausgabedateiname. Wenn dieses Argument nicht verwendet wird, entspricht der Ausgabedateiname dem der Eingabedatei mit der Dateiendung `.pdf`. Bei Verwendung von `--mode-separate` ist dies das Ausgabeverzeichnis. Wenn `--output` nicht verwendet wird, werden die Dateien in das aktuelle Verzeichnis exportiert.\n"
+"| `-l <Ebenenliste>`, `--layers <Ebenenliste>`\n"
+"    | Eine durch Kommas getrennte Liste der aus der Platine zu exportierenden Lagennamen, z. B. `F.Cu,B.Cu`. Es muss mindestens eine Lage angegeben werden. Lagennamen können als kanonische Lagennamen (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte Lagennamen angegeben werden, wobei benutzerdefinierte Lagennamen zuerst abgeglichen werden.\n"
+"| `--drawing-sheet <Pfad zum Blatt>`\n"
+"    | Pfad zum Zeichnungsblatt, das beim Plotten verwendet werden soll, wobei das\n"
+"      in der Board-Datei angegebene Zeichnungsblatt überschrieben wird.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden , um mehrere Variablen zu definieren.\n"
+"| `-m`, `--mirror`\n"
+"    | Die Platine spiegeln. Dies kann hilfreich sein, um untere Lagen anzuzeigen.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Footprint-Referenzbezeichnungen aus der Zeichnung ausschließen.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Footprint-Werte aus dem Plot ausschließen.\n"
+"| `--ibt`, `--include-border-title`\n"
+"    | Blattrand und Titelblock einbeziehen.\n"
+"| `--subtract-soldermask`\n"
+"    | Siebdruck aus Bereichen ohne Lötmaske entfernen.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Pad-Umrisse und deren Nummern auf vorderen und hinteren Fab-Layern zeichnen.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Text und Grafiken von DNP-Footprints nicht auf Fab-Layern plotten.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Grafiken von DNP-Footprints im Skizzenmodus auf Fab-Layern plotten.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Ein „X” über den Hof der DNP-Footprints auf den Fab-Layern zeichnen und deren Referenzbezeichnungen durchstreichen.\n"
+"| `-n`, `--negative`\n"
+"    | Negativ darstellen.\n"
+"| `--black-and-white`\n"
+"    | In Schwarz-Weiß plotten.\n"
+"| `-t <Themenname>`, `--theme <Themenname>`\n"
+"    | Der Name des Themas, das für den Export verwendet werden soll. Wenn kein Thema angegeben ist, wird das derzeit im Board-Editor ausgewählte Thema verwendet.\n"
+"| `--drill-shape-opt`\n"
+"    | Die Form der Bohrmarkierungen in der Zeichnung. Die Optionen sind `0` für keine Bohrmarkierungen, `1` für kleine Markierungen oder `2` für Markierungen in tatsächlicher Größe (Standard).\n"
+"| `--cl <Layerliste>`, `--common-layers <Layerliste>`\n"
+"    | Eine durch Kommas getrennte Liste von Lagennamen, die auf allen Lagen geplottet werden sollen, z. B.`F.Cu,B.Cu`. Lagennamen können als kanonische Lagennamen (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte (benutzerdefinierte) Lagennamen angegeben werden, aber benutzerdefinierte Lagennamen werden zuerst abgeglichen.\n"
+"| `--plot-invisible-text`\n"
+"    | Die Darstellung von Werten und Referenzen erzwingen, auch wenn diese unsichtbar sind. Dieses Argument ist seit KiCad 9.0.1 veraltet und hat keine Wirkung mehr. Es wird in einer zukünftigen Version von KiCad entfernt werden. Um unsichtbaren Text darzustellen, bearbeiten Sie die Platine so, dass der Text nicht mehr unsichtbar ist.\n"
+"| `--mode-single`\n"
+"    | Eine einzelne Datei erzeugen, wobei der Ausgabepfad als vollständiger Verzeichnis- und Dateinamenpfad dient. `COMMON_LAYER_LIST` funktioniert in diesem Modus nicht. Stattdessen steuert `LAYER_LIST` alle geplotteten Lagen. Alle angegebenen Lagen werden auf einer einzigen Seite geplottet.\n"
+"| `--mode-separate`\n"
+"    | Die Ebenen in einer oder mehreren PDF-Dateien plotten, wobei jede Datei eine einzelne Lage aus `LAYER_LIST` darstellt. Der Ausgabepfad gibt das Verzeichnis an, in das die Dateien geschrieben werden.\n"
+"| `--mode-multipage`\n"
+"    | Die Ebenen in einer einzigen PDF-Datei mit mehreren Seiten plotten, wobei jede Seite eine einzelne Lage aus `LAYER_LIST` darstellt. Der Ausgabepfad gibt das vollständige Verzeichnis und den Dateinamenpfad an.\n"
+"| `--scale <scale>`\n"
+"    | Ein Skalierungsfaktor, der für das Plotten der Leiterplatte verwendet wird. Der Rand und der Titelblock werden nicht skaliert. Ein Skalierungsfaktor von 0 skaliert die Zeichnung automatisch.\n"
+"| `--bg-color <color>`\n"
+"    | Eine Hintergrundfarbe für die Zeichnung. Das Format kann hexadezimal (`#rrggbb` oder `#rrggbbaa`) oder CSS (`rgb(r,g,b)` oder `rgba(r,g,b,a)`) sein.\n"
+"| `--check-zones`\n"
+"    | Zonenfüllungen überprüfen und gegebenenfalls vor dem Export neu füllen.\n"
+"      Aktualisierungen der Zonenfüllung werden nicht in der Board-Datei gespeichert.\n"
+
+#. type: Title ===
+#: cli.adoc:1083
+#, no-wrap
+msgid "PCB PLY file export"
+msgstr "PCB PLY Dateiexport"
+
+#. type: Plain text
+#: cli.adoc:1086
+msgid ""
+"The `pcb export ply` command exports a board design to a PLY 3D model file."
+msgstr ""
+"Der Befehl `pcb export ply` exportiert ein Leiterplattendesign in eine "
+"PLY-3D-Modelldatei."
+
+#. type: Plain text
+#: cli.adoc:1088
+msgid ""
+"Usage: `kicad-cli pcb export ply [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--"
+"drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-"
+"board-body] [--no-components] [--component-filter VAR] [--include-tracks] [--"
+"include-pads] [--include-zones] [--include-inner-copper] [--include-"
+"silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-"
+"distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export ply [--help] [--output OUTPUT_FILE] [--"
+"define-var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-"
+"origin] [--drill-origin] [--subst-models] [--board-only] [--cut-vias-in-"
+"body] [--no-board-body] [--no-components] [--component-filter VAR] [--"
+"include-tracks] [--include-pads] [--include-zones] [--include-inner-copper] "
+"[--include-silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-"
+"vias] [--min-distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] "
+"INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:1159
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the PLY export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.ply` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--force`\n"
+"    | Overwrite output file.\n"
+"| `--no-unspecified`\n"
+"    | Exclude 3D models of components with \"unspecified\" footprint type.\n"
+"| `--no-dnp`\n"
+"    | Exclude 3D models of components with \"Do not populate\" attribute.\n"
+"| `--grid-origin`\n"
+"    | Use grid origin as origin of output file.\n"
+"| `--drill-origin`\n"
+"    | Use drill origin as origin of output file.\n"
+"| `--subst-models`\n"
+"    | Replace VRML models in footprints with STEP or IGS models of the same\n"
+"      name, if they exist.\n"
+"| `--board-only`\n"
+"    | Only include the board itself in the generated model; exclude all\n"
+"      component models.\n"
+"| `--cut-vias-in-body`\n"
+"    | Cut via holes in board body even if conductor layers are not exported.\n"
+"| `--no-board-body`\n"
+"    | Exclude board body.\n"
+"| `--no-components`\n"
+"    | Exclude 3D models for components.\n"
+"| `--component-filter <reference designator list>`\n"
+"    | Only include component 3D models matching this list of reference\n"
+"      designators (comma-separated, wildcards supported)\n"
+"| `--include-tracks`\n"
+"    | Include tracks and vias on outer conductor layers in export (time consuming).\n"
+"| `--include-pads`\n"
+"    | Include pads in export (time consuming).\n"
+"| `--include-zones`\n"
+"    | Include zones in export (time consuming).\n"
+"| `--include-inner-copper`\n"
+"    | Include elements on inner conductor layers in export.\n"
+"| `--include-silkscreen`\n"
+"    | Include silkscreen graphics in export as a set of flat faces.\n"
+"| `--include-soldermask`\n"
+"    | Include solder mask layers in export as a set of flat faces.\n"
+"| `--fuse-shapes`\n"
+"    | Fuse overlapping geometry together in export (time consuming).\n"
+"| `--fill-all-vias`\n"
+"    | Don't cut via holes in conductor layers.\n"
+"| `--min-distance <min distance>`\n"
+"    | Tolerance for considering two points to be in the same location. Default:\n"
+"      `0.01mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Only include copper items belonging to nets matching this wildcard.\n"
+"| `--user-origin <output origin>`\n"
+"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den PLY-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Ausgabedateiname. Wenn `--output` nicht verwendet wird, entspricht der Ausgabedateiname dem Namen der Eingabedatei mit der Dateiendung `.ply`.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `-f`, `--force`\n"
+"    | Ausgabedatei überschreiben.\n"
+"| `--no-unspecified`\n"
+"    | 3D-Modelle von Bauteilen mit unbestimmtem Footprint-Typ ausschließen.\n"
+"| `--no-dnp`\n"
+"    | 3D-Modelle von Bauteilen mit dem Attribut „Nicht bestücken” ausschließen.\n"
+"| `--grid-origin`\n"
+"    | Gitterursprung als Ursprung der Ausgabedatei verwenden.\n"
+"| `--drill-origin`\n"
+"    | Bohrungsursprung als Ursprung der Ausgabedatei verwenden.\n"
+"| `--subst-models`\n"
+"    | VRML-Modelle in Footprints durch STEP- oder IGS-Modelle mit demselben\n"
+"      Namen ersetzen, sofern vorhanden.\n"
+"| `--board-only`\n"
+"    | Nur die Leiterplatte selbst in das generierte Modell aufnehmen; alle\n"
+"      Komponentenmodelle ausschließen.\n"
+"| `--cut-vias-in-body`\n"
+"    | Vias in Platine schneiden, selbst wenn die Leiterbahnen nicht exportiert werden.\n"
+"| `--no-board-body`\n"
+"    | Platinenkörper ausschließen.\n"
+"| `--no-components`\n"
+"    | 3D-Modelle von Komponenten ausschließen.\n"
+"| `--component-filter <Referenzbezeichnerliste>`\n"
+"    | Nur 3D-Modelle von Komponenten einbeziehen, die mit dieser Liste von Referenzbezeichnern übereinstimmen (durch Kommas getrennt, Platzhalter werden unterstützt)\n"
+"| `--include-tracks`\n"
+"    | Tracks und Durchkontaktierungen auf äußeren Lagen im Export berücksichtigen (zeitaufwendig).\n"
+"| `--include-pads`\n"
+"    | Pads im Export berücksichtigen (zeitaufwendig).\n"
+"| `--include-zones`\n"
+"    | Zonen im Export berücksichtigen (zeitaufwendig).\n"
+"| `--include-inner-copper`\n"
+"    | Elemente auf inneren Lagen im Export berücksichtigen.\n"
+"| `--include-silkscreen`\n"
+"    | Siebdruckgrafiken als Flächen in den Export einbeziehen.\n"
+"| `--include-soldermask`\n"
+"    | Lötmaskenlagen als Flächen in den Export einbeziehen.\n"
+"| `--fuse-shapes`\n"
+"    | Überlappende Geometrien im Export zusammenführen (zeitaufwändig).\n"
+"| `--fill-all-vias`\n"
+"    | Keine Durchkontaktierungen in Leiterbahnen schneiden.\n"
+"| `--min-distance <min distance>`\n"
+"    | Toleranz für die Betrachtung zweier Punkte als an derselben Stelle liegend. Standard: `0,01 mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Nur Kupferelemente einbeziehen, die zu Netzen gehören, die diesem Platzhalter entsprechen.\n"
+"| `--user-origin <Ausgangsursprung>`\n"
+"    | Einen benutzerdefinierten Ursprung für die Ausgabedatei mit X- und Y-Koordinaten angeben. Zum Beispiel `1x1in`, `1x1inch` oder `25,4x25,4mm`. Die Standardeinheit ist Millimeter.\n"
+
+#. type: Title ===
+#: cli.adoc:1161
+#, no-wrap
+msgid "PCB position file export"
+msgstr "PCB Positionsdateiexport"
+
+#. type: Plain text
+#: cli.adoc:1164
+msgid ""
+"The `pcb export pos` command exports a position file from a board design."
+msgstr ""
+"Der Befehl `pcb export pos` exportiert eine Positionsdatei aus einem "
+"Leiterplattenentwurf."
+
+#. type: Plain text
+#: cli.adoc:1166
+msgid ""
+"Usage: `kicad-cli pcb export pos [--help] [--output OUTPUT_FILE] [--side "
+"VAR] [--format FORMAT] [--units UNITS] [--bottom-negate-x] [--use-drill-file-"
+"origin] [--smd-only] [--exclude-fp-th] [--exclude-dnp] [--gerber-board-edge] "
+"INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export pos [--help] [--output OUTPUT_FILE] [--"
+"side VAR] [--format FORMAT] [--units UNITS] [--bottom-negate-x] [--use-drill-"
+"file-origin] [--smd-only] [--exclude-fp-th] [--exclude-dnp] [--gerber-board-"
+"edge] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:1210
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the position file export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.pos` file extension.\n"
+"| `--side <side>`\n"
+"    | The side of the board to export. Options are `front`, `back`, or `both`\n"
+"      (default). Gerber format does not support `both`.\n"
+"| `--format <format>`\n"
+"    | The position file format. Options are `ascii` (default), `csv`, or\n"
+"      `gerber`.\n"
+"| `--units <unit>`\n"
+"    | Units for position file. Options are `in` (default) or `mm`. This option\n"
+"      has no effect for Gerber format.\n"
+"| `--bottom-negate-x`\n"
+"    | Use negative X coordinates for footprints on the bottom layer. This\n"
+"      option has no effect for Gerber format.\n"
+"| `--use-drill-file-origin`\n"
+"    | Use drill/place file origin instead of absolute origin. This option has no\n"
+"      effect for Gerber format.\n"
+"| `--smd-only`\n"
+"    | Include only surface-mount components. This option has no effect for\n"
+"      Gerber format.\n"
+"| `--exclude-fp-th`\n"
+"    | Exclude all footprints with through-hole pads. This option has no effect\n"
+"      for Gerber format.\n"
+"| `--exclude-dnp`\n"
+"    | Exclude all footprints with \"Do not populate\" attribute.\n"
+"| `--gerber-board-edge`\n"
+"    | Include board edge layer in export (Gerber format only).\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den Befehl zum Exportieren der Positionsdatei anzeigen.\n"
+"| `-o <Ausgabedateiname>`, `--output <Ausgabedateiname>`\n"
+"    | Der Name der Ausgabedatei. Wenn `--output` nicht verwendet wird, entspricht der Name der Ausgabedatei dem Namen der Eingabedatei mit der Dateiendung `.pos`.\n"
+"| `--side <Seite>`\n"
+"    | Die zu exportierende Seite der Leiterplatte. Optionen sind `front`, `back` oder `both`\n"
+"      (Standard). Das Gerber-Format unterstützt `both` nicht.\n"
+"| `--format <Format>`\n"
+"    | Das Format der Positionsdatei. Optionen sind `ascii` (Standard), `csv` oder\n"
+"      `gerber`.\n"
+"| `--units <unit>`\n"
+"    | Einheiten für die Positionsdatei. Optionen sind `in` (Standard) oder `mm`. Diese Option hat keine Auswirkung auf das Gerber-Format.\n"
+"| `--bottom-negate-x`\n"
+"    | Negative X-Koordinaten für Footprints auf der unteren Lage verwenden. Diese Option hat keine Auswirkung auf das Gerber-Format.\n"
+"| `--use-drill-file-origin`\n"
+"    | Ursprung der Bohr-/Platzierungsdatei anstelle des absoluten Ursprungs verwenden. Diese Option hat keine Auswirkung auf das Gerber-Format.\n"
+"| `--smd-only`\n"
+"    | Nur SMD-Bauteile berücksichtigen. Diese Option hat keine\n"
+"      Auswirkung auf das Gerber-Format.\n"
+"| `--exclude-fp-th`\n"
+"    | Alle Footprints mit Durchlochpads ausschließen. Diese Option hat keine\n"
+"      Auswirkung auf das Gerber-Format.\n"
+"| `--exclude-dnp`\n"
+"    | Alle Footprints mit dem Attribut „Nicht bestücken” ausschließen.\n"
+"| `--gerber-board-edge`\n"
+"    | Platinenumrisslage in den Export einbeziehen (nur Gerber-Format).\n"
+
+#. type: Title ===
+#: cli.adoc:1212
+#, no-wrap
+msgid "PCB PostScript export"
+msgstr "PCB PostScript Export"
+
+#. type: Plain text
+#: cli.adoc:1215
+msgid ""
+"The `pcb export ps` command exports a board design to a PostScript file."
+msgstr ""
+"Der Befehl `pcb export ps` exportiert ein Leiterplattendesign in eine "
+"PostScript-Datei."
+
+#. type: Plain text
+#: cli.adoc:1217
+msgid ""
+"Usage: `kicad-cli pcb export ps [--help] [--output OUTPUT_DIR] [--layers "
+"LAYER_LIST] [--common-layers COMMON_LAYER_LIST] [--drawing-sheet SHEET_PATH] "
+"[--define-var KEY=VALUE]... [--mirror] [--exclude-refdes] [--exclude-value] "
+"[--include-border-title] [--subtract-soldermask] [--sketch-pads-on-fab-"
+"layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-footprints-on-"
+"fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--negative] [--black-"
+"and-white] [--theme THEME_NAME] [--drill-shape-opt VAR] [--mode-single] [--"
+"mode-multi] [--track-width-correction TRACK_COR] [--x-scale-factor X_SCALE] "
+"[--y-scale-factor Y_SCALE] [--force-a4] [--scale SCALE] [--check-zones] "
+"INPUT_FILE`"
+msgstr ""
+"Verwendung: `kicad-cli pcb export ps [--help] [--output OUTPUT_DIR] [--"
+"layers LAYER_LIST] [--common-layers COMMON_LAYER_LIST] [--drawing-sheet "
+"SHEET_PATH] [--define-var KEY=VALUE]... [--mirror] [--exclude-refdes] [--"
+"exclude-value] [--include-border-title] [--subtract-soldermask] [--sketch-"
+"pads-on-fab-layers] [--hide-DNP-footprints-on-fab-layers] [--sketch-DNP-"
+"footprints-on-fab-layers] [--crossout-DNP-footprints-on-fab-layers] [--"
+"negative] [--black-and-white] [--theme THEME_NAME] [--drill-shape-opt VAR] "
+"[--mode-single] [--mode-multi] [--track-width-correction TRACK_COR] [--x-"
+"scale-factor X_SCALE] [--y-scale-factor Y_SCALE] [--force-a4] [--scale "
+"SCALE] [--check-zones] INPUT_FILE`"
+
+#. type: Table
+#: cli.adoc:1307
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the PS export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder or filename for the exported files. When `--mode-single`\n"
+"      is used, this is the output filename. If `--output` is not used, the\n"
+"      output filename will be the same as the input\n"
+"      file, with the `.pdf` file extension. When `--mode-multi` is used, this is\n"
+"      the output directory. If `--output` is not used, the files are exported\n"
+"      to the current directory.\n"
+"| `-l <layer list>`, `--layers <layer list>`\n"
+"    | A comma-separated list of layer names to export from the board, such as\n"
+"      `F.Cu,B.Cu`. At least one layer must be given. Layer names can be\n"
+"      specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`, etc.) or as \n"
+"      user-defined (custom) layer names, but user-defined layer names are matched\n"
+"      first.\n"
+"| `--cl <layer list>`, `--common-layers <layer list>`\n"
+"    | A comma-separated list of layer names to plot on all layers, such as\n"
+"      `F.Cu,B.Cu`. Each layer specified is included in every output file. Layer\n"
+"      names can be specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`,\n"
+"      etc.) or as user-defined (custom) layer names, but user-defined layer names\n"
+"      are matched first.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the board file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-m`, `--mirror`\n"
+"    | Mirror the board. This can be useful for showing bottom layers.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Exclude footprint reference designators from plot.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Exclude footprint values from plot.\n"
+"| `--ibt`, `--include-border-title`\n"
+"    | Include the sheet border and title block.\n"
+"| `--subtract-soldermask`\n"
+"    | Remove silkscreen from areas without soldermask.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Draw pad outlines and their numbers on front and back fab layers.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Don't plot text and graphics of DNP footprints on fab layers.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Plot graphics of DNP footprints in sketch mode on fab layers.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Plot an \"X\" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.\n"
+"| `-n`, `--negative`\n"
+"    | Plot in negative.\n"
+"| `--black-and-white`\n"
+"    | Plot in black and white.\n"
+"| `-t <theme name>`, `--theme <theme name>`\n"
+"    | The name of the theme to use for export. If no theme is given, the\n"
+"      board editor's currently selected theme is used.\n"
+"| `--drill-shape-opt`\n"
+"    | The shape of drill marks in the plot. Options are `0` for no drill marks,\n"
+"      `1` for small marks, or `2` for actual size marks (default).\n"
+"| `--mode-single`\n"
+"    | Generates a single file with the output arg path acting as the complete directory and filename path. `COMMON_LAYER_LIST` does not function in this mode. Instead `LAYER_LIST` controls all layers plotted.\n"
+"| `--mode-multipage`\n"
+"    | Plot the layers to one or more PDF files, with each file representing a\n"
+"      single layer from `LAYER_LIST`. The output path specifies the directory in\n"
+"      which the files will be written.\n"
+"| `--C`, `--track-width-correction`\n"
+"    | A global correction, in millimeters, that is added to the size of tracks,\n"
+"      vias, and pads when plotted. This correction can be used to correct for\n"
+"      errors in the PostScript output device to achieve an exact-scale output.\n"
+"| `--X`, `--x-scale-factor`\n"
+"    | X scale adjust for exact scale.\n"
+"| `--Y`, `--y-scale-factor`\n"
+"    | Y scale adjust for exact scale.\n"
+"| `--A`, `--force-a4`\n"
+"    | Force A4 paper size.\n"
+"| `--scale <scale>`\n"
+"    | A scaling factor to use for plotting the pcb. The border and title block\n"
+"      are not scaled. A scale factor of 0 autoscales the plot.\n"
+"| `--check-zones`\n"
+"    | Check zone fills and refill zones, if required, prior to export.\n"
+"      Any zone fill updates are not saved in the board file.\n"
+msgstr ""
+"| `-h`, `--help`\n"
+"    | Hilfe für den PS-Exportbefehl anzeigen.\n"
+"| `-o <Ausgabeverzeichnis>`, `--output <Ausgabeverzeichnis>`\n"
+"    | Das Ausgabeverzeichnis oder der Dateiname für die exportierten Dateien. Wenn `--mode-single` verwendet wird, ist dies der Ausgabedateiname. Wenn `--output` nicht verwendet wird, entspricht der Ausgabedateiname dem der Eingabedatei mit der Dateiendung `.pdf`. Wenn `--mode-multi` verwendet wird, ist dies das Ausgabeverzeichnis. Wenn `--output` nicht verwendet wird, werden die Dateien in das aktuelle Verzeichnis exportiert.\n"
+"| `-l <Layerliste>`, `--layers <Layerliste>`\n"
+"    | Eine durch Kommas getrennte Liste der Layernamen, die aus der Platine exportiert werden sollen, z. B. `F.Cu,B.Cu`. Es muss mindestens ein Layer angegeben werden. Lagenbezeichnungen können als kanonische Lagenbezeichnungen (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte Lagenbezeichnungen angegeben werden, wobei benutzerdefinierte Lagenbezeichnungen vorrangig berücksichtigt werden.\n"
+"| `--cl <Lagenliste>`, `--common-layers <Lagenliste>`\n"
+"    | Eine durch Kommas getrennte Liste von Lagenbezeichnungen, die auf allen Lagen geplottet werden sollen, z. B. `F.Cu,B.Cu`. Jede angegebene Lage wird in jede Ausgabedatei aufgenommen. Lagenbezeichnungen können als kanonische Lagenbezeichnungen (`F.Cu`, `In.1`, `F.Fab` usw.) oder als benutzerdefinierte Lagenbezeichnungen angegeben werden, wobei benutzerdefinierte Lagenbezeichnungen vorrangig berücksichtigt werden.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Pfad zum Zeichnungsblatt, das beim Plotten verwendet werden soll, wobei das in der Board-Datei angegebene Zeichnungsblatt überschrieben wird.\n"
+"| `-D <Variablenname>=<Wert>`, `--define-var <Variablenname>=<Wert>`\n"
+"    | Projektvariablendefinitionen hinzufügen oder überschreiben. Kann mehrfach verwendet werden, um mehrere Variablen zu definieren.\n"
+"| `-m`, `--mirror`\n"
+"    | Die Platine spiegeln. Dies kann hilfreich sein, um die unteren Schichten anzuzeigen.\n"
+"| `--erd`, `--exclude-refdes`\n"
+"    | Footprint-Referenzbezeichnungen aus der Zeichnung ausschließen.\n"
+"| `--ev`, `--exclude-value`\n"
+"    | Footprint-Werte aus der Zeichnung ausschließen.\n"
+"| `--ibt`, `--include-border-title`\n"
+"    | Blattrand und Titelblock einbeziehen.\n"
+"| `--subtract-soldermask`\n"
+"    | Siebdruck aus Bereichen ohne Lötmaske entfernen.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Pad-Umrisse und deren Nummern auf vorderen und hinteren Fab-Lagen plotten.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Text und Grafiken von DNP-Footprints nicht auf Fab-Layern plotten.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Grafiken von DNP-Footprints im Skizzenmodus auf Fab-Layern plotten.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Ein „X” über den Hof von DNP-Footprints auf Fab-Layern plotten und deren Referenzbezeichnungen durchstreichen.\n"
+"| `-n`, `--negative`\n"
+"    | Negativ plotten.\n"
+"| `--black-and-white`\n"
+"    | Schwarz-weiß plotten.\n"
+"| `-t <Themenname>`, `--theme <Themenname>`\n"
+"    | Der Name des Themas, das für den Export verwendet werden soll. Wenn kein Thema angegeben ist, wird das derzeit im Board-Editor ausgewählte Thema verwendet.\n"
+"| `--drill-shape-opt`\n"
+"    | Die Form der Bohrmarkierungen im Plot. Die Optionen sind `0` für keine Bohrmarkierungen, `1` für kleine Markierungen oder `2` für Markierungen in tatsächlicher Größe (Standard).\n"
+"| `--mode-single`\n"
+"    | Eine einzelne Datei mit dem Ausgabepfadargument als vollständiger Verzeichnis- und Dateinamen erstellen. `COMMON_LAYER_LIST` funktioniert in diesem Modus nicht. Stattdessen steuert `LAYER_LIST` alle geplotteten Ebenen.\n"
+"| `--mode-multipage`\n"
+"    | Die Ebenen in eine oder mehrere PDF-Dateien plotten, wobei jede Datei eine einzelne Lage aus `LAYER_LIST` darstellt. Der Ausgabepfad gibt das Verzeichnis an, in das die Dateien geschrieben werden.\n"
+"| `--C`, `--track-width-correction`\n"
+"    | Eine globale Korrektur in Millimetern, die beim Plotten zur Größe von Leiterbahnen, Durchkontaktierungen und Pads hinzugefügt wird. Diese Korrektur kann verwendet werden, um Fehler im PostScript-Ausgabegerät zu korrigieren und eine Ausgabe im exakten Maßstab zu erzielen.\n"
+"| `--X`, `--x-scale-factor`\n"
+"    | X-Skalenanpassung für exakten Maßstab.\n"
+"| `--Y`, `--y-scale-factor`\n"
+"    | Y-Skalenanpassung für exakten Maßstab.\n"
+"| `--A`, `--force-a4`\n"
+"    | A4-Papierformat erzwingen.\n"
+"| `--scale <scale>`\n"
+"    | Ein Skalierungsfaktor, der für das Plotten der Leiterplatte verwendet wird. Der Rand und der Titelblock werden nicht skaliert. Ein Skalierungsfaktor von 0 skaliert den Plot automatisch.\n"
+"| `--check-zones`\n"
+"    | Vor dem Export die Zonenfüllungen überprüfen und gegebenenfalls nachfüllen. Aktualisierungen der Zonenfüllungen werden nicht in der Board-Datei gespeichert.\n"
+
+#. type: Title ===
+#: cli.adoc:1309
+#, no-wrap
+msgid "PCB statistics export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1312
+msgid ""
+"The `pcb stats` command exports a report of statistics about the board "
+"design."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1314
+msgid ""
+"Usage: `kicad-cli pcb export stats [--help] [--output OUTPUT_FILE] [--format "
+"FORMAT] [--units UNITS] [--exclude-footprints-without-pads] [--subtract-"
+"holes-from-board] [--subtract-holes-from-copper] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1321
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Board file to export statistics from.\n"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1342
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the statistics command.\n"
+"| `-o <output filename>, `--output <output filename>`\n"
+"    | Output filename for the generated statistics report. When `--output` is not\n"
+"      used, the output filename will be the same as the input file, with a\n"
+"      `_statistics` suffix and the `.rpt` or `.json` file extension,\n"
+"      depending on the selected format.\n"
+"| `--format <format>`\n"
+"    | Report file format. Options are `report` (default) or `json`.\n"
+"| `--units <unit>`\n"
+"    | Units to use in the report. Options are `mm` (default) or `in`.\n"
+"| `--exclude-footprints-without-pads`\n"
+"    | Exclude footprints that do not contain any pads from component counts.\n"
+"| `--subtract-holes-from-board`\n"
+"    | Subtract the area of holes from the total board area.\n"
+"| `--subtract-holes-from-copper`\n"
+"    | Subtract the area of holes from the total copper area.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1344
+#, no-wrap
+msgid "PCB STEP export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1347
+msgid "The `pcb export step` command exports a board design to a STEP file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1349
+msgid ""
+"Usage: `kicad-cli pcb export step [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--"
+"drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-"
+"board-body] [--no-components] [--component-filter VAR] [--include-tracks] [--"
+"include-pads] [--include-zones] [--include-inner-copper] [--include-"
+"silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-"
+"distance MIN_DIST] [--net-filter VAR] [--no-optimize-step] [--user-origin "
+"VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1424
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the STEP file export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.step` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--force`\n"
+"    | Overwrite output file.\n"
+"| `--no-unspecified`\n"
+"    | Exclude 3D models of components with \"unspecified\" footprint type.\n"
+"| `--no-dnp`\n"
+"    | Exclude 3D models of components with \"Do not populate\" attribute.\n"
+"| `--grid-origin`\n"
+"    | Use grid origin as origin of output file.\n"
+"| `--drill-origin`\n"
+"    | Use drill origin as origin of output file.\n"
+"| `--subst-models`\n"
+"    | Replace VRML models in footprints with STEP or IGS models of the same\n"
+"      name, if they exist.\n"
+"| `--board-only`\n"
+"    | Only include the board itself in the generated model; exclude all\n"
+"      component models.\n"
+"| `--cut-vias-in-body`\n"
+"    | Cut via holes in board body even if conductor layers are not exported.\n"
+"| `--no-board-body`\n"
+"    | Exclude board body.\n"
+"| `--no-components`\n"
+"    | Exclude 3D models for components.\n"
+"| `--component-filter <reference designator list>`\n"
+"    | Only include component 3D models matching this list of reference\n"
+"      designators (comma-separated, wildcards supported)\n"
+"| `--include-tracks`\n"
+"    | Include tracks and vias on outer conductor layers in export (time consuming).\n"
+"| `--include-pads`\n"
+"    | Include pads in export (time consuming).\n"
+"| `--include-zones`\n"
+"    | Include zones in export (time consuming).\n"
+"| `--include-inner-copper`\n"
+"    | Include elements on inner conductor layers in export.\n"
+"| `--include-silkscreen`\n"
+"    | Include silkscreen graphics in export as a set of flat faces.\n"
+"| `--include-soldermask`\n"
+"    | Include solder mask layers in export as a set of flat faces.\n"
+"| `--fuse-shapes`\n"
+"    | Fuse overlapping geometry together in export (time consuming).\n"
+"| `--fill-all-vias`\n"
+"    | Don't cut via holes in conductor layers.\n"
+"| `--min-distance <min distance>`\n"
+"    | Tolerance for considering two points to be in the same location. Default:\n"
+"      `0.01mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Only include copper items belonging to nets matching this wildcard.\n"
+"| `--no-optimize-step`\n"
+"    | Do not optimize STEP file. This enables writing parametric curves, which\n"
+"      reduces file sizes and write/read times, but may reduce compatibility with\n"
+"      other software.\n"
+"| `--user-origin <output origin>`\n"
+"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1426
+#, no-wrap
+msgid "PCB STL export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1429
+msgid ""
+"The `pcb export stl` command exports a board design to an STL 3D model file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1431
+msgid ""
+"Usage: `kicad-cli pcb export stl [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--"
+"drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-"
+"board-body] [--no-components] [--component-filter VAR] [--include-tracks] [--"
+"include-pads] [--include-zones] [--include-inner-copper] [--include-"
+"silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-"
+"distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1502
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the STL export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.stl` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--force`\n"
+"    | Overwrite output file.\n"
+"| `--no-unspecified`\n"
+"    | Exclude 3D models of components with \"unspecified\" footprint type.\n"
+"| `--no-dnp`\n"
+"    | Exclude 3D models of components with \"Do not populate\" attribute.\n"
+"| `--grid-origin`\n"
+"    | Use grid origin as origin of output file.\n"
+"| `--drill-origin`\n"
+"    | Use drill origin as origin of output file.\n"
+"| `--subst-models`\n"
+"    | Replace VRML models in footprints with STEP or IGS models of the same\n"
+"      name, if they exist.\n"
+"| `--board-only`\n"
+"    | Only include the board itself in the generated model; exclude all\n"
+"      component models.\n"
+"| `--cut-vias-in-body`\n"
+"    | Cut via holes in board body even if conductor layers are not exported.\n"
+"| `--no-board-body`\n"
+"    | Exclude board body.\n"
+"| `--no-components`\n"
+"    | Exclude 3D models for components.\n"
+"| `--component-filter <reference designator list>`\n"
+"    | Only include component 3D models matching this list of reference\n"
+"      designators (comma-separated, wildcards supported)\n"
+"| `--include-tracks`\n"
+"    | Include tracks and vias on outer conductor layers in export (time consuming).\n"
+"| `--include-pads`\n"
+"    | Include pads in export (time consuming).\n"
+"| `--include-zones`\n"
+"    | Include zones in export (time consuming).\n"
+"| `--include-inner-copper`\n"
+"    | Include elements on inner conductor layers in export.\n"
+"| `--include-silkscreen`\n"
+"    | Include silkscreen graphics in export as a set of flat faces.\n"
+"| `--include-soldermask`\n"
+"    | Include solder mask layers in export as a set of flat faces.\n"
+"| `--fuse-shapes`\n"
+"    | Fuse overlapping geometry together in export (time consuming).\n"
+"| `--fill-all-vias`\n"
+"    | Don't cut via holes in conductor layers.\n"
+"| `--min-distance <min distance>`\n"
+"    | Tolerance for considering two points to be in the same location. Default:\n"
+"      `0.01mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Only include copper items belonging to nets matching this wildcard.\n"
+"| `--user-origin <output origin>`\n"
+"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1504
+#, no-wrap
+msgid "PCB STEPZ export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1507
+msgid ""
+"The `pcb export stpz` command exports a board design to a STEPZ (GZIP-"
+"compressed STEP) file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1509
+msgid ""
+"Usage: `kicad-cli pcb export stpz [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--"
+"drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-"
+"board-body] [--no-components] [--component-filter VAR] [--include-tracks] [--"
+"include-pads] [--include-zones] [--include-inner-copper] [--include-"
+"silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-"
+"distance MIN_DIST] [--net-filter VAR] [--no-optimize-step] [--user-origin "
+"VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1584
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the STEPZ file export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.stpz` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--force`\n"
+"    | Overwrite output file.\n"
+"| `--no-unspecified`\n"
+"    | Exclude 3D models of components with \"unspecified\" footprint type.\n"
+"| `--no-dnp`\n"
+"    | Exclude 3D models of components with \"Do not populate\" attribute.\n"
+"| `--grid-origin`\n"
+"    | Use grid origin as origin of output file.\n"
+"| `--drill-origin`\n"
+"    | Use drill origin as origin of output file.\n"
+"| `--subst-models`\n"
+"    | Replace VRML models in footprints with STEP or IGS models of the same\n"
+"      name, if they exist.\n"
+"| `--board-only`\n"
+"    | Only include the board itself in the generated model; exclude all\n"
+"      component models.\n"
+"| `--cut-vias-in-body`\n"
+"    | Cut via holes in board body even if conductor layers are not exported.\n"
+"| `--no-board-body`\n"
+"    | Exclude board body.\n"
+"| `--no-components`\n"
+"    | Exclude 3D models for components.\n"
+"| `--component-filter <reference designator list>`\n"
+"    | Only include component 3D models matching this list of reference\n"
+"      designators (comma-separated, wildcards supported)\n"
+"| `--include-tracks`\n"
+"    | Include tracks and vias on outer conductor layers in export (time consuming).\n"
+"| `--include-pads`\n"
+"    | Include pads in export (time consuming).\n"
+"| `--include-zones`\n"
+"    | Include zones in export (time consuming).\n"
+"| `--include-inner-copper`\n"
+"    | Include elements on inner conductor layers in export.\n"
+"| `--include-silkscreen`\n"
+"    | Include silkscreen graphics in export as a set of flat faces.\n"
+"| `--include-soldermask`\n"
+"    | Include solder mask layers in export as a set of flat faces.\n"
+"| `--fuse-shapes`\n"
+"    | Fuse overlapping geometry together in export (time consuming).\n"
+"| `--fill-all-vias`\n"
+"    | Don't cut via holes in conductor layers.\n"
+"| `--min-distance <min distance>`\n"
+"    | Tolerance for considering two points to be in the same location. Default:\n"
+"      `0.01mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Only include copper items belonging to nets matching this wildcard.\n"
+"| `--no-optimize-step`\n"
+"    | Do not optimize STEP file. This enables writing parametric curves, which\n"
+"      reduces file sizes and write/read times, but may reduce compatibility with\n"
+"      other software.\n"
+"| `--user-origin <output origin>`\n"
+"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1586
+#, no-wrap
+msgid "PCB U3D export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1589
+msgid ""
+"The `pcb export u3d` command exports a board design to a PDF file containing "
+"an embedded 3D model of the board."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1591
+msgid ""
+"Usage: `kicad-cli pcb export u3d [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE]... [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--"
+"drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-"
+"board-body] [--no-components] [--component-filter VAR] [--include-tracks] [--"
+"include-pads] [--include-zones] [--include-inner-copper] [--include-"
+"silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-"
+"distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1664
+#, no-wrap
+msgid "PCB SVG export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1667
+msgid "The `pcb export svg` command exports a board design to an SVG file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1669
+msgid ""
+"Usage: `kicad-cli pcb export svg [--help] [--output OUTPUT_DIR] [--layers "
+"LAYER_LIST] [--drawing-sheet SHEET_PATH] [--define-var KEY=VALUE] [--"
+"subtract-soldermask] [--mirror] [--theme THEME_NAME] [--negative] [--black-"
+"and-white] [--sketch-pads-on-fab-layers] [--hide-DNP-footprints-on-fab-"
+"layers] [--sketch-DNP-footprints-on-fab-layers] [--crossout-DNP-footprints-"
+"on-fab-layers] [--page-size-mode MODE] [--fit-page-to-board] [--exclude-"
+"drawing-sheet] [--drill-shape-opt SHAPE_OPTION] [--common-layers "
+"COMMON_LAYER_LIST] [--mode-single] [--mode-multi] [--plot-invisible-text] [--"
+"scale SCALE] [--check-zones] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1755
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the SVG file export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder or filename for the exported files. When `--mode-single`\n"
+"      is used, this is the output filename. If `--output` is not used, the\n"
+"      output filename will be the same as the input\n"
+"      file, with the `.pdf` file extension. When `--mode-multi` is used, this is\n"
+"      the output directory. If `--output` is not used, the files are exported\n"
+"      to the current directory.\n"
+"| `-l <layer list>`, `--layers <layer list>`\n"
+"    | A comma-separated list of layer names to export from the board, such as\n"
+"      `F.Cu,B.Cu`. At least one layer must be given. Layer names can be\n"
+"      specified as canonical layer names (`F.Cu`, `In.1`, `F.Fab`, etc.) or as\n"
+"      user-defined (custom) layer names, but user-defined layer names are matched\n"
+"      first.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the board file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `--subtract-soldermask`\n"
+"    | Remove silkscreen from areas without soldermask.\n"
+"| `-m`, `--mirror`\n"
+"    | Mirror the board. This can be useful for showing bottom layers.\n"
+"| `-t <theme name>`, `--theme <theme name>`\n"
+"    | The name of the theme to use for export. If no theme is given, the\n"
+"      board editor's currently selected theme is used.\n"
+"| `-n`, `--negative`\n"
+"    | Plot in negative.\n"
+"| `--black-and-white`\n"
+"    | Plot in black and white.\n"
+"| `--sp`, `--sketch-pads-on-fab-layers`\n"
+"    | Draw pad outlines and their numbers on front and back fab layers.\n"
+"| `--hdnp`, `--hide-DNP-footprints-on-fab-layers`\n"
+"    | Don't plot text and graphics of DNP footprints on fab layers.\n"
+"| `--sdnp`, `--sketch-DNP-footprints-on-fab-layers`\n"
+"    | Plot graphics of DNP footprints in sketch mode on fab layers.\n"
+"| `--cdnp`, `--crossout-DNP-footprints-on-fab-layers`\n"
+"    | Plot an \"X\" over the courtyard of DNP footprints on fab layers, and strikeout their reference designators.\n"
+"| `--page-size-mode <mode>`\n"
+"    | Set page sizing mode. Options are `0` (default), `1`, or `2`. `0` sets the\n"
+"      output page size to fit the entire sheet, including drawing sheet frame\n"
+"      and title block. `1` sets the output page size to match the current page\n"
+"      size. `2` sets the output page size to the size of the board itself.\n"
+"| `--fit-page-to-board`\n"
+"    | Set the SVG size to match the board outline. This is equivalent to `--page-size-mode 2`.\n"
+"| `--exclude-drawing-sheet`\n"
+"    | Plot SVG without a drawing sheet.\n"
+"| `--drill-shape-opt`\n"
+"    | The shape of drill marks in the plot. Options are `0` for no drill marks,\n"
+"      `1` for small marks, or `2` for actual size marks (default).\n"
+"| `--cl <layer list>`, `--common-layers <layer list>`\n"
+"    | A comma-separated list of layer names to plot on all layers, such as\n"
+"      `F.Cu,B.Cu`. Layer names can be specified as canonical layer names\n"
+"      (`F.Cu`, `In.1`, `F.Fab`, etc.) or as user-defined (custom) layer names,\n"
+"      but user-defined layer names are matched first.\n"
+"| `--mode-single`\n"
+"    | Generates a single file with the output arg path acting as the complete directory and filename path. `COMMON_LAYER_LIST` does not function in this mode. Instead `LAYER_LIST` controls all layers plotted.\n"
+"| `--mode-multi`\n"
+"    | Plot the layers to one or more SVG files, with each file representing a\n"
+"      single layer from `LAYER_LIST`. The output path specifies the directory in\n"
+"      which the files will be written.\n"
+"| `--plot-invisible-text`\n"
+"    | Force plotting of values and references, even if they are invisible. This argument is deprecated as of KiCad\n"
+"      9.0.1 and has no effect. It will be removed in a future version of KiCad. To plot invisible text, edit the\n"
+"      board so that the text is no longer invisible.\n"
+"| `--scale <scale>`\n"
+"    | A scaling factor to use for plotting the PCB. The border and title block\n"
+"      are not scaled. A scale factor of 0 autoscales the plot.\n"
+"| `--check-zones`\n"
+"    | Check zone fills and refill zones, if required, prior to export.\n"
+"      Any zone fill updates are not saved in the board file.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1757
+#, no-wrap
+msgid "PCB VRML export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1760
+msgid ""
+"The `pcb export vrml` command exports a board design to a VRML 3D model file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1762
+msgid ""
+"Usage: `kicad-cli pcb export vrml [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--user-origin VAR] "
+"[--units VAR] [--models-dir VAR] [--models-relative] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1801
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the VRML export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.wrl` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--force`\n"
+"    | Overwrite output file.\n"
+"| `--no-unspecified`\n"
+"    | Exclude 3D models of components with \"unspecified\" footprint type.\n"
+"| `--no-dnp`\n"
+"    | Exclude 3D models of components with \"Do not populate\" attribute.\n"
+"| `--user-origin <output origin>`\n"
+"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters. If this option is not given, the board center is used.\n"
+"| `--units <units>`\n"
+"    | Units to use in the output file. Options are `mm`, `m`, `in` (default), or\n"
+"      `tenths` (tenths of an inch).\n"
+"| `--models-dir <output model directory>`\n"
+"    | Name of output directory to copy component models into. If not used,\n"
+"      component models are embedded into the output file.\n"
+"| `--models-relative`\n"
+"    | With `--models-dir`, use relative paths in the output file.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1803
+#, no-wrap
+msgid "PCB XAO export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1807
+msgid ""
+"The `pcb export xao` command exports a board design to an XAO (SALOME/Gmsh) "
+"3D model file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1809
+msgid ""
+"Usage: `kicad-cli pcb export xao [--help] [--output OUTPUT_FILE] [--define-"
+"var KEY=VALUE] [--force] [--no-unspecified] [--no-dnp] [--grid-origin] [--"
+"drill-origin] [--subst-models] [--board-only] [--cut-vias-in-body] [--no-"
+"board-body] [--no-components] [--component-filter VAR] [--include-tracks] [--"
+"include-pads] [--include-zones] [--include-inner-copper] [--include-"
+"silkscreen] [--include-soldermask] [--fuse-shapes] [--fill-all-vias] [--min-"
+"distance MIN_DIST] [--net-filter VAR] [--user-origin VAR] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1880
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the XAO export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with the `.xao` file extension.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-f`, `--force`\n"
+"    | Overwrite output file.\n"
+"| `--no-unspecified`\n"
+"    | Exclude 3D models of components with \"unspecified\" footprint type.\n"
+"| `--no-dnp`\n"
+"    | Exclude 3D models of components with \"Do not populate\" attribute.\n"
+"| `--grid-origin`\n"
+"    | Use grid origin as origin of output file.\n"
+"| `--drill-origin`\n"
+"    | Use drill origin as origin of output file.\n"
+"| `--subst-models`\n"
+"    | Replace VRML models in footprints with STEP or IGS models of the same\n"
+"      name, if they exist.\n"
+"| `--board-only`\n"
+"    | Only include the board itself in the generated model; exclude all\n"
+"      component models.\n"
+"| `--cut-vias-in-body`\n"
+"    | Cut via holes in board body even if conductor layers are not exported.\n"
+"| `--no-board-body`\n"
+"    | Exclude board body.\n"
+"| `--no-components`\n"
+"    | Exclude 3D models for components.\n"
+"| `--component-filter <reference designator list>`\n"
+"    | Only include component 3D models matching this list of reference\n"
+"      designators (comma-separated, wildcards supported)\n"
+"| `--include-tracks`\n"
+"    | Include tracks and vias on outer conductor layers in export (time consuming).\n"
+"| `--include-pads`\n"
+"    | Include pads in export (time consuming).\n"
+"| `--include-zones`\n"
+"    | Include zones in export (time consuming).\n"
+"| `--include-inner-copper`\n"
+"    | Include elements on inner conductor layers in export.\n"
+"| `--include-silkscreen`\n"
+"    | Include silkscreen graphics in export as a set of flat faces.\n"
+"| `--include-soldermask`\n"
+"    | Include solder mask layers in export as a set of flat faces.\n"
+"| `--fuse-shapes`\n"
+"    | Fuse overlapping geometry together in export (time consuming).\n"
+"| `--fill-all-vias`\n"
+"    | Don't cut via holes in conductor layers.\n"
+"| `--min-distance <min distance>`\n"
+"    | Tolerance for considering two points to be in the same location. Default:\n"
+"      `0.01mm`.\n"
+"| `--net-filter <net filter>`\n"
+"    | Only include copper items belonging to nets matching this wildcard.\n"
+"| `--user-origin <output origin>`\n"
+"    | Specify a custom origin for the output file, with X and Y coordinates. For\n"
+"      example, `1x1in`, `1x1inch`, or `25.4x25.4mm`. The default unit is\n"
+"      millimeters.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1882
+#, no-wrap
+msgid "PCB render"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1885
+msgid ""
+"The `pcb render` command generates a raytraced rendering of the 3D model of "
+"the board and saves it to a PNG or JPEG file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1887
+msgid ""
+"Usage: `kicad-cli pcb render [--help] [--output OUTPUT_FILE] [--define-var "
+"KEY=VALUE] [--width WIDTH] [--height HEIGHT] [--side SIDE] [--background BG] "
+"[--quality QUALITY] [--preset PRESET] [--floor] [--perspective] [--zoom "
+"ZOOM] [--pan VECTOR] [--pivot PIVOT] [--rotate ANGLES] [--light-top COLOR] "
+"[--light-bottom COLOR] [--light-side COLOR] [--light-camera COLOR] [--light-"
+"side-elevation ANGLE] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1894
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Board file to render.\n"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1950
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the render command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. This argument must be given. The file extension given\n"
+"      in this argument determines the output image file format. The filename\n"
+"      must end with either `.png` (for PNG files) or `.jpg`/`.jpeg` (for JPG\n"
+"      files).\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-w <width>`, `--width <width>`\n"
+"    | Image width in pixels. Default: `1600`.\n"
+"| `-h <height>`, `--height <height>`\n"
+"    | Image height in pixels. Default: `900`.\n"
+"| `--side <side>`\n"
+"    | The side of the board to render. Options are `top` (default), `bottom`, `left`, `right`, `front`, or `back`.\n"
+"| `--background <background>`\n"
+"    | Image background. Options are `default` (default), `transparent`, or\n"
+"      `opaque`. For PNG files, `default` is `transparent`. For JPG files,\n"
+"      `default` is `opaque`.\n"
+"| `--quality <quality>`\n"
+"    | Render quality. Options are `basic` (default), `high`, `user`. When `user`\n"
+"      is specified, the render settings stored in the project are used.\n"
+"| `--preset <color preset>`\n"
+"    | Color preset. Options are `follow_pcb_editor`, `follow_plot_settings`\n"
+"      (default), or `legacy_preset_flag`.\n"
+"| `--floor`\n"
+"    | Enables floor, shadows and post-processing, even if disabled in quality preset.\n"
+"| `--perspective`\n"
+"    | Use perspective projection instead of orthogonal.\n"
+"| `--zoom <zoom level>`\n"
+"    | Camera zoom factor as an integer. Default: `1`.\n"
+"| `--pan <camera pan>`\n"
+"    | Set camera pan location, in millimeters, with the format `'X,Y,Z'`, e.g. `'3,0,0'`.\n"
+"| `--pivot <pivot>`\n"
+"    | Set pivot point relative to the board center in centimeters, with the\n"
+"      format `'X,Y,Z'` e.g. `'-10,2,0'`.\n"
+"| `--rotate <rotation>`\n"
+"    | Set board rotation around pivot point, in degrees, with the format\n"
+"      `'X,Y,Z'`, e.g. `'-45,0,45'` for isometric view.\n"
+"| `--light-top <intensity>`\n"
+"    | Top light intensity, format `'R,G,B'` or a single number, range: 0-1.\n"
+"| `--light-bottom <intensity>`\n"
+"    | Bottom light intensity, format `'R,G,B'` or a single number, range: 0-1.\n"
+"| `--light-side <intensity>`\n"
+"    | Side lights intensity, format `'R,G,B'` or a single number, range: 0-1.\n"
+"| `--light-camera <intensity>`\n"
+"    | Camera light intensity, format `'R,G,B'` or a single number, range: 0-1.\n"
+"| `--light-side-elevation <elevation>`\n"
+"    | Side lights elevation angle in degrees, range: 0-90.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1952
+#, no-wrap
+msgid "PCB upgrade"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1956
+msgid ""
+"The `pcb upgrade` command converts a KiCad board file from a previous KiCad "
+"board file format to the native format for the current version of KiCad.  If "
+"the input board file is already in the current file format, no action is "
+"taken."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1958
+msgid "Usage: `kicad-cli pcb upgrade [--help] [--force] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1965
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Board file to upgrade.\n"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1975
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the upgrade command.\n"
+"| `--force`\n"
+"    | Re-save the input board file even if it is already in the current file format.\n"
+msgstr ""
+
+#. type: Title ==
+#: cli.adoc:1977
+#, no-wrap
+msgid "Schematic commands"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1982
+msgid ""
+"The `sch` command runs an electrical rule check, exports a schematic to "
+"various other file formats, or exports a bill of materials or netlist. Each "
+"subcommand has its own options."
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:1983
+#, no-wrap
+msgid "Schematic ERC"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1987
+msgid ""
+"The `sch erc` command runs an electrical rule check on a schematic and "
+"generates a report."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:1989
+msgid ""
+"Usage: `kicad-cli sch erc [--help] [--output OUTPUT_FILE] [--define-var "
+"KEY=VALUE] [--format VAR] [--units VAR] [--severity-all] [--severity-error] "
+"[--severity-warning] [--severity-exclusions] [--exit-code-violations] "
+"INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:1996
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Schematic file to run ERC on.\n"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2031
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the ERC command.\n"
+"| `-o <output filename>, `--output <output filename>`\n"
+"    | Output filename for the generated ERC report. When `--output` is not\n"
+"      used, the output filename will be the same as the input file, with the\n"
+"      `.rpt` or `.json` file extension, depending on the selected format.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `--format <format>`\n"
+"    | Report file format. Options are `report` (default) or `json`.\n"
+"| `--units <unit>`\n"
+"    | Units to use in the report. Options are `mm` (default), `in`, or `mils`.\n"
+"| `--severity-all`\n"
+"    | Report all ERC violations. This is equivalent to using all of the other\n"
+"      ERC severity options.\n"
+"| `--severity-error`\n"
+"    | Report all error-level ERC violations. This can be combined with the other\n"
+"      ERC severity options.\n"
+"| `--severity-warning`\n"
+"    | Report all warning-level ERC violations. This can be combined with the\n"
+"      other ERC severity options.\n"
+"| `--severity-exclusions`\n"
+"    | Report all excluded ERC violations. This can be combined with the other\n"
+"      ERC severity options.\n"
+"| `--exit-code-violations`\n"
+"    | Return an exit code depending on whether or not ERC violations exist. The\n"
+"      exit code is 0 if no violations are found, and 5 if any violations are\n"
+"      found.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2033
+#, no-wrap
+msgid "Schematic bill of materials export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2040
+msgid ""
+"The `sch export bom` command exports a BOM from a schematic.  The BOM export "
+"has a number of options for controlling the format and included fields. This "
+"export method is equivalent to xref:../eeschema/eeschema.adoc#bom-"
+"export[exporting a BOM] from the symbol fields table."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2043
+#, no-wrap
+msgid ""
+"To export a BOM using the legacy XML and Python BOM script workflow, use\n"
+"      the `sch export python-bom` command.\n"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2045
+msgid ""
+"Usage: `kicad-cli sch export bom [--help] [--output OUTPUT_FILE] [--preset "
+"PRESET] [--format-preset FMT_PRESET] [--fields FIELDS] [--labels LABELS] [--"
+"group-by GROUP_BY] [--sort-field SORT_BY] [--sort-asc] [--filter FILTER] [--"
+"exclude-dnp] [--include-excluded-from-bom] [--field-delimiter FIELD_DELIM] "
+"[--string-delimiter STR_DELIM] [--ref-delimiter REF_DELIM] [--ref-range-"
+"delimiter REF_RANGE_DELIM] [--keep-tabs] [--keep-line-breaks] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2052 cli.adoc:2117 cli.adoc:2164 cli.adoc:2193 cli.adoc:2297
+#: cli.adoc:2324
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Schematic file to export.\n"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2102
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Shows help message and exits\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with a `.csv` file extension.\n"
+"| `--preset <preset>`\n"
+"    | Use a named BOM preset setting from the schematic, e.g. `\"Grouped By Value\"`.\n"
+"| `--format-preset <format preset>`\n"
+"    | Use a named BOM format preset setting from the schematic, e.g. `CSV`.\n"
+"| `--fields <fields>`\n"
+"    | An ordered list of fields to export. `*` includes all fields. Special\n"
+"      symbol fields such as DNP or Exclude from board can be accessed with\n"
+"      `${DNP}` or `${EXCLUDE_FROM_BOARD}`, respectively (see the\n"
+"      xref:../eeschema/eeschema.adoc#text-variables[text variable documentation]\n"
+"      for a list of fields). Default: \"Reference,Value,Footprint,${QUANTITY},${DNP}\".\n"
+"| `--labels <labels>`\n"
+"    | An ordered list of labels to apply the exported fields (default:\n"
+"      `\"Refs,Value,Footprint,Qty,DNP\"`).\n"
+"| `--group-by <fields>`\n"
+"    | Fields to group references by when field values match.\n"
+"| `--sort-field <fields>`\n"
+"    | Field name to sort by (default: `\"Reference\"`).\n"
+"| `--sort-asc`\n"
+"    | If given, sort in ascending order. If not given, sort in descending order.\n"
+"| `--filter <filter>`\n"
+"    | Filter string to remove output lines.\n"
+"| `--exclude-dnp`\n"
+"    | Exclude symbols with the \"Do not populate\" attribute.\n"
+"| `--include-excluded-from-bom`\n"
+"    | Include symbols marked \"Exclude from BOM\".\n"
+"      This argument is deprecated as of KiCad 10.0 and has no effect. \n"
+"| `--field-delimiter <delimiter>`\n"
+"    | Separator between output fields/columns (default: `\",\"`).\n"
+"| `--string-delimiter <delimiter>`\n"
+"    | Character to surround fields with (none by default).\n"
+"| `--ref-delimiter <delimiter>`\n"
+"    | Character to place between individual references (default: `\",\"`).\n"
+"| `--ref-range-delimiter <delimiter>`\n"
+"    | Character to place in ranges of references (default: `\"-\"`). Leave blank for\n"
+"      no ranges.\n"
+"| `--keep-tabs`\n"
+"    | Keep tab characters from input fields. Stripped by default.\n"
+"| `--keep-line-breaks`\n"
+"    | Keep line break characters from input fields. Stripped by default.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2104
+#, no-wrap
+msgid "Schematic DXF export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2108
+msgid ""
+"The `sch export dxf` command exports a schematic to a DXF file. Each sheet "
+"in the design is exported to its own file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2110
+msgid ""
+"Usage: `kicad-cli sch export dxf [--help] [--output OUTPUT_DIR] [--drawing-"
+"sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-"
+"white] [--exclude-drawing-sheet] [--default-font VAR] [--pages PAGE_LIST] "
+"INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2148
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the DXF file export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder for the exported files. One file is output for each\n"
+"      sheet. When `--output` is not used, the files are exported to the\n"
+"      current directory.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the schematic file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-t <theme name>`, `--theme <theme name>`\n"
+"    | The name of the theme to use for export. If no theme is given, the\n"
+"      schematic editor's currently selected theme is used.\n"
+"| `-b`, `--black-and-white`\n"
+"    | Export schematic in black and white.\n"
+"| `-e`, `--exclude-drawing-sheet`\n"
+"    | Plot DXF without a drawing sheet.\n"
+"| `--default-font <font name>`\n"
+"    | Default font name. Default: `\"KiCad Font\"`.\n"
+"| `-p <page list>`, `--pages <page list>`\n"
+"    | Comma-separated list of pages to export. Blank or unspecified means all\n"
+"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
+"      specify the desired output pages with the `--pages` argument.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2150
+#, no-wrap
+msgid "Schematic netlist export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2155
+msgid ""
+"The `sch export netlist` command exports a netlist in xref:../eeschema/"
+"eeschema.adoc#netlist-formats[various formats] from a schematic."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2157
+msgid ""
+"Usage: `kicad-cli sch export netlist [--help] [--output OUTPUT_FILE] [--"
+"format FORMAT] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2178
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the netlist export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with a `.net` file extension.\n"
+"| `-f <format>`, `--format <format>`\n"
+"    | The netlist output format. Options are `kicadsexpr` (default), `kicadxml`,\n"
+"      `cadstar`, `orcadpcb2`, `spice`, `spicemodel`, `pads`, or `allegro`.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2180
+#, no-wrap
+msgid "Schematic PDF export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2184
+msgid ""
+"The `sch export pdf` command exports a schematic to a PDF file. Each sheet "
+"in the design is exported to its own page in the PDF file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2186
+msgid ""
+"Usage: `kicad-cli sch export pdf [--help] [--output OUTPUT_FILE] [--drawing-"
+"sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-"
+"white] [--exclude-drawing-sheet] [--default-font VAR] [--exclude-pdf-"
+"property-popups] [--exclude-pdf-hierarchical-links] [--exclude-pdf-metadata] "
+"[--no-background-color] [--pages PAGE_LIST] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2231
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the PDF file export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with a `.pdf` file extension.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the schematic file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-t <theme name>`, `--theme <theme name>`\n"
+"    | The name of the theme to use for export. If no theme is given, the\n"
+"      schematic editor's currently selected theme is used.\n"
+"| `-b`, `--black-and-white`\n"
+"    | Export schematic in black and white.\n"
+"| `-e`, `--exclude-drawing-sheet`\n"
+"    | Plot PDF without a drawing sheet.\n"
+"| `--default-font <font name>`\n"
+"    | Default font name. Default: `\"KiCad Font\"`.\n"
+"| `--exclude-pdf-property-popups`\n"
+"    | Do not generate property popups in PDF.\n"
+"| `--exclude-pdf-hierarchical-links`\n"
+"    | Do not generate clickable links for hierarchical elements in PDF.\n"
+"| `--exclude-pdf-metadata`\n"
+"    | Do not generate PDF metadata from AUTHOR and SUBJECT variables.\n"
+"| `-n`, `--no-background-color`\n"
+"    | Export schematic without a background color, regardless of theme.\n"
+"| `-p <page list>`, `--pages <page list>`\n"
+"    | Comma-separated list of pages to export. Blank or unspecified means all\n"
+"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
+"      specify the desired output pages with the `--pages` argument.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2233
+#, no-wrap
+msgid "Schematic PostScript export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2237
+msgid ""
+"The `sch export ps` command exports a schematic to a PostScript file. Each "
+"sheet in the design is exported to its own file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2239
+msgid ""
+"Usage: `kicad-cli sch export ps [--help] [--output OUTPUT_DIR] [--drawing-"
+"sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-"
+"white] [--exclude-drawing-sheet] [--default-font VAR] [--no-background-"
+"color] [--pages PAGE_LIST] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2246
+#, no-wrap
+msgid ""
+"| `INPUT_DIR`\n"
+"    | Schematic file to export.\n"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2279
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the PS file export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder for the exported files. One file is output for each\n"
+"      sheet. When `--output` is not used, the files are exported to the\n"
+"      current directory.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the schematic file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-t <theme name>`, `--theme <theme name>`\n"
+"    | The name of the theme to use for export. If no theme is given, the\n"
+"      schematic editor's currently selected theme is used.\n"
+"| `-b`, `--black-and-white`\n"
+"    | Export schematic in black and white.\n"
+"| `-e`, `--exclude-drawing-sheet`\n"
+"    | Plot PS without a drawing sheet.\n"
+"| `--default-font <font name>`\n"
+"    | Default font name. Default: `\"KiCad Font\"`.\n"
+"| `-n`, `--no-background-color`\n"
+"    | Export schematic without a background color, regardless of theme.\n"
+"| `-p <page list>`, `--pages <page list>`\n"
+"    | Comma-separated list of pages to export. Blank or unspecified means all\n"
+"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
+"      specify the desired output pages with the `--pages` argument.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2281
+#, no-wrap
+msgid "Schematic bill of materials export (legacy BOM scripts)"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2288
+msgid ""
+"The `sch export python-bom` command exports an XML BOM file from a "
+"schematic.  The XML BOM file can then be processed into your desired BOM "
+"format using a custom script or one of the scripts described in the xref:../"
+"eeschema/eeschema.adoc#bom-export[schematic BOM export documentation]."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2290
+msgid ""
+"Usage: `kicad-cli sch export python-bom [--help] [--output OUTPUT_FILE] "
+"INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2309
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the BOM export command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename. When `--output` is not used, the output filename\n"
+"      will be the same as the input file, with a `-bom.xml` suffix and file\n"
+"      extension.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2311
+#, no-wrap
+msgid "Schematic SVG export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2315
+msgid ""
+"The `sch export svg` command export a schematic to an SVG file. Each sheet "
+"in the design is exported to its own file."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2317
+msgid ""
+"Usage: `kicad-cli sch export svg [--help] [--output OUTPUT_DIR] [--drawing-"
+"sheet SHEET_PATH] [--define-var KEY=VALUE] [--theme THEME_NAME] [--black-and-"
+"white] [--exclude-drawing-sheet] [--default-font VAR] [--no-background-"
+"color] [--pages PAGE_LIST] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2356
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the SVG file export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder for the exported files. When `--output` is not used,\n"
+"      the files are exported to the current directory.\n"
+"| `--drawing-sheet <sheet path>`\n"
+"    | Path to drawing sheet to use in plot, overriding the drawing sheet\n"
+"      specified in the schematic file.\n"
+"| `-D <variable name>=<value>`, `--define-var <variable_name>=<value>`\n"
+"    | Add or override project variable definitions. Can be used multiple times\n"
+"      to define multiple variables.\n"
+"| `-t <theme name>`, `--theme <theme name>`\n"
+"    | The name of the theme to use for export. If no theme is given, the\n"
+"      schematic editor's currently selected theme is used.\n"
+"| `-b`, `--black-and-white`\n"
+"    | Export schematic in black and white.\n"
+"| `-e`, `--exclude-drawing-sheet`\n"
+"    | Plot SVG without a drawing sheet.\n"
+"| `--default-font <font name>`\n"
+"    | Default font name. Default: `\"KiCad Font\"`.\n"
+"| `-n`, `--no-background-color`\n"
+"    | Export schematic without a background color, regardless of theme.\n"
+"| `-p <page list>`, `--pages <page list>`\n"
+"    | Comma-separated list of pages to export. Blank or unspecified means all\n"
+"      pages. To plot specific pages, give the root sheet as `INPUT_FILE` and\n"
+"      specify the desired output pages with the `--pages` argument.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2358
+#, no-wrap
+msgid "Schematic upgrade"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2362
+msgid ""
+"The `sch upgrade` command converts a KiCad schematic file from a previous "
+"KiCad schematic file format to the native format for the current version of "
+"KiCad.  If the input schematic file is already in the current file format, "
+"no action is taken."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2365
+#, no-wrap
+msgid ""
+"Only the specified schematic file is upgraded.\n"
+"      If the schematic file contains any child sheets, the child sheets are not upgraded.\n"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2367
+msgid "Usage: `kicad-cli sch upgrade [--help] [--force] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2374
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Schematic file to upgrade.\n"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2384
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the upgrade command.\n"
+"| `--force`\n"
+"    | Re-save the input schematic file even if it is already in the current file format.\n"
+msgstr ""
+
+#. type: Title ==
+#: cli.adoc:2386
+#, no-wrap
+msgid "Symbol commands"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2390
+msgid ""
+"The `sym` subcommand exports symbols to another format or upgrades symbol "
+"libraries to the current version of the KiCad symbol file format."
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2391
+#, no-wrap
+msgid "Symbol export"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2395
+msgid ""
+"The `sym export svg` command exports one or more symbols from the specified "
+"library into SVG files."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2397
+msgid ""
+"Usage: `kicad-cli sym export svg [--help] [--output OUTPUT_DIR] [--theme "
+"THEME_NAME] [--symbol SYMBOL] [--black-and-white] [--include-hidden-pins] [--"
+"include-hidden-fields] INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2404
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Symbol library file to use for export.\n"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2428
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the symbol SVG export command.\n"
+"| `-o <output dir>`, `--output <output dir>`\n"
+"    | The output folder for the exported files. Each symbol in the input library\n"
+"      is output to a separate file. When `--output` is not used, the files\n"
+"      are exported to the current directory.\n"
+"| `-t <theme name>`, `--theme <theme name>`\n"
+"    | The name of the theme to use for export. If no theme is given, the symbol\n"
+"      editor's currently selected theme is used.\n"
+"| `-s <symbol name>`, `--symbol <symbol name>`\n"
+"    | The specific symbol to export from the library. When this argument is\n"
+"      not used, all symbols in the library are exported.\n"
+"| `--black-and-white`\n"
+"    | Export symbols in black and white.\n"
+"| `--include-hidden-pins`\n"
+"    | Export hidden pins in the exported SVG.\n"
+"| `--include-hidden-fields`\n"
+"    | Export hidden symbol fields in the exported SVG.\n"
+msgstr ""
+
+#. type: Title ===
+#: cli.adoc:2430
+#, no-wrap
+msgid "Symbol upgrade"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2436
+msgid ""
+"The `sym upgrade` command converts the specified symbol library from a "
+"legacy KiCad symbol format or a non-KiCad symbol format to the native format "
+"for the current version of KiCad. If the input library is already in the "
+"current file format, no action is taken."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2438
+msgid "Supported input symbol formats are:"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2440
+msgid "KiCad symbol library (`.kicad_sym`)"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2441
+msgid "KiCad (pre-6.0) symbol library (`.lib`)"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2442
+msgid "Altium schematic library (`.SchLib`)"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2444
+msgid "CADSTAR parts library (`.lib`)"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2449
+msgid ""
+"Usage: `kicad-cli sym upgrade [--help] [--output OUTPUT_FILE] [--force] "
+"INPUT_FILE`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2456
+#, no-wrap
+msgid ""
+"| `INPUT_FILE`\n"
+"    | Symbol library to upgrade.\n"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2469
+#, no-wrap
+msgid ""
+"| `-h`, `--help`\n"
+"    | Show help for the upgrade command.\n"
+"| `-o <output filename>`, `--output <output filename>`\n"
+"    | The output filename for the upgraded symbol library. When `--output` is\n"
+"      not used, the upgraded symbol library is saved over the original library.\n"
+"| `--force`\n"
+"    | Re-save the input library even if it is already in the current file format.\n"
+msgstr ""
+
+#. type: Title ==
+#: cli.adoc:2471
+#, no-wrap
+msgid "Version commands"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2476
+msgid ""
+"The `version` command prints the KiCad version. Without any arguments, it "
+"simply prints the version number, for example `7.0.7`. You can print the "
+"version in several other formats using the `--format` argument."
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2479
+#, no-wrap
+msgid ""
+"Use `kicad-cli version --format about` for version information to include\n"
+"      when submitting bug reports or feature requests on Gitlab.\n"
+msgstr ""
+
+#. type: Plain text
+#: cli.adoc:2481
+msgid "Usage: `kicad-cli version [--help] [--format VAR]`"
+msgstr ""
+
+#. type: Table
+#: cli.adoc:2493
+#, no-wrap
+msgid ""
+"| `--format <format>`\n"
+"    | Format of the version number. Options are `plain` (default), `commit`, or\n"
+"      `about`. `plain` prints the version number (e.g. `7.0.7`), which is the\n"
+"      default if the `--format` argument is not used. `commit` prints the hash\n"
+"      of the git commit for the build of KiCad you are using. `about` prints the\n"
+"      full version information, including library versions and basic system\n"
+"      information. You can use the `about` version information in bug reports.\n"
+msgstr ""

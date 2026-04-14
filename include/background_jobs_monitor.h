@@ -27,6 +27,7 @@
 
 #include <kicommon.h>
 #include <widgets/progress_reporter_base.h>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <shared_mutex>
@@ -45,8 +46,8 @@ class wxCloseEvent;
 class KICOMMON_API BACKGROUND_JOB_REPORTER : public PROGRESS_REPORTER_BASE
 {
 public:
-    BACKGROUND_JOB_REPORTER( BACKGROUND_JOBS_MONITOR*        aMonitor,
-                             std::shared_ptr<BACKGROUND_JOB> aJob );
+    BACKGROUND_JOB_REPORTER( BACKGROUND_JOBS_MONITOR*               aMonitor,
+                             const std::shared_ptr<BACKGROUND_JOB>& aJob );
 
     void SetTitle( const wxString& aTitle ) override
     {
@@ -59,6 +60,8 @@ public:
     void AdvancePhase() override;
 
     void SetNumPhases( int aNumPhases ) override;
+
+    void SetCurrentProgress( double aProgress ) override;
 
 private:
     bool updateUI() override;
@@ -77,8 +80,8 @@ public:
     wxString m_status;
     std::shared_ptr<BACKGROUND_JOB_REPORTER> m_reporter;
 
-    int m_maxProgress;
-    int m_currentProgress;
+    std::atomic<int> m_maxProgress;
+    std::atomic<int> m_currentProgress;
 };
 
 

@@ -37,7 +37,7 @@ class PROJECT;
 struct KIFACE;
 class KIFACE_BASE;
 class TOOL_MANAGER;
-class KIWAY_EXPRESS;
+class KIWAY_MAIL_EVENT;
 
 class wxGUIEventLoop;
 class wxSocketServer;
@@ -140,11 +140,11 @@ public:
                             wxWindow* aResultantFocusWindow = nullptr );
 
     /**
-     * Receive #KIWAY_EXPRESS messages from other players.
+     * Receive #KIWAY_ROUTED_EVENT messages from other players.
      *
      * Override it in derived classes.
      */
-    virtual void KiwayMailIn( KIWAY_EXPRESS& aEvent );
+    virtual void KiwayMailIn( KIWAY_MAIL_EVENT& aEvent );
 
     /**
      * Our version of Destroy() which is virtual from wxWidgets.
@@ -179,12 +179,7 @@ public:
 protected:
 
     /// Event handler, routes to derivative specific virtual #KiwayMailIn().
-    void kiway_express( KIWAY_EXPRESS& aEvent );
-
-    /**
-     * An event handler called on a language menu selection.
-     */
-    void language_change( wxCommandEvent& event );
+    void kiway_express( KIWAY_MAIL_EVENT& aEvent );
 
     // variables for modal behavior support, only used by a few derivatives.
     bool            m_modal;        // true if frame is intended to be modal, not modeless
@@ -202,65 +197,5 @@ protected:
     DECLARE_EVENT_TABLE()
 #endif
 };
-
-
-// pseudo code for OpenProjectFiles
-#if 0
-
-bool OpenProjectFiles( const std::vector<wxString>& aFileList, int aCtl = 0 )
-{
-    if( aFileList.size() != 1 )
-    {
-        complain via UI.
-        return false
-    }
-
-    assert( aFileList[0] is absolute )      // bug in single_top.cpp or project manager.
-
-    if( !Pgm().LockFile( fullFileName ) )
-    {
-        DisplayError( this, _( "This file is already open." ) );
-        return false;
-    }
-
-    if current open project files have been modified
-    {
-        ask if user wants to save them and if yes save.
-    }
-
-    unload any currently open project files.
-
-    Prj().SetProjectFullName( )
-
-    if( aFileList[0] does not exist )
-    {
-        notify user file does not exist and ask if he wants to create it
-        if( yes )
-        {
-            create empty project file(s)
-            mark file as modified.
-
-            use the default project config file.
-        }
-        else
-            return false
-    }
-    else
-    {
-        load aFileList[0]
-
-        use the project config file for project given by aFileList[0]s full path.
-    }
-
-    UpdateFileHistory( g_RootSheet->GetScreen()->GetFileName() );
-
-    /* done in ReDraw typically:
-    UpdateTitle();
-    */
-
-    show contents.
-}
-
-#endif
 
 #endif // KIWAY_PLAYER_H_

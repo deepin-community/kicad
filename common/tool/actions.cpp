@@ -26,9 +26,11 @@
 #include <common.h>
 #include <eda_units.h>
 #include <frame_type.h>
+#include <settings/app_settings.h>
 #include <tool/actions.h>
 #include <tool/tool_action.h>
 #include <tool/tool_event.h>
+#include <tool/selection_tool.h>
 
 // Actions, being statically-defined, require specialized I18N handling.  We continue to
 // use the _() macro so that string harvesting by the I18N framework doesn't have to be
@@ -151,6 +153,100 @@ TOOL_ACTION ACTIONS::quit( TOOL_ACTION_ARGS()
         .Tooltip( _( "Close the current editor" ) )
         .Icon( BITMAPS::exit ) );
 
+
+// Selection actions
+TOOL_ACTION ACTIONS::selectionActivate( TOOL_ACTION_ARGS()
+        .Name( "common.InteractiveSelection" )
+        .Scope( AS_GLOBAL )
+        // No description, not shown anywhere
+        .Flags( AF_ACTIVATE ) );
+
+TOOL_ACTION ACTIONS::selectionCursor( TOOL_ACTION_ARGS()
+        .Name( "common.InteractiveSelection.cursor" )
+        .Scope( AS_GLOBAL )
+        .Parameter<CLIENT_SELECTION_FILTER>( nullptr ) );
+
+TOOL_ACTION ACTIONS::selectItem( TOOL_ACTION_ARGS()
+        .Name( "common.InteractiveSelection.selectItem" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION ACTIONS::selectItems( TOOL_ACTION_ARGS()
+        .Name( "common.InteractiveSelection.selectItems" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION ACTIONS::unselectItem( TOOL_ACTION_ARGS()
+        .Name( "common.InteractiveSelection.unselectItem" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION ACTIONS::unselectItems( TOOL_ACTION_ARGS()
+        .Name( "common.InteractiveSelection.unselectItems" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION ACTIONS::reselectItem( TOOL_ACTION_ARGS()
+        .Name( "common.InteractiveSelection.reselectItem" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION ACTIONS::selectionClear( TOOL_ACTION_ARGS()
+        .Name( "common.InteractiveSelection.clear" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION ACTIONS::selectionMenu( TOOL_ACTION_ARGS()
+        .Name( "common.InteractiveSelection.selectionMenu" )
+        .Scope( AS_GLOBAL ) );
+
+
+// Group actions
+TOOL_ACTION ACTIONS::group( TOOL_ACTION_ARGS()
+        .Name( "common.Interactive.group" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Group Items" ) )
+        .Tooltip( _( "Group the selected items so that they are treated as a single item" ) )
+        .Icon( BITMAPS::group ) );
+
+TOOL_ACTION ACTIONS::ungroup( TOOL_ACTION_ARGS()
+        .Name( "common.Interactive.ungroup" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Ungroup Items" ) )
+        .Tooltip( _( "Ungroup any selected groups" ) )
+        .Icon( BITMAPS::group_ungroup ) );
+
+TOOL_ACTION ACTIONS::addToGroup( TOOL_ACTION_ARGS()
+        .Name( "common.Interactive.addToGroup" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Add Items" ) )
+        .Tooltip( _( "Add items to group" ) )
+        .Icon( BITMAPS::group_remove ) );
+
+TOOL_ACTION ACTIONS::removeFromGroup( TOOL_ACTION_ARGS()
+        .Name( "common.Interactive.removeFromGroup" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Remove Items" ) )
+        .Tooltip( _( "Remove items from group" ) )
+        .Icon( BITMAPS::group_remove ) );
+
+TOOL_ACTION ACTIONS::groupEnter( TOOL_ACTION_ARGS()
+        .Name( "common.Interactive.groupEnter" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Enter Group" ) )
+        .Tooltip( _( "Enter the group to edit items" ) )
+        .Icon( BITMAPS::group_enter ) );
+
+TOOL_ACTION ACTIONS::groupLeave( TOOL_ACTION_ARGS()
+        .Name( "common.Interactive.groupLeave" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Leave Group" ) )
+        .Tooltip( _( "Leave the current group" ) )
+        .Icon( BITMAPS::group_leave ) );
+
+// GROUP_TOOL
+TOOL_ACTION ACTIONS::groupProperties( TOOL_ACTION_ARGS()
+        .Name( "common.Groups.groupProperties" )
+        .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION ACTIONS::pickNewGroupMember( TOOL_ACTION_ARGS()
+        .Name( "common.Groups.selectNewGroupMember" )
+        .Scope( AS_GLOBAL ) );
+
 // Generic Edit Actions
 TOOL_ACTION ACTIONS::cancelInteractive( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.cancel" )
@@ -168,6 +264,7 @@ TOOL_ACTION ACTIONS::finishInteractive( TOOL_ACTION_ARGS()
         .FriendlyName( _( "Finish" ) )
         .Tooltip( _( "Finish current tool" ) )
         .Icon( BITMAPS::checked_ok )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE ) );
 
 TOOL_ACTION ACTIONS::showContextMenu( TOOL_ACTION_ARGS()
@@ -176,10 +273,12 @@ TOOL_ACTION ACTIONS::showContextMenu( TOOL_ACTION_ARGS()
         .FriendlyName( _( "Show Context Menu" ) )
         .Tooltip( _( "Perform the right-mouse-button action" ) )
         .Flags( AF_NONE )
-        .Parameter( CURSOR_RIGHT_CLICK ) );
+        .Parameter( CURSOR_RIGHT_CLICK )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN ) );
 
 TOOL_ACTION ACTIONS::updateMenu( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.updateMenu" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL ) );
 
 TOOL_ACTION ACTIONS::undo( TOOL_ACTION_ARGS()
@@ -248,6 +347,20 @@ TOOL_ACTION ACTIONS::paste( TOOL_ACTION_ARGS()
         .Flags( AF_NONE )
         .UIId( wxID_PASTE ) );
 
+TOOL_ACTION ACTIONS::selectSetRect( TOOL_ACTION_ARGS()
+        .Name( "common.Interactive.selectSetRect" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Rectangle" ) )
+        .Tooltip( _( "Set selection mode to use rectangle" ) )
+        .Icon( BITMAPS::cursor ) );
+
+TOOL_ACTION ACTIONS::selectSetLasso( TOOL_ACTION_ARGS()
+        .Name( "common.Interactive.selectSetLasso" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Lasso" ) )
+        .Tooltip( _( "Set selection mode to use polygon lasso" ) )
+        .Icon( BITMAPS::lasso ) );
+
 TOOL_ACTION ACTIONS::selectAll( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.selectAll" )
         .Scope( AS_GLOBAL )
@@ -298,6 +411,7 @@ TOOL_ACTION ACTIONS::deleteTool( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Interactive Delete Tool" ) )
         .Tooltip( _( "Delete clicked items" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::delete_cursor )
         .Flags( AF_ACTIVATE ) );
 
@@ -454,9 +568,38 @@ TOOL_ACTION ACTIONS::editTable( TOOL_ACTION_ARGS()
         .FriendlyName( _( "Edit Table..." ) )
         .Icon( BITMAPS::table_edit ) );
 
+TOOL_ACTION ACTIONS::exportTableCSV( TOOL_ACTION_ARGS()
+        .Name( "common.TableEditor.exportTableCSV" )
+        .Scope( AS_GLOBAL )
+        .MenuText( _( "Export Table to CSV..." ) )
+        .Tooltip( _( "Export table contents to CSV file with resolved text variables" ) )
+        .Icon( BITMAPS::export_file ) );
+
 TOOL_ACTION ACTIONS::activatePointEditor( TOOL_ACTION_ARGS()
         .Name( "common.Control.activatePointEditor" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL ) );
+
+TOOL_ACTION ACTIONS::pointEditorArcKeepCenter( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.PointEditor.arcKeepCenter" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Keep Arc Center, Adjust Radius" ) )
+        .Tooltip( _( "Switch arc editing mode to keep center, adjust radius and endpoints" ) )
+        .Parameter( ARC_EDIT_MODE::KEEP_CENTER_ADJUST_ANGLE_RADIUS ) );
+
+TOOL_ACTION ACTIONS::pointEditorArcKeepEndpoint( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.PointEditor.arcKeepEndpoint" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Keep Arc Endpoints or Direction of Starting Point" ) )
+        .Tooltip( _( "Switch arc editing mode to keep endpoints, or to keep direction of the other point" ) )
+        .Parameter( ARC_EDIT_MODE::KEEP_ENDPOINTS_OR_START_DIRECTION ) );
+
+TOOL_ACTION ACTIONS::pointEditorArcKeepRadius( TOOL_ACTION_ARGS()
+        .Name( "pcbnew.PointEditor.arcKeepRadius" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Keep Arc Radius and Center, adjust angle" ) )
+        .Tooltip( _( "Switch arc editing mode to maintaining radius when endpoint are moved" ) )
+        .Parameter( ARC_EDIT_MODE::KEEP_CENTER_ENDS_ADJUST_ANGLE ) );
 
 TOOL_ACTION ACTIONS::cycleArcEditMode( TOOL_ACTION_ARGS()
         .Name( "common.Interactive.cycleArcEditMode" )
@@ -528,6 +671,7 @@ TOOL_ACTION ACTIONS::replaceAll( TOOL_ACTION_ARGS()
 
 TOOL_ACTION ACTIONS::updateFind( TOOL_ACTION_ARGS()
         .Name( "common.Control.updateFind" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL ) );
 
 
@@ -574,19 +718,23 @@ TOOL_ACTION ACTIONS::zoomFitScreen( TOOL_ACTION_ARGS()
 #endif
         .LegacyHotkeyName( "Zoom Auto" )
         .FriendlyName( _( "Zoom to Fit" ) )
+        .Tooltip( _( "Zoom to worksheet area if exists or edited object" ) )
         .Icon( BITMAPS::zoom_fit_in_page ) );
 
 TOOL_ACTION ACTIONS::zoomFitObjects( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomFitObjects" )
         .Scope( AS_GLOBAL )
         .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_HOME ) )
-        .FriendlyName( _( "Zoom to Objects" ) )
+        .FriendlyName( _( "Zoom to All Objects" ) )
+        .Tooltip( _( "Zoom to all objects on screen" ) )
         .Icon( BITMAPS::zoom_fit_to_objects ) );
 
 TOOL_ACTION ACTIONS::zoomFitSelection( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomFitSelection" )
         .Scope( AS_GLOBAL )
-        .FriendlyName( _( "Zoom to Selected Objects" ) ) );
+        .Tooltip( _( "Zoom to items currently selected" ) )
+        .FriendlyName( _( "Zoom to Selected Objects" ) )
+        .Icon( BITMAPS::zoom_fit_to_objects ) );
 
 TOOL_ACTION ACTIONS::zoomIn( TOOL_ACTION_ARGS()
         .Name( "common.Control.zoomIn" )
@@ -665,8 +813,10 @@ TOOL_ACTION ACTIONS::zoomTool( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_F5 ) )
         .LegacyHotkeyName( "Zoom to Selection" )
-        .FriendlyName( _( "Zoom to Selection" ) )
+        .FriendlyName( _( "Zoom to Selection Area" ) )
+        .Tooltip( _( "Zoom to an area selection created by a mouse drag" ) )
         .Icon( BITMAPS::zoom_area )
+        .ToolbarState( { TOOLBAR_STATE::TOGGLE, TOOLBAR_STATE::CANCEL } )
         .Flags( AF_ACTIVATE ) );
 
 TOOL_ACTION ACTIONS::zoomUndo( TOOL_ACTION_ARGS()
@@ -703,6 +853,7 @@ TOOL_ACTION ACTIONS::cursorUp( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .DefaultHotkey( WXK_UP )
         .FriendlyName( _( "Cursor Up" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_UP ) );
 
@@ -711,6 +862,7 @@ TOOL_ACTION ACTIONS::cursorDown( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .DefaultHotkey( WXK_DOWN )
         .FriendlyName( _( "Cursor Down" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_DOWN ) );
 
@@ -719,6 +871,7 @@ TOOL_ACTION ACTIONS::cursorLeft( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .DefaultHotkey( WXK_LEFT )
         .FriendlyName( _( "Cursor Left" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_LEFT ) );
 
@@ -727,6 +880,7 @@ TOOL_ACTION ACTIONS::cursorRight( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .DefaultHotkey( WXK_RIGHT )
         .FriendlyName( _( "Cursor Right" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_RIGHT ) );
 
@@ -736,6 +890,7 @@ TOOL_ACTION ACTIONS::cursorUpFast( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_UP ) )
         .FriendlyName( _( "Cursor Up Fast" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_UP_FAST ) );
 
@@ -744,6 +899,7 @@ TOOL_ACTION ACTIONS::cursorDownFast( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_DOWN ) )
         .FriendlyName( _( "Cursor Down Fast" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_DOWN_FAST ) );
 
@@ -752,6 +908,7 @@ TOOL_ACTION ACTIONS::cursorLeftFast( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_LEFT ) )
         .FriendlyName( _( "Cursor Left Fast" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_LEFT_FAST ) );
 
@@ -760,6 +917,7 @@ TOOL_ACTION ACTIONS::cursorRightFast( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .DefaultHotkey( MD_CTRL + static_cast<int>( WXK_RIGHT ) )
         .FriendlyName( _( "Cursor Right Fast" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_RIGHT_FAST ) );
 
@@ -770,6 +928,7 @@ TOOL_ACTION ACTIONS::cursorClick( TOOL_ACTION_ARGS()
         .LegacyHotkeyName( "Mouse Left Click" )
         .FriendlyName( _( "Click" ) )
         .Tooltip( _( "Performs left mouse button click" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_CLICK ) );
 
@@ -780,11 +939,13 @@ TOOL_ACTION ACTIONS::cursorDblClick( TOOL_ACTION_ARGS()
         .LegacyHotkeyName( "Mouse Left Double Click" )
         .FriendlyName( _( "Double-click" ) )
         .Tooltip( _( "Performs left mouse button double-click" ) )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Flags( AF_NONE )
         .Parameter( CURSOR_DBL_CLICK ) );
 
 TOOL_ACTION ACTIONS::refreshPreview( TOOL_ACTION_ARGS()
         .Name( "common.Control.refreshPreview" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL ) );
 
 TOOL_ACTION ACTIONS::pinLibrary( TOOL_ACTION_ARGS()
@@ -803,6 +964,7 @@ TOOL_ACTION ACTIONS::showLibraryTree( TOOL_ACTION_ARGS()
         .Name( "common.Control.showLibraryTree" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Library Tree" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::search_tree ) );
 
 TOOL_ACTION ACTIONS::hideLibraryTree( TOOL_ACTION_ARGS()
@@ -815,7 +977,8 @@ TOOL_ACTION ACTIONS::libraryTreeSearch( TOOL_ACTION_ARGS()
         .Name( "common.Control.libraryTreeSearch" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Focus Library Tree Search Field" ) )
-        .DefaultHotkey( MD_CTRL + 'L' ) );
+        .DefaultHotkey( MD_CTRL + 'L' )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN ) );
 
 TOOL_ACTION ACTIONS::panUp( TOOL_ACTION_ARGS()
         .Name( "common.Control.panUp" )
@@ -891,6 +1054,7 @@ TOOL_ACTION ACTIONS::gridSetOrigin( TOOL_ACTION_ARGS()
         .LegacyHotkeyName( "Set Grid Origin" )
         .FriendlyName( _( "Grid Origin" ) )
         .Tooltip( _( "Place the grid origin point" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::grid_select_axis )
         .Parameter<VECTOR2D*>( nullptr ) );
 
@@ -910,6 +1074,7 @@ TOOL_ACTION ACTIONS::toggleGrid( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL)
         .FriendlyName( _( "Show Grid" ) )
         .Tooltip( _( "Display background grid in the edit window" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::grid ) );
 
 TOOL_ACTION ACTIONS::toggleGridOverrides( TOOL_ACTION_ARGS()
@@ -918,6 +1083,7 @@ TOOL_ACTION ACTIONS::toggleGridOverrides( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL)
         .FriendlyName( _( "Grid Overrides" ) )
         .Tooltip( _( "Enables item-specific grids that override the current grid" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::grid_override ) );
 
 TOOL_ACTION ACTIONS::gridProperties( TOOL_ACTION_ARGS()
@@ -960,14 +1126,17 @@ TOOL_ACTION ACTIONS::millimetersUnits( TOOL_ACTION_ARGS()
 
 TOOL_ACTION ACTIONS::updateUnits( TOOL_ACTION_ARGS()
         .Name( "common.Control.updateUnits" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL ) );
 
 TOOL_ACTION ACTIONS::updatePreferences( TOOL_ACTION_ARGS()
         .Name( "common.Control.updatePreferences" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL ) );
 
 TOOL_ACTION ACTIONS::selectLibTreeColumns( TOOL_ACTION_ARGS()
         .Name( "common.Control.selectColumns" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Select Columns..." ) ) );
 
@@ -985,6 +1154,7 @@ TOOL_ACTION ACTIONS::togglePolarCoords( TOOL_ACTION_ARGS()
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Polar Coordinates" ) )
         .Tooltip( _( "Switch between polar and cartesian coordinate systems" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::polar_coord ) );
 
 TOOL_ACTION ACTIONS::resetLocalCoords( TOOL_ACTION_ARGS()
@@ -1003,12 +1173,26 @@ TOOL_ACTION ACTIONS::toggleCursor( TOOL_ACTION_ARGS()
         .Tooltip( _( "Display crosshairs even when not drawing objects" ) )
         .Icon( BITMAPS::cursor ) );
 
-TOOL_ACTION ACTIONS::toggleCursorStyle( TOOL_ACTION_ARGS()
-        .Name( "common.Control.toggleCursorStyle" )
+TOOL_ACTION ACTIONS::cursorSmallCrosshairs( TOOL_ACTION_ARGS()
+        .Name( "common.Control.cursorSmallCrosshairs" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Small crosshairs" ) )
+        .Tooltip( _( "Use small crosshairs aligned at 0 and 90 degrees" ) )
+        .Icon( BITMAPS::cursor_shape ) );
+
+TOOL_ACTION ACTIONS::cursorFullCrosshairs( TOOL_ACTION_ARGS()
+        .Name( "common.Control.cursorFullCrosshairs" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Full-Window Crosshairs" ) )
-        .Tooltip( _( "Switch display of full-window crosshairs" ) )
-        .Icon( BITMAPS::cursor_shape ) );
+        .Tooltip( _( "Display full-window crosshairs aligned at 0 and 90 degrees" ) )
+        .Icon( BITMAPS::cursor_fullscreen ) );
+
+TOOL_ACTION ACTIONS::cursor45Crosshairs( TOOL_ACTION_ARGS()
+        .Name( "common.Control.cursor45Crosshairs" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "45 Degree Crosshairs" ) )
+        .Tooltip( _( "Display full-window crosshairs aligned at 45 and 135 degrees" ) )
+        .Icon( BITMAPS::cursor_fullscreen45 ) );
 
 TOOL_ACTION ACTIONS::highContrastMode( TOOL_ACTION_ARGS()
         .Name( "common.Control.highContrastMode" )
@@ -1016,6 +1200,7 @@ TOOL_ACTION ACTIONS::highContrastMode( TOOL_ACTION_ARGS()
         .LegacyHotkeyName( "Toggle High Contrast Mode" )
         .FriendlyName( _( "Inactive Layer View Mode" ) )
         .Tooltip( _( "Toggle inactive layers between normal and dimmed" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::contrast_mode ) );
 
 TOOL_ACTION ACTIONS::highContrastModeCycle( TOOL_ACTION_ARGS()
@@ -1030,12 +1215,14 @@ TOOL_ACTION ACTIONS::toggleBoundingBoxes( TOOL_ACTION_ARGS()
         .Name( "common.Control.toggleBoundingBoxes" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Draw Bounding Boxes" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::gerbview_show_negative_objects ) );
 
 TOOL_ACTION ACTIONS::selectionTool( TOOL_ACTION_ARGS()
         .Name( "common.InteractiveSelection.selectionTool" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Select item(s)" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::cursor )
         .Flags( AF_ACTIVATE ) );
 
@@ -1047,16 +1234,19 @@ TOOL_ACTION ACTIONS::measureTool( TOOL_ACTION_ARGS()
         .LegacyHotkeyName( "Measure Distance (Modern Toolset only)" )
         .FriendlyName( _( "Measure Tool" ) )
         .Tooltip( _( "Interactively measure distance between points" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::measurement )
         .Flags( AF_ACTIVATE ) );
 
 TOOL_ACTION ACTIONS::pickerTool( TOOL_ACTION_ARGS()
         .Name( "common.InteractivePicker.pickerTool" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL )
         .Flags( AF_ACTIVATE ) );
 
 TOOL_ACTION ACTIONS::pickerSubTool( TOOL_ACTION_ARGS()
         .Name( "common.InteractivePicker.pickerSubTool" )
+        .ToolbarState( TOOLBAR_STATE::HIDDEN )
         .Scope( AS_GLOBAL ) );
 
 TOOL_ACTION ACTIONS::showProjectManager( TOOL_ACTION_ARGS()
@@ -1109,11 +1299,21 @@ TOOL_ACTION ACTIONS::showFootprintEditor( TOOL_ACTION_ARGS()
         .Flags( AF_NONE )
         .Parameter( FRAME_FOOTPRINT_EDITOR ) );
 
+TOOL_ACTION ACTIONS::showCalculatorTools( TOOL_ACTION_ARGS()
+        .Name( "common.Control.showCalculatorTools" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Calculator Tools" ) )
+        .Tooltip( _( "Run component calculations, track width calculations, etc." ) )
+        .Icon( BITMAPS::icon_pcbcalculator_24 )
+        .Flags( AF_NONE )
+        .Parameter( FRAME_CALC ) );
+
 TOOL_ACTION ACTIONS::showProperties( TOOL_ACTION_ARGS()
         .Name( "common.Control.showProperties" )
         .Scope( AS_GLOBAL )
         .FriendlyName( _( "Properties" ) )
         .Tooltip( _( "Show/hide the properties manager" ) )
+        .ToolbarState( TOOLBAR_STATE::TOGGLE )
         .Icon( BITMAPS::tools ) );
 
 TOOL_ACTION ACTIONS::showDatasheet( TOOL_ACTION_ARGS()

@@ -1,6 +1,6 @@
 :experimental:
 
-[[appearance-panel]]
+[[display-and-selection]]
 == Display and selection controls
 
 === Board layers
@@ -26,6 +26,7 @@ drawn on top, and the User.* layers and Margin will also be be brought to the fr
 
 NOTE: Selected objects are always drawn on top, even if they are not on the active layer.
 
+[[appearance-panel]]
 === The appearance panel
 
 The appearance panel provides controls to manage the visibility, color, and opacity of objects in
@@ -134,16 +135,45 @@ NOTE: You can configure the thickness of ratsnest lines in the PCB Editor Editin
 [[selection]]
 === Selection and the selection filter
 
-Selecting items in the editing canvas is done with the left mouse button.  Single-clicking on an
-object will select it and dragging will perform a box selection.  A box selection from left to
-right will only select items that are fully inside the box.  A box selection from right to left
-will select any items that touch the box. A left-to-right selection box is drawn in yellow,
-with a cursor that indicates exclusive selection, and a right-to-left selection box is drawn in
-blue with a cursor that indicates inclusive selection.
+Selecting items in the editing canvas is done with the left mouse button.
+When no tool is active, single-clicking on an object will select it.
+Pressing kbd:[Esc] will always cancel the current tool or operation and return to the selection tool.
+Pressing kbd:[Esc] while the selection tool is active will clear the current selection.
 
+You can also select items using a rectangle or lasso selection.
+These tools can be useful for selecting many items at once.
+You can switch between rectangular and lasso selection modes using the image:images/icons/cursor_24.png[] / image:images/icons/lasso_24.png[] palette in the right toolbar.
 
-The selection action can be modified by holding modifier keys while clicking or dragging.  The
-following modifier keys apply when clicking to select single items:
+NOTE: To switch between multiple tools in a palette,
+      show the palette by clicking and holding the left mouse button on the tool icon
+      or by clicking and dragging the mouse from the tool icon.
+      Release the mouse button on the desired tool to choose it.
+
+With the rectangular selection mode active (image:images/icons/cursor_24.png[]),
+clicking and dragging will perform a rectangular selection.
+A rectangular selection from left to right will only select items that are fully inside the box.
+A rectangular selection from right to left will select any items that touch the box.
+A left-to-right selection box is drawn in yellow, with a cursor that indicates exclusive selection,
+and a right-to-left selection box is drawn in blue with a cursor that indicates inclusive selection.
+
+With the lasso selection mode active (image:images/icons/lasso_24.png[]),
+clicking and dragging will begin a lasso selection.
+Any items in the existing selection are deselected.
+Dragging with the left mouse button held draws a freeform shape.
+Releasing the button stops drawing the freeform shape and starts drawing a straight line.
+Clicking again completes the straight line.
+Any number of freeform or straight segments can be drawn by repeatedly clicking or dragging.
+Double click to finish drawing the lasso.
+Similar to a rectangular selection,
+a lasso drawn in a clockwise direction will only select items that are fully inside the lasso.
+A lasso drawn in a counter-clockwise direction will select any items that touch the lasso.
+A clockwise lasso is drawn in yellow, with a cursor that indicates exclusive selection,
+and a counter-clockwise lasso is drawn in blue with a cursor that indicates inclusive selection.
+
+The selection action can be modified by holding modifier keys while clicking or dragging.
+Modifiers cannot be used with lasso selections.
+
+The following modifier keys apply when clicking to select single items:
 
 [options="header",cols="20%,20%,20%,40%",]
 |====
@@ -160,7 +190,7 @@ following modifier keys apply when clicking to select single items:
   | Clarify selection from a pop-up menu.
 |====
 
-The following modifier keys apply when dragging to perform a box selection:
+The following modifier keys apply when dragging to perform a rectangular selection:
 
 [options="header",cols="20%,20%,20%,40%",]
 |====
@@ -176,23 +206,29 @@ The following modifier keys apply when dragging to perform a box selection:
 
 The selection filter panel in the lower right corner of the PCB Editor window controls which types of
 objects can be selected with the mouse.  Turning off selection of unwanted object types makes it
-easier to select items in a dense board.  The "All items" checkbox is a shortcut to turn the other
-items on and off.  The "Locked items" checkbox is independent of the rest, and controls whether or
+easier to select items in a dense board.
+
+The **All items** checkbox is a shortcut to turn the other
+items on and off.  The **Locked items** checkbox is independent of the rest, and controls whether or
 not items that have been locked can be selected.  You can right-click any object type in the
 selection filter to quickly change the filter to only allow selecting that type of object.
+
+If you repeatedly try to select an object whose type is disabled in the selection filter,
+the selection filter will visually flash the checkbox for that object type as a reminder that
+selecting that object type is disabled.
 
 image::images/selection_filter.png[]
 
 When a connected copper item is selected, you can expand the selection to other copper items of the
 same net using the Expand Selection command in the right-click context menu or with the hotkey
 kbd:[U].  The first time you run this command, the selection will be expanded to the nearest pad.
-The second time, the selection will be expanded to all connected items on all layers.
+The second time, the selection will be expanded to all connected items on all layers. Expanding
+a selection obeys the selection filter, so the expansion will stop when it reaches an object whose
+type is disabled in the selection filter. For example, if via selection is disabled in the filter,
+you can expand a selection until a via is reached.
 
 Selecting an object displays information about the object in the message panel at the bottom of the
 window. Double-clicking an object opens a window to edit the object's properties.
-
-Pressing kbd:[Esc] will always cancel the current tool or operation and return to the selection
-tool.  Pressing kbd:[Esc] while the selection tool is active will clear the current selection.
 
 [[net-highlighting]]
 === Net highlighting
@@ -242,9 +278,21 @@ If the option "Highlight cross-probed nets" is enabled in the Display Options se
 Preferences dialog, highlighting a net or bus in the schematic editor will cause the corresponding
 net or nets to be highlighted in the PCB editor.
 
+[[left-toolbar-display-controls]]
 === Left toolbar display controls
 
 The left toolbar provides options to change the display of items in the PCB Editor.
+
+Some toolbar buttons have more than one item available in a palette.
+These buttons are indicated with a small arrow in the lower-right corner of the button:
+image:images/pcbnew_palette_buttons.png[]
+
+To show the palette, you can click and hold the mouse button on the button or click and drag the mouse.
+The palette will show the most selected item when it is closed.
+
+The default contents of the left toolbar are shown below.
+
+NOTE: You can edit the toolbar's contents in the **Toolbar** page of the PCB Editor Preferences.
 
 [width="100%",cols="5%,95%",]
 |====
@@ -263,12 +311,25 @@ The left toolbar provides options to change the display of items in the PCB Edit
 
   image:images/icons/unit_mm_24.png[]
     | Display/entry of coordinates and dimensions in inches, mils, or millimeters.
+      Clicking the button toggles to the next unit, or you can choose a unit directly by expanding the palette (click and hold/drag).
 | image:images/icons/cursor_shape_24.png[]
-    | Switches between full-screen and small editing cursor (crosshairs).
-| image:images/icons/hv45mode_24.png[45deg angle wire icon]
-    | Switches between free angle and 45 degree mode for placement of new tracks,
-      zones, graphical shapes, dimensions, and other objects. You can also toggle
-      between free angle and 45 degree mode using kbd:[Shift+Space].
+
+image:images/icons/cursor_fullscreen_24.png[]
+
+image:images/icons/cursor_fullscreen45_24.png[]
+    | Switches the cursor crosshair between small, fullscreen, and 45-degree-rotated fullscreen.
+      Clicking the button toggles to the next crosshair type, or you can choose a crosshair directly by expanding the palette (click and hold/drag).
+| image:images/icons/lines_any_24.png[free angle wire icon]
+
+  image:images/icons/lines90_24.png[90deg angle wire icon]
+
+  image:images/icons/hv45mode_24.png[45deg angle wire icon]
+
+    | Switches the line mode between free angle, 90 degree mode, and 45 degree mode for
+      placement of new tracks, zones, graphical shapes, dimensions, and other objects.
+      Clicking the button toggles to the next line mode, or you can choose a line mode directly by expanding the palette (click and hold/drag).
+      You can also toggle between line modes using kbd:[Shift+Space].
+
 | image:images/icons/general_ratsnest_24.png[]
     | Turns the ratsnest display on/off.
 | image:images/icons/curved_ratsnest_24.png[]

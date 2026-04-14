@@ -37,6 +37,9 @@ using namespace TFIELD_T;
 #define FOOTPRINT_CANONICAL "Footprint"
 #define DATASHEET_CANONICAL "Datasheet"
 #define DESCRIPTION_CANONICAL "Description"
+#define SHEET_NAME_CANONICAL "Sheetname"
+#define SHEET_FILE_CANONICAL "Sheetfile"
+#define INTERSHEET_REFS_CANONICAL "Intersheetrefs"
 #define USER_FIELD_CANONICAL "Field%d"
 
 static wxString s_CanonicalReference( REFERENCE_CANONICAL );
@@ -44,32 +47,41 @@ static wxString s_CanonicalValue( VALUE_CANONICAL );
 static wxString s_CanonicalFootprint( FOOTPRINT_CANONICAL );
 static wxString s_CanonicalDatasheet( DATASHEET_CANONICAL );
 static wxString s_CanonicalDescription( DESCRIPTION_CANONICAL );
+static wxString s_CanonicalSheetName( SHEET_NAME_CANONICAL );
+static wxString s_CanonicalSheetFile( SHEET_FILE_CANONICAL );
+static wxString s_CanonicalIntersheetRefs( INTERSHEET_REFS_CANONICAL );
 
 
-wxString GetDefaultFieldName( int aFieldNdx, bool aTranslateForHI )
+wxString GetDefaultFieldName( FIELD_T aFieldId, bool aTranslateForHI )
 {
     if( !aTranslateForHI )
     {
-        switch( aFieldNdx )
+        switch( aFieldId )
         {
-        case REFERENCE_FIELD:   return s_CanonicalReference;   // The symbol reference, R1, C1, etc.
-        case VALUE_FIELD:       return s_CanonicalValue;       // The symbol value
-        case FOOTPRINT_FIELD:   return s_CanonicalFootprint;   // The footprint for use with Pcbnew
-        case DATASHEET_FIELD:   return s_CanonicalDatasheet;   // Link to a datasheet for symbol
-        case DESCRIPTION_FIELD: return s_CanonicalDescription; // The symbol description
-        default:                return GetUserFieldName( aFieldNdx, aTranslateForHI );
+        case FIELD_T::REFERENCE:       return s_CanonicalReference;   // The symbol reference, R1, C1, etc.
+        case FIELD_T::VALUE:           return s_CanonicalValue;       // The symbol value
+        case FIELD_T::FOOTPRINT:       return s_CanonicalFootprint;   // The footprint for use with Pcbnew
+        case FIELD_T::DATASHEET:       return s_CanonicalDatasheet;   // Link to a datasheet for symbol
+        case FIELD_T::DESCRIPTION:     return s_CanonicalDescription; // The symbol description
+        case FIELD_T::SHEET_NAME:      return s_CanonicalSheetName;
+        case FIELD_T::SHEET_FILENAME:  return s_CanonicalSheetFile;
+        case FIELD_T::INTERSHEET_REFS: return s_CanonicalIntersheetRefs;
+        default:                       return GetUserFieldName( 42, aTranslateForHI );
         }
     }
     else
     {
-        switch( aFieldNdx )
+        switch( aFieldId )
         {
-        case REFERENCE_FIELD:   return _( REFERENCE_CANONICAL );   // The symbol reference, R1, C1, etc.
-        case VALUE_FIELD:       return _( VALUE_CANONICAL );       // The symbol value
-        case FOOTPRINT_FIELD:   return _( FOOTPRINT_CANONICAL );   // The footprint for use with Pcbnew
-        case DATASHEET_FIELD:   return _( DATASHEET_CANONICAL );   // Link to a datasheet for symbol
-        case DESCRIPTION_FIELD: return _( DESCRIPTION_CANONICAL ); // The symbol description
-        default:                return GetUserFieldName( aFieldNdx, aTranslateForHI );
+        case FIELD_T::REFERENCE:       return _( REFERENCE_CANONICAL );   // The symbol reference, R1, C1, etc.
+        case FIELD_T::VALUE:           return _( VALUE_CANONICAL );       // The symbol value
+        case FIELD_T::FOOTPRINT:       return _( FOOTPRINT_CANONICAL );   // The footprint for use with Pcbnew
+        case FIELD_T::DATASHEET:       return _( DATASHEET_CANONICAL );   // Link to a datasheet for symbol
+        case FIELD_T::DESCRIPTION:     return _( DESCRIPTION_CANONICAL ); // The symbol description
+        case FIELD_T::SHEET_NAME:      return _( SHEET_NAME_CANONICAL );
+        case FIELD_T::SHEET_FILENAME:  return _( SHEET_FILE_CANONICAL );
+        case FIELD_T::INTERSHEET_REFS: return _( INTERSHEET_REFS_CANONICAL );
+        default:                       return GetUserFieldName( 42, aTranslateForHI );
         }
     }
 }
@@ -149,7 +161,7 @@ void TEMPLATES::Format( OUTPUTFORMATTER* out, bool aGlobal ) const
     // use at this time will not want the newlines or the indentation.
     out->Print( "(templatefields" );
 
-    const TEMPLATE_FIELDNAMES& source = aGlobal ? m_globals : m_project;
+    const std::vector<TEMPLATE_FIELDNAME>& source = aGlobal ? m_globals : m_project;
 
     for( const TEMPLATE_FIELDNAME& temp : source )
     {
@@ -236,13 +248,13 @@ void TEMPLATES::resolveTemplates()
 void TEMPLATES::AddTemplateFieldName( const TEMPLATE_FIELDNAME& aFieldName, bool aGlobal )
 {
     // Ensure that the template fieldname does not match a fixed fieldname.
-    for( int fieldId : MANDATORY_FIELDS )
+    for( FIELD_T fieldId : MANDATORY_FIELDS )
     {
         if( GetCanonicalFieldName( fieldId ) == aFieldName.m_Name )
             return;
     }
 
-    TEMPLATE_FIELDNAMES& target = aGlobal ? m_globals : m_project;
+    std::vector<TEMPLATE_FIELDNAME>& target = aGlobal ? m_globals : m_project;
 
     // ensure uniqueness, overwrite any template fieldname by the same name.
     for( TEMPLATE_FIELDNAME& temp : target )
@@ -293,7 +305,7 @@ void TEMPLATES::DeleteAllFieldNameTemplates( bool aGlobal )
 }
 
 
-const TEMPLATE_FIELDNAMES& TEMPLATES::GetTemplateFieldNames()
+const std::vector<TEMPLATE_FIELDNAME>& TEMPLATES::GetTemplateFieldNames()
 {
     if( m_resolvedDirty )
         resolveTemplates();
@@ -302,7 +314,7 @@ const TEMPLATE_FIELDNAMES& TEMPLATES::GetTemplateFieldNames()
 }
 
 
-const TEMPLATE_FIELDNAMES& TEMPLATES::GetTemplateFieldNames( bool aGlobal )
+const std::vector<TEMPLATE_FIELDNAME>& TEMPLATES::GetTemplateFieldNames( bool aGlobal )
 {
     if( aGlobal )
         return m_globals;

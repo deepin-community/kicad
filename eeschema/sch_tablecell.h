@@ -33,24 +33,15 @@ class SCH_TABLECELL : public SCH_TEXTBOX
 public:
     SCH_TABLECELL( int aLineWidth = 0, FILL_T aFillType = FILL_T::NO_FILL );
 
-    static inline bool ClassOf( const EDA_ITEM* aItem )
-    {
-        return aItem && SCH_TABLECELL_T == aItem->Type();
-    }
+    static inline bool ClassOf( const EDA_ITEM* aItem ) { return aItem && SCH_TABLECELL_T == aItem->Type(); }
 
-    virtual wxString GetClass() const override
-    {
-        return wxT( "SCH_TABLECELL" );
-    }
+    virtual wxString GetClass() const override { return wxT( "SCH_TABLECELL" ); }
 
     wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
-    EDA_ITEM* Clone() const override
-    {
-        return new SCH_TABLECELL( *this );
-    }
+    EDA_ITEM* Clone() const override { return new SCH_TABLECELL( *this ); }
 
-    void SwapData( SCH_ITEM* aItem ) override;
+    EDA_GROUP* GetParentGroup() const override { return GetParent()->GetParentGroup(); }
 
     int GetRow() const;
     int GetColumn() const;
@@ -58,17 +49,35 @@ public:
     /// @return the spreadsheet nomenclature for the cell (ie: B3 for 2nd column, 3rd row)
     wxString GetAddr() const;
 
+    wxString GetShownText( const RENDER_SETTINGS* aSettings, const SCH_SHEET_PATH* aPath, bool aAllowExtraText,
+                           int aDepth = 0 ) const override;
+
+    wxString GetShownText( bool aAllowExtraText, int aDepth = 0 ) const override
+    {
+        SCH_SHEET_PATH* sheetPath = nullptr;
+
+        if( SCHEMATIC* schematic = Schematic() )
+            sheetPath = &schematic->CurrentSheet();
+
+        return GetShownText( nullptr, sheetPath, aAllowExtraText, aDepth );
+    }
+
     int  GetColSpan() const { return m_colSpan; }
     void SetColSpan( int aSpan ) { m_colSpan = aSpan; }
 
     int  GetRowSpan() const { return m_rowSpan; }
     void SetRowSpan( int aSpan ) { m_rowSpan = aSpan; }
 
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& offset, bool aForceNoFill, bool aDimmed ) override;
+    int  GetRowHeight() const;
+    void SetRowHeight( int aHeight );
 
-    void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
-               int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
+    int  GetColumnWidth() const;
+    void SetColumnWidth( int aWidth );
+
+    bool IsFilledForHitTesting() const override { return true; }
+
+    void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts, int aUnit, int aBodyStyle,
+               const VECTOR2I& aOffset, bool aDimmed ) override;
 
     void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
@@ -78,6 +87,8 @@ public:
     bool operator==( const SCH_ITEM& aOther ) const override;
 
 protected:
+    void swapData( SCH_ITEM* aItem ) override;
+
     int m_colSpan;
     int m_rowSpan;
 };

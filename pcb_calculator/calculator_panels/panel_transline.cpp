@@ -24,6 +24,8 @@
 #include <calculator_panels/panel_transline.h>
 #include <pcb_calculator_settings.h>
 #include <widgets/std_bitmap_button.h>
+#include <properties/property_mgr.h>
+#include <properties/property.h>
 
 
 PANEL_TRANSLINE::PANEL_TRANSLINE( wxWindow* parent, wxWindowID id, const wxPoint& pos,
@@ -37,19 +39,11 @@ PANEL_TRANSLINE::PANEL_TRANSLINE( wxWindow* parent, wxWindowID id, const wxPoint
 
 
     // Populate transline list ordered like in dialog menu list
-    const static TRANSLINE_TYPE_ID tltype_list[8] =
-    {
-        MICROSTRIP_TYPE,
-        CPW_TYPE,
-        GROUNDED_CPW_TYPE,
-        RECTWAVEGUIDE_TYPE,
-        COAX_TYPE,
-        C_MICROSTRIP_TYPE,
-        STRIPLINE_TYPE,
-        TWISTEDPAIR_TYPE
-    };
+    const static TRANSLINE_TYPE_ID tltype_list[9] = { MICROSTRIP_TYPE,    C_MICROSTRIP_TYPE, STRIPLINE_TYPE,
+                                                      C_STRIPLINE_TYPE,   CPW_TYPE,          GROUNDED_CPW_TYPE,
+                                                      RECTWAVEGUIDE_TYPE, COAX_TYPE,         TWISTEDPAIR_TYPE };
 
-    for( int ii = 0; ii < 8; ii++ )
+    for( int ii = 0; ii < 9; ii++ )
         m_transline_list.push_back( new TRANSLINE_IDENT( tltype_list[ii] ) );
 
     m_EpsilonR_label->SetLabel( wxT( "εr" ) );

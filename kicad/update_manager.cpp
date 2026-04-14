@@ -216,8 +216,7 @@ void UPDATE_MANAGER::CheckForUpdate( wxWindow* aNoticeParent )
         requestContent.current_version = verString;
         requestContent.lang = Pgm().GetLanguageTag();
 
-        SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-        KICAD_SETTINGS*   settings = mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
+        KICAD_SETTINGS* settings = GetAppSettings<KICAD_SETTINGS>( "kicad" );
 
         requestContent.last_check = settings->m_lastUpdateCheckTime;
 
@@ -229,7 +228,7 @@ void UPDATE_MANAGER::CheckForUpdate( wxWindow* aNoticeParent )
 
         // Check that the response is 200 (content provided)
         // We can also return 204 for no update
-        if( responseCode == 200 )
+        if( responseCode == 200 && !Pgm().m_Quitting )
         {
             nlohmann::json  update_json;
             UPDATE_RESPONSE response;
@@ -239,11 +238,14 @@ void UPDATE_MANAGER::CheckForUpdate( wxWindow* aNoticeParent )
                 update_json_stream >> update_json;
                 response = update_json.get<UPDATE_RESPONSE>();
 
-                if( response.version != settings->m_lastReceivedUpdate )
+                if( response.version != settings->m_lastReceivedUpdate && !Pgm().m_Quitting )
                 {
                     aNoticeParent->CallAfter(
                             [aNoticeParent, response]()
                             {
+                                if( Pgm().m_Quitting )
+                                    return;
+
                                 auto notice = new DIALOG_UPDATE_NOTICE( aNoticeParent,
                                                                         response.version,
                                                                         response.details_url,
@@ -255,17 +257,15 @@ void UPDATE_MANAGER::CheckForUpdate( wxWindow* aNoticeParent )
                                 {
                                     // basically saving the last received update prevents us from
                                     // prompting again
-                                    SETTINGS_MANAGER& set_mgr = Pgm().GetSettingsManager();
-                                    KICAD_SETTINGS*   cfg     = set_mgr.GetAppSettings<KICAD_SETTINGS>( "kicad" );
-                                    cfg->m_lastReceivedUpdate = response.version;
+                                    if( KICAD_SETTINGS* cfg = GetAppSettings<KICAD_SETTINGS>( "kicad" ) )
+                                        cfg->m_lastReceivedUpdate = response.version;
                                 }
                             } );
                 }
             }
             catch( const std::exception& e )
             {
-                wxLogError( wxString::Format( _( "Unable to parse update response: %s" ),
-                                              e.what() ) );
+                wxLogError( wxString::Format( _( "Unable to parse update response: %s" ), e.what() ) );
             }
         }
 
@@ -277,5 +277,5 @@ void UPDATE_MANAGER::CheckForUpdate( wxWindow* aNoticeParent )
     };
 
     thread_pool& tp = GetKiCadThreadPool();
-    m_updateTask = tp.submit( update_check );
+    m_updateTask = tp.submit_task( update_check );
 }

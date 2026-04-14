@@ -20,30 +20,30 @@
 #include <mutex>
 #include <wx/ffile.h>
 
-#include <symbol_library.h>
 #include <confirm.h>
 #include <dialogs/dialog_schematic_setup.h>
 #include <kiway.h>
 #include <symbol_edit_frame.h>
-#include <dialogs/panel_gal_display_options.h>
+#include <dialogs/panel_base_display_options.h>
 #include <filename_resolver.h>
 #include <pgm_base.h>
 #include <project/project_file.h>
 #include <project/project_local_settings.h>
 #include <project/net_settings.h>
 #include <sch_edit_frame.h>
+#include <settings/color_settings.h>
 #include <sch_painter.h>
 #include <schematic.h>
-#include <widgets/design_block_pane.h>
 #include <widgets/hierarchy_pane.h>
+#include <widgets/sch_design_block_pane.h>
 #include <widgets/sch_search_pane.h>
+#include <widgets/panel_remote_symbol.h>
 #include <widgets/panel_sch_selection_filter.h>
 #include <widgets/properties_panel.h>
 #include <settings/app_settings.h>
 #include <settings/settings_manager.h>
 #include <wildcards_and_files_ext.h>
 #include <drawing_sheet/ds_data_model.h>
-#include <zoom_defines.h>
 #include <sim/spice_settings.h>
 #include <tool/tool_manager.h>
 #include <tools/sch_selection_tool.h>
@@ -52,7 +52,7 @@
 /// Helper for all the old plotting/printing code while it still exists
 COLOR4D GetLayerColor( SCH_LAYER_ID aLayer )
 {
-    return Pgm().GetSettingsManager().GetColorSettings()->GetColor( aLayer );
+    return ::GetColorSettings( DEFAULT_THEME )->GetColor( aLayer );
 }
 
 
@@ -60,6 +60,7 @@ bool SCH_EDIT_FRAME::LoadProjectSettings()
 {
     SCHEMATIC_SETTINGS& settings = Schematic().Settings();
     settings.m_JunctionSize = GetSchematicJunctionSize();
+    settings.m_HopOverScale = GetSchematicHopOverScale();
 
     GetRenderSettings()->SetDefaultPenWidth( settings.m_DefaultLineWidth );
     GetRenderSettings()->m_LabelSizeRatio  = settings.m_LabelSizeRatio;
@@ -111,21 +112,12 @@ void SCH_EDIT_FRAME::ShowSchematicSetupDialog( const wxString& aInitialPage )
     if( !dialogLock.owns_lock() )
     {
         if( m_schematicSetupDialog && m_schematicSetupDialog->IsShown() )
-        {
             m_schematicSetupDialog->Raise(); // Brings the existing dialog to the front
-        }
 
         return;
     }
 
-    SCH_SCREENS screens( Schematic().Root() );
-    std::vector<std::shared_ptr<BUS_ALIAS>> oldAliases;
-
-    for( SCH_SCREEN* screen = screens.GetFirst(); screen != nullptr; screen = screens.GetNext() )
-    {
-        for( const std::shared_ptr<BUS_ALIAS>& alias : screen->GetBusAliases() )
-            oldAliases.push_back( alias );
-    }
+    std::map<wxString, std::vector<wxString>> oldAliases = Prj().GetProjectFile().m_BusAliases;
 
     DIALOG_SCHEMATIC_SETUP dlg( this );
 
@@ -133,10 +125,10 @@ void SCH_EDIT_FRAME::ShowSchematicSetupDialog( const wxString& aInitialPage )
         dlg.SetInitialPage( aInitialPage, wxEmptyString );
 
     // Assign dlg to the m_schematicSetupDialog pointer to track its status.
-    m_schematicSetupDialog = &dlg;
+    // No, this does not escape the function context.
+    NULLER raii_nuller( (void*&) m_schematicSetupDialog ); m_schematicSetupDialog = &dlg;
 
-    // TODO: is QuasiModal required here?
-    if( dlg.ShowQuasiModal() == wxID_OK )
+    if( dlg.ShowModal() == wxID_OK )
     {
         // Mark document as modified so that project settings can be saved as part of doc save
         OnModify();
@@ -159,14 +151,7 @@ void SCH_EDIT_FRAME::ShowSchematicSetupDialog( const wxString& aInitialPage )
         GetCanvas()->GetView()->MarkDirty();
         GetCanvas()->GetView()->UpdateAllItems( KIGFX::REPAINT );
 
-        std::vector<std::shared_ptr<BUS_ALIAS>> newAliases;
-
-        for( SCH_SCREEN* screen = screens.GetFirst(); screen != nullptr;
-             screen = screens.GetNext() )
-        {
-            for( const std::shared_ptr<BUS_ALIAS>& alias : screen->GetBusAliases() )
-                newAliases.push_back( alias );
-        }
+        std::map<wxString, std::vector<wxString>> newAliases = Prj().GetProjectFile().m_BusAliases;
 
         if( oldAliases != newAliases )
             RecalculateConnections( nullptr, GLOBAL_CLEANUP );
@@ -174,9 +159,6 @@ void SCH_EDIT_FRAME::ShowSchematicSetupDialog( const wxString& aInitialPage )
         RefreshOperatingPointDisplay();
         GetCanvas()->Refresh();
     }
-
-    // Reset m_schematicSetupDialog after the dialog is closed
-    m_schematicSetupDialog = nullptr;
 }
 
 
@@ -184,11 +166,19 @@ int SCH_EDIT_FRAME::GetSchematicJunctionSize()
 {
     std::vector<double>& sizeMultipliers = eeconfig()->m_Drawing.junction_size_mult_list;
 
-    const std::shared_ptr<NET_SETTINGS>& netSettings = Prj().GetProjectFile().NetSettings();
-    int sizeChoice = Schematic().Settings().m_JunctionSizeChoice;
-    int dotSize = netSettings->GetDefaultNetclass()->GetWireWidth() * sizeMultipliers[sizeChoice];
+    PROJECT_FILE& projectFile = Prj().GetProjectFile();
+    double        multiplier = sizeMultipliers[projectFile.m_SchematicSettings->m_JunctionSizeChoice];
+    int           dotSize = KiROUND( projectFile.NetSettings()->GetDefaultNetclass()->GetWireWidth() * multiplier );
 
     return std::max( dotSize, 1 );
+}
+
+
+double SCH_EDIT_FRAME::GetSchematicHopOverScale()
+{
+    std::vector<double>& sizeMultipliers = eeconfig()->m_Drawing.junction_size_mult_list;
+
+    return sizeMultipliers[Prj().GetProjectFile().m_SchematicSettings->m_HopOverSizeChoice];
 }
 
 
@@ -209,8 +199,7 @@ void SCH_EDIT_FRAME::saveProjectSettings()
     // Save the page layout file if doesn't exist yet (e.g. if we opened a non-kicad schematic)
 
     // TODO: We need to remove dependence on BASE_SCREEN
-    Prj().GetProjectFile().m_SchematicSettings->m_SchDrawingSheetFileName
-                                        = BASE_SCREEN::m_DrawingSheetFileName;
+    Prj().GetProjectFile().m_SchematicSettings->m_SchDrawingSheetFileName = BASE_SCREEN::m_DrawingSheetFileName;
 
     if( !BASE_SCREEN::m_DrawingSheetFileName.IsEmpty() )
     {
@@ -234,19 +223,63 @@ void SCH_EDIT_FRAME::saveProjectSettings()
         }
     }
 
+    // Propagate the root schematic revision to the project file for IPC-2581 BOM export
+    if( Schematic().RootScreen() )
+    {
+        Prj().GetProjectFile().m_IP2581Bom.schRevision =
+                Schematic().RootScreen()->GetTitleBlock().GetRevision();
+    }
+
+    // Update top-level sheets information in the project file
+    const std::vector<SCH_SHEET*>& topLevelSheets = Schematic().GetTopLevelSheets();
+
+    if( !topLevelSheets.empty() )
+    {
+        std::vector<TOP_LEVEL_SHEET_INFO>& projectSheets = Prj().GetProjectFile().GetTopLevelSheets();
+        projectSheets.clear();
+
+        wxString projectPath = Prj().GetProjectPath();
+
+        for( SCH_SHEET* sheet : topLevelSheets )
+        {
+            TOP_LEVEL_SHEET_INFO info;
+            info.uuid = sheet->m_Uuid;
+            info.name = sheet->GetName();
+
+            // For top-level sheets, get the filename from the screen, not from the sheet's
+            // SHEET_FILENAME field (which is only used for sheet instances on parent sheets)
+            wxString filename;
+
+            if( sheet->GetScreen() )
+                filename = sheet->GetScreen()->GetFileName();
+
+            // Make the filename relative to the project path
+            wxFileName sheetFn( filename );
+
+            if( sheetFn.IsAbsolute() )
+                sheetFn.MakeRelativeTo( projectPath );
+
+            info.filename = sheetFn.GetFullPath();
+
+            projectSheets.push_back( std::move( info ) );
+        }
+    }
+
     GetSettingsManager()->SaveProject( fn.GetFullPath() );
 }
 
 
 void SCH_EDIT_FRAME::SaveProjectLocalSettings()
 {
-    if( m_schematic )
-        m_schematic->RecordERCExclusions();
-
     PROJECT_LOCAL_SETTINGS& localSettings = Prj().GetLocalSettings();
-    SCH_SELECTION_TOOL*     selTool = GetToolManager()->GetTool<SCH_SELECTION_TOOL>();
 
-    localSettings.m_SchSelectionFilter = selTool->GetFilter();
+    if( TOOL_MANAGER* toolMgr = GetToolManager() )
+    {
+        if( SCH_SELECTION_TOOL* selTool = toolMgr->GetTool<SCH_SELECTION_TOOL>() )
+            localSettings.m_SchSelectionFilter = selTool->GetFilter();
+    }
+
+    localSettings.m_SchHierarchyCollapsed = m_hierarchy->GetCollapsedPaths();
 }
 
 
@@ -264,6 +297,7 @@ void SCH_EDIT_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
     {
         searchData->replaceReferences = cfg->m_FindReplaceExtra.replace_references;
         searchData->searchAllFields = cfg->m_FindReplaceExtra.search_all_fields;
+        searchData->searchMetadata = cfg->m_FindReplaceExtra.search_metadata;
         searchData->searchAllPins = cfg->m_FindReplaceExtra.search_all_pins;
         searchData->searchCurrentSheetOnly = cfg->m_FindReplaceExtra.search_current_sheet_only;
         searchData->searchSelectedOnly = cfg->m_FindReplaceExtra.search_selected_only;
@@ -300,9 +334,9 @@ void SCH_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
         {
             cfg->m_FindReplaceExtra.replace_references = searchData->replaceReferences;
             cfg->m_FindReplaceExtra.search_all_fields = searchData->searchAllFields;
+            cfg->m_FindReplaceExtra.search_metadata = searchData->searchMetadata;
             cfg->m_FindReplaceExtra.search_all_pins = searchData->searchAllPins;
-            cfg->m_FindReplaceExtra.search_current_sheet_only =
-                    searchData->searchCurrentSheetOnly;
+            cfg->m_FindReplaceExtra.search_current_sheet_only = searchData->searchCurrentSheetOnly;
             cfg->m_FindReplaceExtra.search_selected_only = searchData->searchSelectedOnly;
         }
 
@@ -336,7 +370,9 @@ void SCH_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
         cfg->m_AuiPanels.design_blocks_show = designBlocksPane.IsShown();
 
         if( designBlocksPane.IsDocked() )
+        {
             cfg->m_AuiPanels.design_blocks_panel_docked_width = m_designBlocksPane->GetSize().x;
+        }
         else
         {
             cfg->m_AuiPanels.design_blocks_panel_float_height = designBlocksPane.floating_size.y;
@@ -344,6 +380,19 @@ void SCH_EDIT_FRAME::SaveSettings( APP_SETTINGS_BASE* aCfg )
         }
 
         m_designBlocksPane->SaveSettings();
+
+        wxAuiPaneInfo& remoteSymbolPane = m_auimgr.GetPane( RemoteSymbolPaneName() );
+        cfg->m_AuiPanels.remote_symbol_show = remoteSymbolPane.IsShown();
+
+        if( remoteSymbolPane.IsDocked() )
+        {
+            cfg->m_AuiPanels.remote_symbol_panel_docked_width = m_remoteSymbolPane->GetSize().x;
+        }
+        else
+        {
+            cfg->m_AuiPanels.remote_symbol_panel_float_height = remoteSymbolPane.floating_size.y;
+            cfg->m_AuiPanels.remote_symbol_panel_float_width = remoteSymbolPane.floating_size.x;
+        }
     }
 }
 
@@ -354,13 +403,11 @@ void SCH_BASE_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 
     EDA_DRAW_FRAME::LoadSettings( aCfg );
 
-    if( aCfg->m_Window.grid.grids.empty() )
-        aCfg->m_Window.grid.grids = aCfg->DefaultGridSizeList();
-
     // Move legacy user grids to grid list
     if( !aCfg->m_Window.grid.user_grid_x.empty() )
     {
-        aCfg->m_Window.grid.grids.emplace_back( GRID{ "User Grid", aCfg->m_Window.grid.user_grid_x,
+        aCfg->m_Window.grid.grids.emplace_back( GRID{ "User Grid",
+                                                      aCfg->m_Window.grid.user_grid_x,
                                                       aCfg->m_Window.grid.user_grid_y } );
         aCfg->m_Window.grid.user_grid_x = wxEmptyString;
         aCfg->m_Window.grid.user_grid_y = wxEmptyString;
@@ -374,11 +421,6 @@ void SCH_BASE_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 
     if( aCfg->m_Window.grid.fast_grid_2 > (int) aCfg->m_Window.grid.grids.size() )
         aCfg->m_Window.grid.fast_grid_2 = 2;
-
-    if( aCfg->m_Window.zoom_factors.empty() )
-    {
-        aCfg->m_Window.zoom_factors = { ZOOM_LIST_EESCHEMA };
-    }
 }
 
 

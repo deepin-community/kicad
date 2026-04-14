@@ -51,7 +51,36 @@ void PCB_TOOL_BASE::doInteractiveItemPlacement( const TOOL_EVENT&        aTool,
 
     BOARD_COMMIT commit( frame() );
 
-    GetManager()->RunAction( PCB_ACTIONS::selectionClear );
+    LEADER_MODE* angleSnapMode = nullptr;
+    LEADER_MODE  savedAngleSnapMode = LEADER_MODE::DIRECT;
+    bool         restoreAngleSnapMode = false;
+
+    if( frame()->IsType( FRAME_PCB_EDITOR ) )
+    {
+        angleSnapMode = &GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_AngleSnapMode;
+    }
+    else if( frame()->IsType( FRAME_FOOTPRINT_EDITOR ) )
+    {
+        angleSnapMode = &GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_AngleSnapMode;
+    }
+
+    if( !angleSnapMode )
+    {
+        PCB_VIEWERS_SETTINGS_BASE* viewerSettings = frame()->GetViewerSettingsBase();
+
+        if( viewerSettings )
+            angleSnapMode = &viewerSettings->m_ViewersDisplay.m_AngleSnapMode;
+    }
+
+    if( angleSnapMode && *angleSnapMode != LEADER_MODE::DIRECT )
+    {
+        savedAngleSnapMode = *angleSnapMode;
+        *angleSnapMode = LEADER_MODE::DIRECT;
+        restoreAngleSnapMode = true;
+        m_toolMgr->RunAction( PCB_ACTIONS::angleSnapModeChanged );
+    }
+
+    GetManager()->RunAction( ACTIONS::selectionClear );
 
     Activate();
     // Must be done after Activate() so that it gets set into the correct context
@@ -82,7 +111,8 @@ void PCB_TOOL_BASE::doInteractiveItemPlacement( const TOOL_EVENT&        aTool,
 
                     // footprints have more drawable parts
                     if( FOOTPRINT* fp = dynamic_cast<FOOTPRINT*>( newItem.get() ) )
-                        fp->RunOnChildren( std::bind( &KIGFX::VIEW_GROUP::Add, &preview, _1 ) );
+                        fp->RunOnChildren( std::bind( &KIGFX::VIEW_GROUP::Add, &preview, _1 ),
+                                           RECURSE_MODE::NO_RECURSE );
                 }
             };
 
@@ -108,7 +138,16 @@ void PCB_TOOL_BASE::doInteractiveItemPlacement( const TOOL_EVENT&        aTool,
 
         grid.SetSnap( false ); // Interactive placement tools need to set their own item snaps
         grid.SetUseGrid( getView()->GetGAL()->GetGridSnapping() && !evt->DisableGridSnapping() );
-        VECTOR2I cursorPos = grid.BestSnapAnchor( controls()->GetMousePosition(), nullptr );
+        VECTOR2I cursorPos = controls()->GetMousePosition();
+
+        if( !evt->IsActivate() && !evt->IsCancelInteractive() )
+        {
+            cursorPos = grid.BestSnapAnchor( cursorPos, nullptr );
+        }
+        else
+        {
+            grid.FullReset();
+        }
 
         aPlacer->m_modifiers = evt->Modifier();
 
@@ -227,8 +266,7 @@ void PCB_TOOL_BASE::doInteractiveItemPlacement( const TOOL_EVENT&        aTool,
             }
             else if( evt->IsAction( &PCB_ACTIONS::flip ) && ( aOptions & IPO_FLIP ) )
             {
-                newItem->Flip( newItem->GetPosition(),
-                               frame()->GetPcbNewSettings()->m_FlipDirection );
+                newItem->Flip( newItem->GetPosition(), frame()->GetPcbNewSettings()->m_FlipDirection );
                 view()->Update( &preview );
             }
             else if( evt->IsAction( &PCB_ACTIONS::properties ) )
@@ -272,6 +310,12 @@ void PCB_TOOL_BASE::doInteractiveItemPlacement( const TOOL_EVENT&        aTool,
     controls()->SetAutoPan( false );
     controls()->CaptureCursor( false );
     controls()->ForceCursorPosition( false );
+
+    if( restoreAngleSnapMode )
+    {
+        *angleSnapMode = savedAngleSnapMode;
+        m_toolMgr->RunAction( PCB_ACTIONS::angleSnapModeChanged );
+    }
 }
 
 
@@ -303,12 +347,12 @@ void PCB_TOOL_BASE::setTransitions()
 
 PCBNEW_SETTINGS::DISPLAY_OPTIONS& PCB_TOOL_BASE::displayOptions() const
 {
-    return frame()->GetPcbNewSettings()->m_Display;
+    return frame<PCB_BASE_FRAME>()->GetPcbNewSettings()->m_Display;
 }
 
 PCB_DRAW_PANEL_GAL* PCB_TOOL_BASE::canvas() const
 {
-    return static_cast<PCB_DRAW_PANEL_GAL*>( frame()->GetCanvas() );
+    return static_cast<PCB_DRAW_PANEL_GAL*>( frame<PCB_BASE_FRAME>()->GetCanvas() );
 }
 
 
@@ -330,12 +374,20 @@ PCB_SELECTION& PCB_TOOL_BASE::selection()
 
 bool PCB_TOOL_BASE::Is45Limited() const
 {
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
+    return GetAngleSnapMode() != LEADER_MODE::DIRECT;
+}
 
-    if( frame()->IsType( FRAME_PCB_EDITOR ) )
-        return mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_Use45DegreeLimit;
+bool PCB_TOOL_BASE::Is90Limited() const
+{
+    return GetAngleSnapMode() == LEADER_MODE::DEG90;
+}
+
+LEADER_MODE PCB_TOOL_BASE::GetAngleSnapMode() const
+{
+    if( frame<PCB_BASE_FRAME>()->IsType( FRAME_PCB_EDITOR ) )
+        return GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" )->m_AngleSnapMode;
     else
-        return mgr.GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_Use45Limit;
+        return GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" )->m_AngleSnapMode;
 }
 
 
@@ -350,4 +402,3 @@ bool INTERACTIVE_PLACER_BASE::PlaceItem( BOARD_ITEM *aItem, BOARD_COMMIT& aCommi
     aCommit.Add( aItem );
     return true;
 }
-

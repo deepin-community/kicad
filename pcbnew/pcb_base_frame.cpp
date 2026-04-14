@@ -33,7 +33,7 @@
 #include <boost/uuid/entropy_error.hpp>
 #endif
 
-#include <3d_viewer/eda_3d_viewer_frame.h>          // To include VIEWER3D_FRAMENAME
+#include <3d_viewer/eda_3d_viewer_frame.h>
 #include <advanced_config.h>
 #include <base_units.h>
 #include <board.h>
@@ -42,18 +42,21 @@
 #include <confirm.h>
 #include <footprint.h>
 #include <footprint_editor_settings.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <lset.h>
 #include <kiface_base.h>
+#include <pad.h>
 #include <pcb_painter.h>
 #include <pcbnew_id.h>
 #include <pcbnew_settings.h>
 #include <pcb_base_frame.h>
 #include <pcb_draw_panel_gal.h>
+#include <pcb_track.h>
 #include <pgm_base.h>
 #include <project_pcb.h>
+#include <trace_helpers.h>
 #include <wildcards_and_files_ext.h>
-#include <zoom_defines.h>
+#include <zone.h>
 
 #include <math/vector2d.h>
 #include <math/vector2wx.h>
@@ -68,20 +71,25 @@
 #include <tool/grid_menu.h>
 #include <ratsnest/ratsnest_view_item.h>
 
+#if defined(__linux__) || defined(__FreeBSD__)
+#include <spacenav/spnav_2d_plugin.h>
+#else
 #include <navlib/nl_pcbnew_plugin.h>
+#endif
 
 using KIGFX::RENDER_SETTINGS;
 using KIGFX::PCB_RENDER_SETTINGS;
 
+wxDEFINE_EVENT( EDA_EVT_BOARD_CHANGING, wxCommandEvent );
 wxDEFINE_EVENT( EDA_EVT_BOARD_CHANGED, wxCommandEvent );
 
 PCB_BASE_FRAME::PCB_BASE_FRAME( KIWAY* aKiway, wxWindow* aParent, FRAME_T aFrameType,
                                 const wxString& aTitle, const wxPoint& aPos, const wxSize& aSize,
                                 long aStyle, const wxString& aFrameName ) :
-        EDA_DRAW_FRAME( aKiway, aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName,
-                        pcbIUScale ),
+        EDA_DRAW_FRAME( aKiway, aParent, aFrameType, aTitle, aPos, aSize, aStyle, aFrameName, pcbIUScale ),
         m_pcb( nullptr ),
-        m_originTransforms( *this )
+        m_originTransforms( *this ),
+        m_inFpChangeTimerEvent( false )
 {
     m_watcherDebounceTimer.Bind( wxEVT_TIMER, &PCB_BASE_FRAME::OnFpChangeDebounceTimer, this );
 }
@@ -92,6 +100,9 @@ PCB_BASE_FRAME::~PCB_BASE_FRAME()
     // Ensure m_canvasType is up to date, to save it in config
     if( GetCanvas() )
         m_canvasType = GetCanvas()->GetBackend();
+
+    if( m_toolManager )
+        m_toolManager->ClearModel();
 
     delete m_pcb;
     m_pcb = nullptr;
@@ -181,41 +192,7 @@ void PCB_BASE_FRAME::SetBoard( BOARD* aBoard, PROGRESS_REPORTER* aReporter )
 
         wxCommandEvent e( EDA_EVT_BOARD_CHANGED );
         ProcessEventLocally( e );
-
-        for( wxEvtHandler* listener : m_boardChangeListeners )
-        {
-            wxCHECK2( listener, continue );
-
-            // Use the windows variant when handling event messages in case there is any special
-            // event handler pre and/or post processing specific to windows.
-            wxWindow* win = dynamic_cast<wxWindow*>( listener );
-
-            if( win )
-                win->HandleWindowEvent( e );
-            else
-                listener->SafelyProcessEvent( e );
-        }
     }
-}
-
-
-void PCB_BASE_FRAME::AddBoardChangeListener( wxEvtHandler* aListener )
-{
-    auto it = std::find( m_boardChangeListeners.begin(), m_boardChangeListeners.end(), aListener );
-
-    // Don't add duplicate listeners.
-    if( it == m_boardChangeListeners.end() )
-        m_boardChangeListeners.push_back( aListener );
-}
-
-
-void PCB_BASE_FRAME::RemoveBoardChangeListener( wxEvtHandler* aListener )
-{
-    auto it = std::find( m_boardChangeListeners.begin(), m_boardChangeListeners.end(), aListener );
-
-    // Don't add duplicate listeners.
-    if( it != m_boardChangeListeners.end() )
-        m_boardChangeListeners.erase( it );
 }
 
 
@@ -238,66 +215,55 @@ void PCB_BASE_FRAME::AddFootprintToBoard( FOOTPRINT* aFootprint )
         aFootprint->SetOrientation( ANGLE_0 );
 
         GetBoard()->UpdateUserUnits( aFootprint, GetCanvas()->GetView() );
+
+        m_toolManager->RunAction( PCB_ACTIONS::rehatchShapes );
     }
 }
 
 
-EDA_ITEM* PCB_BASE_FRAME::GetItem( const KIID& aId ) const
+EDA_ITEM* PCB_BASE_FRAME::ResolveItem( const KIID& aId, bool aAllowNullptrReturn ) const
 {
-    return GetBoard()->GetItem( aId );
+    return GetBoard()->ResolveItem( aId, aAllowNullptrReturn );
 }
 
+void PCB_BASE_FRAME::FocusOnItem( EDA_ITEM* aItem, bool aAllowScroll )
+{
+    // nullptr will clear the current focus
+    if( aItem != nullptr && !aItem->IsBOARD_ITEM() )
+        return;
 
-void PCB_BASE_FRAME::FocusOnItem( BOARD_ITEM* aItem, PCB_LAYER_ID aLayer )
+    FocusOnItem( static_cast<BOARD_ITEM*>( aItem ), UNDEFINED_LAYER, aAllowScroll );
+}
+
+void PCB_BASE_FRAME::FocusOnItem( BOARD_ITEM* aItem, PCB_LAYER_ID aLayer, bool aAllowScroll )
 {
     std::vector<BOARD_ITEM*> items;
 
     if( aItem )
         items.push_back( aItem );
 
-    FocusOnItems( items, aLayer );
+    FocusOnItems( items, aLayer, aAllowScroll );
 }
 
 
-void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID aLayer )
+void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID aLayer, bool aAllowScroll )
 {
     static std::vector<KIID> lastBrightenedItemIDs;
 
-    BOARD_ITEM* lastItem = nullptr;
+    bool itemsUnbrightened = false;
 
     for( KIID lastBrightenedItemID : lastBrightenedItemIDs )
     {
-        /// @todo The Boost entropy exception does not exist prior to 1.67. Once the minimum Boost
-        ///       version is raise to 1.67 or greater, this version check can be removed.
-    #if BOOST_VERSION >= 106700
-        try
-        {
-            lastItem = GetBoard()->GetItem( lastBrightenedItemID );
-        }
-        catch( const boost::uuids::entropy_error& )
-        {
-            wxLogError( wxT( "A Boost UUID entropy exception was thrown in %s:%s." ),
-                        __FILE__, __FUNCTION__ );
-        }
-    #else
-        lastItem = GetBoard()->GetItem( lastBrightenedItemID );
-    #endif
-
-        if( lastItem && lastItem != DELETED_BOARD_ITEM::GetInstance() )
+        if( BOARD_ITEM* lastItem = GetBoard()->ResolveItem( lastBrightenedItemID, true ) )
         {
             lastItem->ClearBrightened();
-
-            lastItem->RunOnDescendants(
-                    [&]( BOARD_ITEM* child )
-                    {
-                        child->ClearBrightened();
-                    } );
-
             GetCanvas()->GetView()->Update( lastItem );
-            lastBrightenedItemID = niluuid;
-            GetCanvas()->Refresh();
+            itemsUnbrightened = true;
         }
     }
+
+    if( itemsUnbrightened )
+        GetCanvas()->Refresh();
 
     lastBrightenedItemIDs.clear();
 
@@ -331,15 +297,17 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
         if( item && item != DELETED_BOARD_ITEM::GetInstance() )
         {
             item->SetBrightened();
+            lastBrightenedItemIDs.push_back( item->m_Uuid );
 
-            item->RunOnDescendants(
+            item->RunOnChildren(
                     [&]( BOARD_ITEM* child )
                     {
                         child->SetBrightened();
-                    });
+                        lastBrightenedItemIDs.push_back( child->m_Uuid );
+                    },
+                    RECURSE_MODE::RECURSE );
 
             GetCanvas()->GetView()->Update( item );
-            lastBrightenedItemIDs.push_back( item->m_Uuid );
 
             // Focus on the object's location.  Prefer a visible part of the object to its anchor
             // in order to keep from scrolling around.
@@ -358,8 +326,7 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
                 }
                 catch( const std::exception& e )
                 {
-                    wxFAIL_MSG( wxString::Format( wxT( "Clipper exception occurred: %s" ),
-                                                  e.what() ) );
+                    wxFAIL_MSG( wxString::Format( wxT( "Clipper exception occurred: %s" ), e.what() ) );
                 }
 
                 break;
@@ -367,7 +334,7 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
             case PCB_PAD_T:
             case PCB_MARKER_T:
             case PCB_VIA_T:
-                FocusOnLocation( item->GetFocusPosition() );
+                FocusOnLocation( item->GetFocusPosition(), aAllowScroll );
                 GetCanvas()->Refresh();
                 return;
 
@@ -375,6 +342,7 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
             case PCB_FIELD_T:
             case PCB_TEXT_T:
             case PCB_TEXTBOX_T:
+            case PCB_BARCODE_T:
             case PCB_TRACE_T:
             case PCB_ARC_T:
             case PCB_DIM_ALIGNED_T:
@@ -382,27 +350,25 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
             case PCB_DIM_CENTER_T:
             case PCB_DIM_RADIAL_T:
             case PCB_DIM_ORTHOGONAL_T:
-                item->TransformShapeToPolygon( itemPoly, aLayer, 0, pcbIUScale.mmToIU( 0.1 ),
-                                               ERROR_INSIDE );
+                item->TransformShapeToPolygon( itemPoly, aLayer, 0, pcbIUScale.mmToIU( 0.1 ), ERROR_INSIDE );
                 break;
 
             case PCB_ZONE_T:
             {
                 ZONE* zone = static_cast<ZONE*>( item );
-                #if 0
+#if 0
                 // Using the filled area shapes to find a Focus point can give good results, but
                 // unfortunately the calculations are highly time consuming, even for not very
                 // large areas (can be easily a few minutes for large areas).
                 // so we used only the zone outline that usually do not have too many vertices.
-                zone->TransformShapeToPolygon( itemPoly, aLayer, 0, pcbIUScale.mmToIU( 0.1 ),
-                                               ERROR_INSIDE );
+                zone->TransformShapeToPolygon( itemPoly, aLayer, 0, pcbIUScale.mmToIU( 0.1 ), ERROR_INSIDE );
 
                 if( itemPoly.IsEmpty() )
                     itemPoly = *zone->Outline();
-                #else
+#else
                 // much faster calculation time when using only the zone outlines
                 itemPoly = *zone->Outline();
-                #endif
+#endif
 
                 break;
             }
@@ -422,6 +388,8 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
 
             try
             {
+                itemPoly.ClearArcs();
+                viewportPoly.ClearArcs();
                 clippedPoly.BooleanIntersection( itemPoly, viewportPoly );
             }
             catch( const std::exception& e )
@@ -455,7 +423,7 @@ void PCB_BASE_FRAME::FocusOnItems( std::vector<BOARD_ITEM*> aItems, PCB_LAYER_ID
         }
     }
 
-    FocusOnLocation( focusPt );
+    FocusOnLocation( focusPt, aAllowScroll );
 
     GetCanvas()->Refresh();
 }
@@ -659,6 +627,24 @@ void PCB_BASE_FRAME::doReCreateMenuBar()
 }
 
 
+PCB_SCREEN* PCB_BASE_FRAME::GetScreen() const
+{
+    return static_cast<PCB_SCREEN*>( EDA_DRAW_FRAME::GetScreen() );
+}
+
+
+void PCB_BASE_FRAME::SetActiveLayer( PCB_LAYER_ID aLayer )
+{
+    GetScreen()->m_Active_Layer = aLayer;
+}
+
+
+PCB_LAYER_ID PCB_BASE_FRAME::GetActiveLayer() const
+{
+    return GetScreen()->m_Active_Layer;
+}
+
+
 void PCB_BASE_FRAME::ShowChangedLanguage()
 {
     // call my base class
@@ -828,9 +814,6 @@ void PCB_BASE_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
 {
     EDA_DRAW_FRAME::LoadSettings( aCfg );
 
-    if( aCfg->m_Window.grid.grids.empty() )
-        aCfg->m_Window.grid.grids = aCfg->DefaultGridSizeList();
-
     // Move legacy user grids to grid list
     if( !aCfg->m_Window.grid.user_grid_x.empty() )
     {
@@ -838,16 +821,6 @@ void PCB_BASE_FRAME::LoadSettings( APP_SETTINGS_BASE* aCfg )
                                                       aCfg->m_Window.grid.user_grid_y } );
         aCfg->m_Window.grid.user_grid_x = wxEmptyString;
         aCfg->m_Window.grid.user_grid_y = wxEmptyString;
-    }
-
-    // Currently values read from config file are not used because the user cannot
-    // change this config
-    // if( aCfg->m_Window.zoom_factors.empty() )
-    {
-        if( ADVANCED_CFG::GetCfg().m_HyperZoom )
-            aCfg->m_Window.zoom_factors = { ZOOM_LIST_PCBNEW_HYPER };
-        else
-            aCfg->m_Window.zoom_factors = { ZOOM_LIST_PCBNEW };
     }
 
     // Some, but not all, derived classes have a PCBNEW_SETTINGS.
@@ -911,6 +884,8 @@ PCB_VIEWERS_SETTINGS_BASE* PCB_BASE_FRAME::GetViewerSettingsBase() const
     {
     case FRAME_PCB_EDITOR:
     case FRAME_PCB_DISPLAY3D:
+    case FRAME_FOOTPRINT_CHOOSER:
+    case FRAME_FOOTPRINT_VIEWER:
     default:
         return Pgm().GetSettingsManager().GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
 
@@ -918,8 +893,6 @@ PCB_VIEWERS_SETTINGS_BASE* PCB_BASE_FRAME::GetViewerSettingsBase() const
     case FRAME_FOOTPRINT_WIZARD:
         return Pgm().GetSettingsManager().GetAppSettings<FOOTPRINT_EDITOR_SETTINGS>( "fpedit" );
 
-    case FRAME_FOOTPRINT_VIEWER:
-    case FRAME_FOOTPRINT_CHOOSER:
     case FRAME_FOOTPRINT_PREVIEW:
     case FRAME_CVPCB:
     case FRAME_CVPCB_DISPLAY:
@@ -930,7 +903,12 @@ PCB_VIEWERS_SETTINGS_BASE* PCB_BASE_FRAME::GetViewerSettingsBase() const
 
 MAGNETIC_SETTINGS* PCB_BASE_FRAME::GetMagneticItemsSettings()
 {
-    return &GetPcbNewSettings()->m_MagneticItems;
+    static MAGNETIC_SETTINGS fallback;
+
+    if( PCBNEW_SETTINGS* cfg = GetPcbNewSettings() )
+        return &cfg->m_MagneticItems;
+
+    return &fallback;
 }
 
 
@@ -1051,7 +1029,12 @@ void PCB_BASE_FRAME::ActivateGalCanvas()
     {
         if( !m_spaceMouse )
         {
+#if defined(__linux__) || defined(__FreeBSD__)
+            m_spaceMouse = std::make_unique<SPNAV_2D_PLUGIN>( GetCanvas() );
+            m_spaceMouse->SetScale( 0.01 );
+#else
             m_spaceMouse = std::make_unique<NL_PCBNEW_PLUGIN>( GetCanvas() );
+#endif
         }
     }
     catch( const std::system_error& e )
@@ -1072,6 +1055,9 @@ void PCB_BASE_FRAME::SetDisplayOptions( const PCB_DISPLAY_OPTIONS& aOptions, boo
     KIGFX::PCB_VIEW*    view   = static_cast<KIGFX::PCB_VIEW*>( canvas->GetView() );
 
     view->UpdateDisplayOptions( aOptions );
+    view->SetMirror( aOptions.m_FlipBoardView, view->IsMirroredY() );
+    view->RecacheAllItems();
+
     canvas->SetHighContrastLayer( GetActiveLayer() );
     OnDisplayOptionsChanged();
 
@@ -1117,41 +1103,41 @@ void PCB_BASE_FRAME::SetDisplayOptions( const PCB_DISPLAY_OPTIONS& aOptions, boo
 
 void PCB_BASE_FRAME::setFPWatcher( FOOTPRINT* aFootprint )
 {
-    wxLogTrace( "KICAD_LIB_WATCH", "setFPWatcher" );
+    wxLogTrace( traceLibWatch, "setFPWatcher" );
 
     Unbind( wxEVT_FSWATCHER, &PCB_BASE_FRAME::OnFPChange, this );
 
     if( m_watcher )
     {
-        wxLogTrace( "KICAD_LIB_WATCH", "Remove watch" );
+    wxLogTrace( traceLibWatch, "Remove watch" );
         m_watcher->RemoveAll();
         m_watcher->SetOwner( nullptr );
         m_watcher.reset();
     }
 
     wxString libfullname;
-    FP_LIB_TABLE* tbl = PROJECT_PCB::PcbFootprintLibs( &Prj() );
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
 
-    if( !aFootprint || !tbl )
+    if( !aFootprint || !adapter )
         return;
 
     try
     {
-        const FP_LIB_TABLE_ROW* row = tbl->FindRow( aFootprint->GetFPID().GetLibNickname() );
+        std::optional<LIBRARY_TABLE_ROW*> row = adapter->GetRow( aFootprint->GetFPID().GetLibNickname() );
 
         if( !row )
             return;
 
-        libfullname = row->GetFullURI( true );
+        libfullname = LIBRARY_MANAGER::GetFullURI( *row, true );
+    }
+    catch( const IO_ERROR& error )
+    {
+        wxLogTrace( traceLibWatch, "Error: %s", error.What() );
+        return;
     }
     catch( const std::exception& e )
     {
         DisplayInfoMessage( this, e.what() );
-        return;
-    }
-    catch( const IO_ERROR& error )
-    {
-        wxLogTrace( "KICAD_LIB_WATCH", "Error: %s", error.What() );
         return;
     }
 
@@ -1171,7 +1157,7 @@ void PCB_BASE_FRAME::setFPWatcher( FOOTPRINT* aFootprint )
     fn.AssignDir( m_watcherFileName.GetPath() );
     fn.DontFollowLink();
 
-    wxLogTrace( "KICAD_LIB_WATCH", "Add watch: %s", fn.GetPath() );
+    wxLogTrace( traceLibWatch, "Add watch: %s", fn.GetPath() );
 
     {
         // Silence OS errors that come from the watcher
@@ -1189,7 +1175,7 @@ void PCB_BASE_FRAME::OnFPChange( wxFileSystemWatcherEvent& aEvent )
     // Start the debounce timer (set to 1 second)
     if( !m_watcherDebounceTimer.StartOnce( 1000 ) )
     {
-        wxLogTrace( "KICAD_LIB_WATCH", "Failed to start the debounce timer" );
+    wxLogTrace( traceLibWatch, "Failed to start the debounce timer" );
         return;
     }
 }
@@ -1197,7 +1183,19 @@ void PCB_BASE_FRAME::OnFPChange( wxFileSystemWatcherEvent& aEvent )
 
 void PCB_BASE_FRAME::OnFpChangeDebounceTimer( wxTimerEvent& aEvent )
 {
-    wxLogTrace( "KICAD_LIB_WATCH", "OnFpChangeDebounceTimer" );
+    if( aEvent.GetId() != m_watcherDebounceTimer.GetId() )
+    {
+        aEvent.Skip();
+        return;
+    }
+
+    if( m_inFpChangeTimerEvent )
+    {
+    wxLogTrace( traceLibWatch, "Restarting debounce timer" );
+        m_watcherDebounceTimer.StartOnce( 3000 );
+    }
+
+    wxLogTrace( traceLibWatch, "OnFpChangeDebounceTimer" );
 
     // Disable logging to avoid spurious messages and check if the file has changed
     wxLog::EnableLogging( false );
@@ -1210,14 +1208,16 @@ void PCB_BASE_FRAME::OnFpChangeDebounceTimer( wxTimerEvent& aEvent )
     m_watcherLastModified = lastModified;
 
     FOOTPRINT* fp = GetBoard()->GetFirstFootprint();
-    FP_LIB_TABLE* tbl = PROJECT_PCB::PcbFootprintLibs( &Prj() );
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
 
     // When loading a footprint from a library in the footprint editor
     // the items UUIDs must be keep and not reinitialized
     bool keepUUID = IsType( FRAME_FOOTPRINT_EDITOR );
 
-    if( !fp || !tbl )
+    if( !fp || !adapter )
         return;
+
+    m_inFpChangeTimerEvent = true;
 
     if( !GetScreen()->IsContentModified()
         || IsOK( this, _( "The library containing the current footprint has changed.\n"
@@ -1228,17 +1228,14 @@ void PCB_BASE_FRAME::OnFpChangeDebounceTimer( wxTimerEvent& aEvent )
 
         try
         {
-            FOOTPRINT* newfp = tbl->FootprintLoad( nickname, fpname, keepUUID );
+            FOOTPRINT* newfp = adapter->LoadFootprint( nickname, fpname, keepUUID );
 
             if( newfp )
             {
                 std::vector<KIID> selectedItems;
 
                 for( const EDA_ITEM* item : GetCurrentSelection() )
-                {
-                    wxString uuidStr = item->m_Uuid.AsString();
                     selectedItems.emplace_back( item->m_Uuid );
-                }
 
                 m_toolManager->ResetTools( TOOL_BASE::MODEL_RELOAD );
 
@@ -1253,14 +1250,12 @@ void PCB_BASE_FRAME::OnFpChangeDebounceTimer( wxTimerEvent& aEvent )
 
                 for( const KIID& uuid : selectedItems )
                 {
-                    BOARD_ITEM* item = GetBoard()->GetItem( uuid );
-
-                    if( item != DELETED_BOARD_ITEM::GetInstance() )
+                    if( BOARD_ITEM* item = GetBoard()->ResolveItem( uuid, true ) )
                         sel.push_back( item );
                 }
 
                 if( !sel.empty() )
-                    m_toolManager->RunAction( PCB_ACTIONS::selectItems, &sel );
+                    m_toolManager->RunAction( ACTIONS::selectItems, &sel );
             }
         }
         catch( const IO_ERROR& ioe )
@@ -1268,4 +1263,6 @@ void PCB_BASE_FRAME::OnFpChangeDebounceTimer( wxTimerEvent& aEvent )
             DisplayError( this, ioe.What() );
         }
     }
+
+    m_inFpChangeTimerEvent = false;
 }

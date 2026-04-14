@@ -28,6 +28,7 @@ set( QA_KIMATH_SRCS
     test_kimath.cpp
 
     geometry/geom_test_utils.cpp
+    geometry/test_arc_chord_params.cpp
     geometry/test_chamfer.cpp
     geometry/test_circle.cpp
     geometry/test_distribute.cpp
@@ -37,17 +38,21 @@ set( QA_KIMATH_SRCS
     geometry/test_fillet.cpp
     geometry/test_half_line.cpp
     geometry/test_oval.cpp
+    geometry/test_poly_triangulation.cpp
     geometry/test_segment.cpp
     geometry/test_shape_compound_collision.cpp
     geometry/test_shape_arc.cpp
+    geometry/test_shape_nearest_points.cpp
     geometry/test_shape_poly_set.cpp
     geometry/test_shape_poly_set_arcs.cpp
     geometry/test_shape_poly_set_collision.cpp
     geometry/test_shape_poly_set_distance.cpp
     geometry/test_shape_poly_set_iterator.cpp
+    geometry/test_shape_poly_set_split_outlines.cpp
     geometry/test_shape_line_chain.cpp
     geometry/test_shape_line_chain_collision.cpp
     geometry/test_vector_utils.cpp
+    geometry/test_shape_rect_corner.cpp
 
     math/test_box2.cpp
     math/test_matrix3x3.cpp

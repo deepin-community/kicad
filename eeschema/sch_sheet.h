@@ -34,22 +34,11 @@ class SCH_SHEET_LIST;
 class SCH_SHEET_PIN;
 class SCH_SHEET_PATH;
 class EDA_DRAW_FRAME;
+class SCH_NO_CONNECT;
 
 
 #define MIN_SHEET_WIDTH  500    // Units are mils.
 #define MIN_SHEET_HEIGHT 150    // Units are mils.
-
-
-enum  SHEET_FIELD_TYPE
-{
-    SHEETNAME = 0,
-    SHEETFILENAME,
-
-    /// The first 2 are mandatory, and must be instantiated in SCH_SHEET
-    SHEET_MANDATORY_FIELD_COUNT
-};
-
-#define SHEET_MANDATORY_FIELDS { SHEETNAME, SHEETFILENAME }
 
 
 /**
@@ -93,8 +82,33 @@ public:
      */
     bool IsMovableFromAnchorPoint() const override { return false; }
 
+    /**
+     * Return a reference to the vector holding the sheet's fields
+     */
     std::vector<SCH_FIELD>& GetFields() { return m_fields; }
     const std::vector<SCH_FIELD>& GetFields() const { return m_fields; }
+
+    /**
+     * Return a mandatory field in this sheet.  The const version will return nullptr if the
+     * field does not exist; the non-const version will create it.
+     */
+    SCH_FIELD* GetField( FIELD_T aFieldType );
+    const SCH_FIELD* GetField( FIELD_T aFieldNdx ) const;
+
+    /**
+     * Return a field in this sheet.
+     *
+     * @param aFieldName is the canonical name of the field.
+     *
+     * @return Both non-const and const versions return nullptr if the field is not found.
+     */
+    SCH_FIELD* GetField( const wxString& aFieldName );
+    const SCH_FIELD* GetField( const wxString& aFieldName ) const;
+
+    /**
+     * Return the next ordinal for a user field for this sheet
+     */
+    int GetNextFieldOrdinal() const;
 
     /**
      * Set multiple schematic fields.
@@ -103,12 +117,25 @@ public:
      */
     void SetFields( const std::vector<SCH_FIELD>& aFields );
 
+    /**
+     * Add a @aField to the list of fields.
+     *
+     * @note This has no affect if @aField is the sheet file name or sheet name fields.
+     */
+    SCH_FIELD* AddField( const SCH_FIELD& aField );
+
+    void SetFieldText( const wxString& aFieldName, const wxString& aFieldText, const SCH_SHEET_PATH* aPath = nullptr,
+                       const wxString& aVariantName = wxEmptyString );
+
+    wxString GetFieldText( const wxString& aFieldName, const SCH_SHEET_PATH* aPath = nullptr,
+                           const wxString& aVariantName = wxEmptyString ) const;
+
     wxString GetShownName( bool aAllowExtraText ) const
     {
-        return m_fields[SHEETNAME].GetShownText( aAllowExtraText );
+        return GetField( FIELD_T::SHEET_NAME )->GetShownText( aAllowExtraText );
     }
-    wxString GetName() const { return m_fields[ SHEETNAME ].GetText(); }
-    void SetName( const wxString& aName ) { m_fields[ SHEETNAME ].SetText( aName ); }
+    wxString GetName() const { return GetField( FIELD_T::SHEET_NAME )->GetText(); }
+    void SetName( const wxString& aName ) { GetField( FIELD_T::SHEET_NAME )->SetText( aName ); }
 
     SCH_SCREEN* GetScreen() const { return m_screen; }
 
@@ -125,9 +152,20 @@ public:
     void SetBackgroundColor( KIGFX::COLOR4D aColor ) { m_backgroundColor = aColor; }
 
     /**
-     * @return true if this sheet is the root sheet.
+     * @return true if this sheet is the virtual root sheet.  This is a sheet with no
+     * data except for instances of the top-level sheets in the schematic.  It is
+     * used to represent the root of a hierarchical sheet structure.
      */
-    bool IsRootSheet() const;
+    bool IsVirtualRootSheet() const;
+
+    /**
+     * Check if this sheet is a top-level sheet. A top-level sheet is a sheet
+     * which is directly under the virtual root sheet.  The top-level sheets are stored
+     * in the project file and are the entry points to the schematic hierarchy.
+     *
+     * @return true if this sheet is a top-level sheet.
+     */
+    bool IsTopLevelSheet() const;
 
     /**
      * Set the #SCH_SCREEN associated with this sheet to \a aScreen.
@@ -167,6 +205,12 @@ public:
      * format, we detect orientation based on pin edges
      */
     bool IsVerticalOrientation() const;
+
+    /**
+     * @return a map containing any of the sheet's pins that have no-connects on them and the
+     * associated no-connect items.
+     */
+    std::map<SCH_SHEET_PIN*, SCH_NO_CONNECT*> GetNoConnects() const;
 
     void SetPositionIgnoringPins( const VECTOR2I& aPosition );
 
@@ -267,7 +311,7 @@ public:
      */
     VECTOR2I GetRotationCenter() const;
 
-    void SwapData( SCH_ITEM* aItem ) override;
+    void swapData( SCH_ITEM* aItem ) override;
 
     /**
      * Count our own symbols, without the power symbols.
@@ -303,13 +347,30 @@ public:
     int CountSheets() const;
 
     /**
+     * Count the number of sheets found in "this" sheet including all of the subsheets.
+     *
+     * @return the full count of active sheets+subsheets contained by "this"
+     * An active sheet is a "physical" sheet actually used in schematic, and not a virtual sheet only
+     * used to handle a set of sheets in a hierarchy and having no UUID
+     */
+    int CountActiveSheets() const;
+
+    /**
+     * Count the number of sheets that refer to a specific file
+     * including all of the subsheets.
+     * @param aFileName The filename to search for.
+     * @return the full count of sheets+subsheets that refer to aFileName
+     */
+    int CountSheets( const wxString& aFileName ) const;
+
+    /**
      * Return the filename corresponding to this sheet.
      *
      * @return a wxString containing the filename
      */
     wxString GetFileName() const
     {
-        return m_fields[ SHEETFILENAME ].GetText();
+        return GetField( FIELD_T::SHEET_FILENAME )->GetText();
     }
 
     // Set a new filename without changing anything else
@@ -318,7 +379,7 @@ public:
         // Filenames are stored using unix notation
         wxString tmp = aFilename;
         tmp.Replace( wxT( "\\" ), wxT( "/" ) );
-        m_fields[ SHEETFILENAME ].SetText( tmp );
+        GetField( FIELD_T::SHEET_FILENAME )->SetText( tmp );
     }
 
     // Geometric transforms (used in block operations):
@@ -365,31 +426,57 @@ public:
     INSPECT_RESULT Visit( INSPECTOR inspector, void* testData,
                           const std::vector<KICAD_T>& aScanTypes ) override;
 
-    void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction ) override;
+    void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction, RECURSE_MODE aMode ) override;
 
     /**
      * Set or clear the exclude from simulation flag.
      */
-    void SetExcludedFromSim( bool aExcludeFromSim ) override { m_excludedFromSim = aExcludeFromSim; }
-    bool GetExcludedFromSim() const override { return m_excludedFromSim; }
+    void SetExcludedFromSim( bool aExcludeFromSim, const SCH_SHEET_PATH* aInstance = nullptr,
+                             const wxString& aVariantName = wxEmptyString ) override;
+    bool GetExcludedFromSim( const SCH_SHEET_PATH* aInstance = nullptr,
+                             const wxString& aVariantName = wxEmptyString ) const override;
+
+    bool GetExcludedFromSimProp() const;
+    void SetExcludedFromSimProp( bool aEnable );
 
     /**
      * Set or clear the exclude from schematic bill of materials flag.
      */
-    void SetExcludedFromBOM( bool aExcludeFromBOM ) { m_excludedFromBOM = aExcludeFromBOM; }
-    bool GetExcludedFromBOM() const { return m_excludedFromBOM; }
+    void SetExcludedFromBOM( bool aExcludeFromBOM, const SCH_SHEET_PATH* aInstance = nullptr,
+                             const wxString& aVariantName = wxEmptyString ) override;
+    bool GetExcludedFromBOM( const SCH_SHEET_PATH* aInstance = nullptr,
+                             const wxString& aVariantName = wxEmptyString ) const override;
+
+    bool GetExcludedFromBOMProp() const;
+    void SetExcludedFromBOMProp( bool aEnable );
 
     /**
      * Set or clear exclude from board netlist flag.
      */
-    void SetExcludedFromBoard( bool aExcludeFromBoard ) { m_excludedFromBoard = aExcludeFromBoard; }
-    bool GetExcludedFromBoard() const { return m_excludedFromBoard; }
+    void SetExcludedFromBoard( bool aExclude, const SCH_SHEET_PATH* aInstance = nullptr,
+                               const wxString& aVariantName = wxEmptyString ) override
+    {
+        m_excludedFromBoard = aExclude;
+    }
+
+    bool GetExcludedFromBoard( const SCH_SHEET_PATH* aInstance = nullptr,
+                               const wxString& aVariantName = wxEmptyString ) const override
+    {
+        return m_excludedFromBoard;
+    }
+
+    bool GetExcludedFromBoardProp() const { return GetExcludedFromBoard(); }
+    void SetExcludedFromBoardProp( bool aExclude ) { SetExcludedFromBoard( aExclude ); }
 
     /**
      * Set or clear the 'Do Not Populate' flags
      */
-    bool GetDNP() const { return m_DNP; }
-    void SetDNP( bool aDNP ) { m_DNP = aDNP; }
+    bool GetDNP( const SCH_SHEET_PATH* aInstance = nullptr,
+                 const wxString& aVariantName = wxEmptyString ) const override;
+    void SetDNP( bool aDNP, const SCH_SHEET_PATH* aInstance = nullptr,
+                 const wxString& aVariantName = wxEmptyString ) override;
+    bool GetDNPProp() const;
+    void SetDNPProp( bool aEnable );
 
     wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
@@ -406,12 +493,7 @@ public:
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
-
-    void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed ) override;
-
-    void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                          const VECTOR2I& aOffset, bool aDimmed ) override {}
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     void Plot( PLOTTER* aPlotter, bool aBackground, const SCH_PLOT_OPTS& aPlotOpts,
                int aUnit, int aBodyStyle, const VECTOR2I& aOffset, bool aDimmed ) override;
@@ -448,6 +530,31 @@ public:
 
     void AddInstance( const SCH_SHEET_INSTANCE& aInstance );
 
+    void DeleteVariant( const KIID_PATH& aPath, const wxString& aVariantName );
+
+    void RenameVariant( const KIID_PATH& aPath, const wxString& aOldName, const wxString& aNewName );
+
+    void CopyVariant( const KIID_PATH& aPath, const wxString& aSourceVariant,
+                      const wxString& aNewVariant );
+
+    void AddVariant( const SCH_SHEET_PATH& aInstance, const SCH_SHEET_VARIANT& aVariant );
+    void DeleteVariant( const SCH_SHEET_PATH& aInstance, const wxString& aVariantName )
+    {
+        DeleteVariant( aInstance.Path(), aVariantName );
+    }
+
+    void RenameVariant( const SCH_SHEET_PATH& aInstance, const wxString& aOldName,
+                        const wxString& aNewName )
+    {
+        RenameVariant( aInstance.Path(), aOldName, aNewName );
+    }
+
+    void CopyVariant( const SCH_SHEET_PATH& aInstance, const wxString& aSourceVariant,
+                      const wxString& aNewVariant )
+    {
+        CopyVariant( aInstance.Path(), aSourceVariant, aNewVariant );
+    }
+
     /**
      * Check if the instance data of this sheet has any changes compared to \a aOther.
      *
@@ -470,8 +577,6 @@ public:
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override;
 #endif
-
-    static const wxString GetDefaultFieldName( int aFieldNdx, bool aTranslated );
 
 protected:
     friend SCH_SHEET_PATH;
@@ -498,14 +603,15 @@ protected:
     bool addInstance( const KIID_PATH& aInstance );
 
     /**
-     * Return the sheet page number for \a aInstance.
+     * Return the sheet page number for \a aParentPath.
      *
      * @warning The #KIID_PATH object must be a full hierarchical path which means the sheet
      *          at index 0 must be the root sheet.
+     * @param aParentPath is the hierarchical path of the sheet that contains an instance of this SCH_SHEET
      *
      * @return the page number for the requested sheet instance.
      */
-    wxString getPageNumber( const KIID_PATH& aInstance ) const;
+    wxString getPageNumber( const KIID_PATH& aParentPath ) const;
 
     /**
      * Set the page number for the sheet instance \a aInstance.
@@ -520,6 +626,12 @@ protected:
 
     bool getInstance( SCH_SHEET_INSTANCE& aInstance, const KIID_PATH& aSheetPath,
                       bool aTestFromEnd = false ) const;
+
+    SCH_SHEET_INSTANCE* getInstance( const KIID_PATH& aPath );
+    const SCH_SHEET_INSTANCE* getInstance( const KIID_PATH& aPath ) const;
+
+    SCH_SHEET_INSTANCE* getInstance( const SCH_SHEET_PATH& aPath ) { return getInstance( aPath.Path() ); }
+    const SCH_SHEET_INSTANCE* getInstance( const SCH_SHEET_PATH& aPath ) const { return getInstance( aPath.Path() ); }
 
     /**
      * Renumber the sheet pins in the sheet.

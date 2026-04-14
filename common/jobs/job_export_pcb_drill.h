@@ -23,7 +23,6 @@
 
 #include <kicommon.h>
 #include <layer_ids.h>
-#include <wx/string.h>
 #include "job.h"
 
 class KICOMMON_API JOB_EXPORT_PCB_DRILL : public JOB
@@ -85,6 +84,11 @@ public:
     MAP_FORMAT   m_mapFormat;
     int          m_gerberPrecision;
     bool         m_generateMap;
+
+    bool         m_generateTenting;
+
+    bool         m_generateReport;
+    wxString     m_reportPath;
 };
 
 #endif

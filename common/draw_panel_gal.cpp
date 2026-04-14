@@ -84,9 +84,14 @@ EDA_DRAW_PANEL_GAL::EDA_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWin
         m_options( aOptions ),
         m_eventDispatcher( nullptr ),
         m_lostFocus( false ),
+        m_glRecoveryAttempted( false ),
         m_stealsFocus( true ),
         m_statusPopup( nullptr )
 {
+#ifdef _WIN32
+    // need to fix broken cairo rendering on Windows with wx 3.3
+    SetDoubleBuffered( false );
+#endif
     m_PaintEventCounter = std::make_unique<PROF_COUNTER>( "Draw panel paint events" );
 
     if( Pgm().GetCommonSettings()->m_Appearance.show_scrollbars )
@@ -166,6 +171,8 @@ EDA_DRAW_PANEL_GAL::EDA_DRAW_PANEL_GAL( wxWindow* aParentWindow, wxWindowID aWin
 
 EDA_DRAW_PANEL_GAL::~EDA_DRAW_PANEL_GAL()
 {
+    // Ensure EDA_DRAW_PANEL_GAL::onShowEvent is not fired during Dtor process
+    Disconnect( wxEVT_SHOW, wxShowEventHandler( EDA_DRAW_PANEL_GAL::onShowEvent ) );
     StopDrawing();
 
     wxASSERT( !m_drawing );
@@ -173,6 +180,7 @@ EDA_DRAW_PANEL_GAL::~EDA_DRAW_PANEL_GAL()
     delete m_viewControls;
     delete m_view;
     delete m_gal;
+    m_gal = nullptr;    // Ensure OnShow is not called
 }
 
 
@@ -186,11 +194,11 @@ void EDA_DRAW_PANEL_GAL::SetFocus()
 
 void EDA_DRAW_PANEL_GAL::onPaint( wxPaintEvent& WXUNUSED( aEvent ) )
 {
-    DoRePaint();
+    DoRePaint( false );
 }
 
 
-bool EDA_DRAW_PANEL_GAL::DoRePaint()
+bool EDA_DRAW_PANEL_GAL::DoRePaint( bool aAllowSkip )
 {
     if( !m_refreshMutex.try_lock() )
         return false;
@@ -241,20 +249,57 @@ bool EDA_DRAW_PANEL_GAL::DoRePaint()
 
     try
     {
-        cntUpd.Start();
+        VECTOR2D cursorPos = m_viewControls->GetCursorPosition();
+        bool viewDirty = m_view->IsDirty();
+        bool cursorMoved = ( cursorPos != m_lastCursorPosition );
+        bool hasPendingItemUpdates = m_view->HasPendingItemUpdates();
 
-        try
+        // Skip all update work when nothing has changed since the previous frame.
+        // Never skip when responding to a native paint event or explicit ForceRefresh
+        // because the window content may have been invalidated by the OS.
+        if( aAllowSkip && !viewDirty && !cursorMoved && !hasPendingItemUpdates )
         {
-            m_view->UpdateItems();
-        }
-        catch( std::out_of_range& err )
-        {
-            // Don't do anything here but don't fail
-            // This can happen when we don't catch `at()` calls
-            wxLogTrace( traceDrawPanel, wxS( "Out of Range error: %s" ), err.what() );
+            m_lastRepaintEnd = wxGetLocalTimeMillis();
+            return true;
         }
 
-        cntUpd.Stop();
+        if( hasPendingItemUpdates )
+        {
+            cntUpd.Start();
+
+            try
+            {
+                m_view->UpdateItems();
+            }
+            catch( std::out_of_range& err )
+            {
+                // Don't do anything here but don't fail
+                // This can happen when we don't catch `at()` calls
+                wxLogTrace( traceDrawPanel, wxS( "Out of Range error: %s" ), err.what() );
+            }
+            catch( std::runtime_error& err )
+            {
+                // Handle GL errors (e.g. glMapBuffer failure) that surface during UpdateItems().
+                // These can occur on macOS under memory pressure when embedding large 3D models.
+                // Log and continue so the outer handler can decide whether to switch backends.
+                wxLogTrace( traceDrawPanel, wxS( "Runtime error during UpdateItems: %s" ),
+                            err.what() );
+                throw;
+            }
+
+            cntUpd.Stop();
+            viewDirty = m_view->IsDirty();
+        }
+
+        // After processing item updates, skip the GL cycle when neither the
+        // view targets nor the cursor position have changed.
+        if( aAllowSkip && !viewDirty && !cursorMoved )
+        {
+            m_lastRepaintEnd = wxGetLocalTimeMillis();
+            return true;
+        }
+
+        m_lastCursorPosition = cursorPos;
 
         // GAL_DRAWING_CONTEXT can throw in the dtor, so we need to scope
         // the full lifetime inside the try block
@@ -273,9 +318,9 @@ bool EDA_DRAW_PANEL_GAL::DoRePaint()
             m_gal->SetGridColor( settings->GetGridColor() );
             m_gal->SetCursorColor( settings->GetCursorColor() );
 
-            // TODO: find why ClearScreen() must be called here in opengl mode
-            // and only if m_view->IsDirty() in Cairo mode to avoid display artifacts
-            // when moving the mouse cursor
+            // OpenGL double-buffering leaves the back buffer undefined after
+            // SwapBuffers, so a full clear is always required before compositing.
+            // Cairo only needs to clear when NONCACHED content changed.
             if( m_backend == GAL_TYPE_OPENGL )
                 m_gal->ClearScreen();
 
@@ -299,18 +344,37 @@ bool EDA_DRAW_PANEL_GAL::DoRePaint()
                 isDirty = true;
             }
 
-            m_gal->DrawCursor( m_viewControls->GetCursorPosition() );
+            m_gal->DrawCursor( cursorPos );
 
             cntCtxDestroy.Start();
         }
 
         // ctx goes out of scope here so destructor would be called
         cntCtxDestroy.Stop();
+
+        // OpenGL frame completed successfully, allow future recovery attempts
+        m_glRecoveryAttempted = false;
     }
     catch( std::exception& err )
     {
         if( GAL_FALLBACK != m_backend )
         {
+            // Sleep/wake and GPU resets can invalidate the entire GL context. Try a
+            // full OpenGL reinit once before falling back to software rendering.
+            if( !m_glRecoveryAttempted )
+            {
+                m_glRecoveryAttempted = true;
+                GAL_TYPE prevBackend = m_backend;
+                m_backend = GAL_TYPE_NONE;
+
+                if( SwitchBackend( prevBackend ) )
+                {
+                    StartDrawing();
+                    return true;
+                }
+            }
+
+            m_glRecoveryAttempted = false;
             SwitchBackend( GAL_FALLBACK );
 
             DisplayInfoMessage( m_parent,
@@ -391,8 +455,27 @@ void EDA_DRAW_PANEL_GAL::RequestRefresh()
 
 void EDA_DRAW_PANEL_GAL::Refresh( bool aEraseBackground, const wxRect* aRect )
 {
-    if( !DoRePaint() )
-        RequestRefresh();
+    wxLongLong now = wxGetLocalTimeMillis();
+    wxLongLong delta = now - m_lastRepaintEnd;
+    bool galInitialized = m_gal && m_gal->IsInitialized();
+
+    // When vsync is available the driver throttles SwapBuffers, so we only need
+    // a small guard to avoid queueing work faster than the GPU can consume it.
+    // Without vsync, enforce a 60 FPS ceiling to prevent saturating the GPU.
+    int minPeriodMs = 3;
+
+    if( galInitialized && m_gal->GetSwapInterval() == 0 )
+        minPeriodMs = 16;
+
+    if( delta >= minPeriodMs )
+    {
+        if( !DoRePaint() )
+            RequestRefresh();
+    }
+    else if( !m_refreshTimer.IsRunning() )
+    {
+        m_refreshTimer.StartOnce( ( minPeriodMs - delta ).GetValue() );
+    }
 }
 
 
@@ -417,7 +500,7 @@ void EDA_DRAW_PANEL_GAL::ForceRefresh()
         }
     }
 
-    DoRePaint();
+    DoRePaint( false );
 }
 
 
@@ -438,8 +521,6 @@ void EDA_DRAW_PANEL_GAL::StopDrawing()
 {
     m_refreshTimer.Stop();
     m_drawingEnabled = false;
-
-    Disconnect( wxEVT_SHOW, wxShowEventHandler( EDA_DRAW_PANEL_GAL::onShowEvent ), nullptr, this );
 
     Disconnect( wxEVT_PAINT, wxPaintEventHandler( EDA_DRAW_PANEL_GAL::onPaint ), nullptr, this );
 
@@ -592,16 +673,7 @@ void EDA_DRAW_PANEL_GAL::OnEvent( wxEvent& aEvent )
     else
         m_eventDispatcher->DispatchWxEvent( aEvent );
 
-    // Give events time to process, based on last render duration
-    wxLongLong endDelta = wxGetLocalTimeMillis() - m_lastRepaintEnd;
-    long long  timeLimit = ( m_lastRepaintEnd - m_lastRepaintStart ).GetValue() / 5;
-
-    timeLimit = std::clamp( timeLimit, 3LL, 150LL );
-
-    if( endDelta > timeLimit )
-        Refresh();
-    else
-        RequestRefresh();
+    Refresh();
 }
 
 
@@ -625,6 +697,12 @@ void EDA_DRAW_PANEL_GAL::onLostFocus( wxFocusEvent& aEvent )
     m_lostFocus = true;
 
     m_viewControls->CancelDrag();
+
+    // Reset the tool dispatcher's button state when focus is lost. This prevents
+    // the dispatcher from thinking the button is still pressed when focus returns,
+    // which can cause selection and drag operations to stop working.
+    if( m_eventDispatcher )
+        m_eventDispatcher->ResetState();
 
     aEvent.Skip();
 }
@@ -715,6 +793,7 @@ KIGFX::VC_SETTINGS EDA_DRAW_PANEL_GAL::GetVcSettings()
     vcSettings.m_scrollModifierZoom = cfg->m_Input.scroll_modifier_zoom;
     vcSettings.m_scrollModifierPanH = cfg->m_Input.scroll_modifier_pan_h;
     vcSettings.m_scrollModifierPanV = cfg->m_Input.scroll_modifier_pan_v;
+    vcSettings.m_motionPanModifier = cfg->m_Input.motion_pan_modifier;
     vcSettings.m_dragLeft = cfg->m_Input.drag_left;
     vcSettings.m_dragMiddle = cfg->m_Input.drag_middle;
     vcSettings.m_dragRight = cfg->m_Input.drag_right;

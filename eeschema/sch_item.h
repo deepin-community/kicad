@@ -22,8 +22,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef SCH_ITEM_H
-#define SCH_ITEM_H
+#pragma once
 
 #include <unordered_map>
 #include <unordered_set>
@@ -31,6 +30,7 @@
 #include <set>
 
 #include <eda_item.h>
+#include <properties/property.h>
 #include <sch_sheet_path.h>
 #include <netclass.h>
 #include <stroke_params.h>
@@ -42,6 +42,7 @@ class CONNECTION_GRAPH;
 class SCH_CONNECTION;
 class SCH_SHEET_PATH;
 class SCHEMATIC;
+class SCH_COMMIT;
 class SYMBOL;
 class LINE_READER;
 class SCH_EDIT_FRAME;
@@ -202,14 +203,19 @@ public:
         return false;
     }
 
+    bool IsGroupableType() const;
+
     /**
-     * Swap the internal data structures \a aItem with the schematic item.
+     * Swap data between \a aItem and \a aImage.
      *
-     * Obviously, aItem must have the same type than me.
+     * \a aItem and \a aImage should have the same type.
      *
-     * @param aItem The item to swap the data structures with.
+     * Used in undo and redo commands to swap values between an item and its copy.
+     * Only values like layer, size .. which are modified by editing are swapped.
+     *
+     * @param aImage the item image which contains data to swap.
      */
-    virtual void SwapData( SCH_ITEM* aItem );
+    void SwapItemData( SCH_ITEM* aImage );
 
     /**
      * Swap the non-temp and non-edit flags.
@@ -221,27 +227,68 @@ public:
      *
      * The new object is not put in draw list (not linked).
      *
-     * @param doClone (default = false) indicates unique values (such as timestamp and
-     *                sheet name) should be duplicated.  Use only for undo/redo operations.
+     * @param addToParentGroup Indicates whether or not the new item is added to the group
+     *                         (if any) containing the old item.  If true, aCommit must be
+     *                         provided.
+     * @param aDoClone (default = false) indicates unique values (such as timestamp and
+     *                 sheet name) should be duplicated.  Use only for undo/redo operations.
      */
-    SCH_ITEM* Duplicate( bool doClone = false ) const;
-
-    static wxString GetUnitDescription( int aUnit );
-    static wxString GetBodyStyleDescription( int aBodyStyle );
+    SCH_ITEM* Duplicate( bool addToParentGroup, SCH_COMMIT* aCommit = nullptr, bool doClone = false ) const;
 
     virtual void SetUnit( int aUnit ) { m_unit = aUnit; }
     int GetUnit() const { return m_unit; }
-    void SetUnitProp( int aUnit );
+
+    virtual void SetUnitString( const wxString& aUnit );
+    virtual wxString GetUnitString() const;
+
+    virtual wxString GetUnitDisplayName( int aUnit, bool aLabel ) const;
+    virtual wxString GetBodyStyleDescription( int aBodyStyle, bool aLabel ) const;
 
     virtual void SetBodyStyle( int aBodyStyle ) { m_bodyStyle = aBodyStyle; }
     int  GetBodyStyle() const { return m_bodyStyle; }
-    void SetBodyStyleProp( int aBodyStyle );
+
+    virtual void SetBodyStyleProp( const wxString& aBodyStyle );
+    virtual wxString GetBodyStyleProp() const;
 
     void SetPrivate( bool aPrivate ) { m_private = aPrivate; }
     bool IsPrivate() const { return m_private; }
 
-    virtual void SetExcludedFromSim( bool aExclude ) { }
-    virtual bool GetExcludedFromSim() const { return false; }
+    virtual void SetExcludedFromSim( bool aExclude, const SCH_SHEET_PATH* aInstance = nullptr,
+                                     const wxString& aVariantName = wxEmptyString ) { }
+    virtual bool GetExcludedFromSim( const SCH_SHEET_PATH* aInstance = nullptr,
+                                     const wxString& aVariantName = wxEmptyString ) const { return false; }
+    bool ResolveExcludedFromSim( const SCH_SHEET_PATH* aInstance = nullptr,
+                                 const wxString& aVariantName = wxEmptyString ) const;
+
+    virtual void SetExcludedFromBOM( bool aExcludeFromBOM, const SCH_SHEET_PATH* aInstance = nullptr,
+                                     const wxString& aVariantName = wxEmptyString ) { }
+    virtual bool GetExcludedFromBOM( const SCH_SHEET_PATH* aInstance = nullptr,
+                                     const wxString& aVariantName = wxEmptyString ) const { return false; }
+    bool ResolveExcludedFromBOM( const SCH_SHEET_PATH* aInstance = nullptr,
+                                 const wxString& aVariantName = wxEmptyString ) const;
+
+    virtual void SetExcludedFromBoard( bool aExclude, const SCH_SHEET_PATH* aInstance = nullptr,
+                                        const wxString& aVariantName = wxEmptyString ) { }
+    virtual bool GetExcludedFromBoard( const SCH_SHEET_PATH* aInstance = nullptr,
+                                       const wxString& aVariantName = wxEmptyString ) const { return false; }
+    bool ResolveExcludedFromBoard( const SCH_SHEET_PATH* aInstance = nullptr,
+                                   const wxString& aVariantName = wxEmptyString ) const;
+
+    virtual void SetExcludedFromPosFiles( bool aExclude, const SCH_SHEET_PATH* aInstance = nullptr,
+                                          const wxString& aVariantName = wxEmptyString ) { }
+    virtual bool GetExcludedFromPosFiles( const SCH_SHEET_PATH* aInstance = nullptr,
+                                          const wxString& aVariantName = wxEmptyString ) const { return false; }
+    bool ResolveExcludedFromPosFiles( const SCH_SHEET_PATH* aInstance = nullptr,
+                                      const wxString& aVariantName = wxEmptyString ) const;
+
+    virtual void SetDNP( bool aDNP, const SCH_SHEET_PATH* aInstance = nullptr,
+                         const wxString& aVariantName = wxEmptyString ) { }
+    virtual bool GetDNP( const SCH_SHEET_PATH* aInstance = nullptr,
+                         const wxString& aVariantName = wxEmptyString ) const { return false; }
+    bool ResolveDNP( const SCH_SHEET_PATH* aInstance = nullptr,
+                     const wxString& aVariantName = wxEmptyString ) const;
+
+    wxString ResolveText( const wxString& aText, const SCH_SHEET_PATH* aPath, int aDepth = 0 ) const;
 
     /**
      * Check if object is movable from the anchor point.
@@ -274,15 +321,19 @@ public:
     const SYMBOL* GetParentSymbol() const;
     SYMBOL* GetParentSymbol();
 
-    virtual bool IsLocked() const { return false; }
-    virtual void SetLocked( bool aLocked ) {}
+    /**
+     * Indicates that the item has at least one hypertext action.  This could be a URL assigned to
+     * the item as a whole, or one (or more) urls within the text of the item.
+     */
+    virtual bool HasHypertext() const { return false; }
 
     /**
-     * Allow items to support hypertext actions when hovered/clicked.
+     * Indicates that a hypertext link is currently active.
+     * (Note that the default implementation here only handles the simple case.)
      */
-    virtual bool IsHypertext() const { return false; }
+    virtual bool HasHoveredHypertext() const { return HasHypertext() && IsRollover(); }
 
-    virtual void DoHypertextAction( EDA_DRAW_FRAME* aFrame ) const { }
+    virtual void DoHypertextAction( EDA_DRAW_FRAME* aFrame, const VECTOR2I& aMousePos ) const { }
 
     /**
      * Return the layer this item is on.
@@ -295,6 +346,8 @@ public:
      */
     std::vector<int> ViewGetLayers() const override;
 
+    int GetMaxError() const;
+
     /**
      * @return the size of the "pen" that be used to draw or plot this item
      */
@@ -302,7 +355,7 @@ public:
 
     int GetEffectivePenWidth( const SCH_RENDER_SETTINGS* aSettings ) const;
 
-    const wxString& GetDefaultFont() const;
+    const wxString& GetDefaultFont( const RENDER_SETTINGS* aSettings ) const;
 
     const KIFONT::METRICS& GetFontMetrics() const;
 
@@ -353,8 +406,7 @@ public:
      */
     virtual void MirrorHorizontally( int aCenter )
     {
-        wxCHECK_MSG( false, /*void*/,
-                     wxT( "MirrorHorizontally not implemented in " ) + GetClass() );
+        wxCHECK_MSG( false, /*void*/, wxT( "MirrorHorizontally not implemented in " ) + GetClass() );
     }
 
     /**
@@ -450,6 +502,20 @@ public:
     {
         return false;
     }
+
+    /**
+     * Test if \a aPt is an end point of this schematic object.
+     *
+     * @note The end point test doe **not** imply electrical connectivity.  See IsConnectable().
+     *       In other words all connection points are end points but not all end points are
+     *       connection points such as graphical lines and arcs.  Override this method for all
+     *       objects that have end points.
+     *
+     * @param aPt is the coordinate to test for an end point.
+     * @retval true if \a aPt is an end point.
+     * @retval false if \a aPt is not an end point.
+     */
+    virtual bool IsEndPoint( const VECTOR2I& aPt ) const { return false; }
 
     virtual bool IsDangling() const { return false; }
 
@@ -562,7 +628,7 @@ public:
 
     virtual void AutoplaceFields( SCH_SCREEN* aScreen, AUTOPLACE_ALGO aAlgo ) { }
 
-    virtual void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction ) { }
+    virtual void RunOnChildren( const std::function<void( SCH_ITEM* )>& aFunction, RECURSE_MODE aMode ) { }
 
     virtual void ClearCaches();
 
@@ -579,29 +645,7 @@ public:
 
     virtual void SetStroke( const STROKE_PARAMS& aStroke ) { wxCHECK( false, /* void */ ); }
 
-    /**
-     * Print an item.
-     *
-     * @param aUnit - Which unit to print.
-     * @param aBodyStyle - Which body style to print.
-     * @param aOffset - Relative offset.
-     * @param aForceNoFill - Disable printing of fills.
-     * @param aDimmed - Reduce brightness of item.
-     */
-    virtual void Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                        const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
-    {
-        wxCHECK_MSG( false, /*void*/, wxT( "Print not implemented in " ) + GetClass() );
-    }
-
-    /**
-     * Print just the background fills.
-     */
-    virtual void PrintBackground( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                                  const VECTOR2I& aOffset, bool aDimmed )
-    {
-        wxCHECK_MSG( false, /*void*/, wxT( "PrintBackground not implemented in " ) + GetClass() );
-    }
+    void GetMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList ) override;
 
     /**
      * Plot the item to \a aPlotter.
@@ -630,12 +674,19 @@ public:
     void AddRuleAreaToCache( SCH_RULE_AREA* aRuleArea ) { m_rule_areas_cache.insert( aRuleArea ); }
 
     /**
+     * Remove a specific rule area from the item's cache.
+     */
+    void RemoveRuleAreaFromCache( SCH_RULE_AREA* aRuleArea ) { m_rule_areas_cache.erase( aRuleArea ); }
+
+    /**
      * Get the cache of rule areas enclosing this item.
      */
     const std::unordered_set<SCH_RULE_AREA*>& GetRuleAreaCache() const
     {
         return m_rule_areas_cache;
     }
+
+    const std::vector<wxString>* GetEmbeddedFonts() override;
 
     /**
      * The list of flags used by the #compare function.
@@ -664,6 +715,15 @@ public:
     virtual bool operator<( const SCH_ITEM& aItem ) const;
 
 protected:
+    /**
+     * Swap the internal data structures \a aItem with the schematic item.
+     *
+     * Obviously, aItem must have the same type than me.
+     *
+     * @param aItem The item to swap the data structures with.
+     */
+    virtual void swapData( SCH_ITEM* aItem );
+
     SCH_RENDER_SETTINGS* getRenderSettings( PLOTTER* aPlotter ) const
     {
         return static_cast<SCH_RENDER_SETTINGS*>( aPlotter->RenderSettings() );
@@ -673,8 +733,6 @@ protected:
     {
         bool operator()( const SCH_ITEM* aFirst, const SCH_ITEM* aSecond ) const;
     };
-
-    void getSymbolEditorMsgPanelInfo( EDA_DRAW_FRAME* aFrame, std::vector<MSG_PANEL_ITEM>& aList );
 
     /**
      * Provide the draw object specific comparison called by the == and < operators.
@@ -734,7 +792,7 @@ protected:
     bool                                                   m_connectivity_dirty;
 
     /// Store pointers to rule areas which this item is contained within
-    std::unordered_set<SCH_RULE_AREA*> m_rule_areas_cache;
+    std::unordered_set<SCH_RULE_AREA*>                     m_rule_areas_cache;
 
 private:
     friend class LIB_SYMBOL;
@@ -744,4 +802,3 @@ private:
 DECLARE_ENUM_TO_WXANY( SCH_LAYER_ID );
 #endif
 
-#endif /* SCH_ITEM_H */

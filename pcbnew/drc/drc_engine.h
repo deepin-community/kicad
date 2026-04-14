@@ -21,23 +21,56 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef DRC_ENGINE_H
-#define DRC_ENGINE_H
+#pragma once
 
 #include <memory>
+#include <mutex>
+#include <shared_mutex>
 #include <vector>
 #include <unordered_map>
 
+#include <kiid.h>
+#include <layer_ids.h>
 #include <units_provider.h>
-#include <geometry/shape.h>
 #include <lset.h>
 #include <drc/drc_rule.h>
+
+
+/**
+ * Cache key for own clearance lookups, combining item UUID and layer.
+ */
+struct DRC_OWN_CLEARANCE_CACHE_KEY
+{
+    KIID         m_uuid;
+    PCB_LAYER_ID m_layer;
+
+    bool operator==( const DRC_OWN_CLEARANCE_CACHE_KEY& aOther ) const
+    {
+        return m_uuid == aOther.m_uuid && m_layer == aOther.m_layer;
+    }
+};
+
+
+namespace std
+{
+    template <>
+    struct hash<DRC_OWN_CLEARANCE_CACHE_KEY>
+    {
+        std::size_t operator()( const DRC_OWN_CLEARANCE_CACHE_KEY& aKey ) const
+        {
+            std::size_t seed = 0xa82de1c0;
+            seed ^= std::hash<KIID>{}( aKey.m_uuid ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+            seed ^= std::hash<int>{}( static_cast<int>( aKey.m_layer ) ) + 0x9e3779b9
+                    + ( seed << 6 ) + ( seed >> 2 );
+            return seed;
+        }
+    };
+}
 
 
 class BOARD_COMMIT;
 class BOARD_DESIGN_SETTINGS;
 class DRC_TEST_PROVIDER;
-class DRC_TEST_PROVIDER_CLEARANCE_BASE;
 class DRC_TEST_PROVIDER_CREEPAGE;
 class PCB_EDIT_FRAME;
 class DS_PROXY_VIEW_ITEM;
@@ -59,18 +92,31 @@ namespace KIGFX
 void drcPrintDebugMessage( int level, const wxString& msg, const char *function, int line );
 
 #define drc_dbg(level, fmt, ...) \
-    drcPrintDebugMessage(level, wxString::Format( fmt, __VA_ARGS__ ), __FUNCTION__, __LINE__ );
+    drcPrintDebugMessage( level, wxString::Format( fmt, __VA_ARGS__ ), __FUNCTION__, __LINE__ );
 
 class DRC_RULE_CONDITION;
 class DRC_ITEM;
 class DRC_RULE;
 class DRC_CONSTRAINT;
 
-typedef std::function<void( PCB_MARKER* aMarker )> DRC_CUSTOM_MARKER_HANDLER;
 
-typedef std::function<void( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos,
-                            int aLayer, DRC_CUSTOM_MARKER_HANDLER* aCustomHandler )>
-        DRC_VIOLATION_HANDLER;
+typedef std::function<void( const std::shared_ptr<DRC_ITEM>& aItem,
+                            const VECTOR2I& aPos, int aLayer,
+                            const std::function<void( PCB_MARKER* )>& aPathGenerator )> DRC_VIOLATION_HANDLER;
+
+
+/**
+ * Batch result for clearance-related constraints to reduce per-query overhead during PNS routing.
+ */
+struct DRC_CLEARANCE_BATCH
+{
+    int clearance = 0;
+    int holeClearance = 0;
+    int holeToHole = 0;
+    int edgeClearance = 0;
+    int physicalClearance = 0;
+};
+
 
 /**
  * Design Rule Checker object that performs all the DRC tests.
@@ -85,12 +131,16 @@ typedef std::function<void( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR
 class DRC_ENGINE : public UNITS_PROVIDER
 {
     // They need to change / restore the violation handler
-    friend class DRC_TEST_PROVIDER_CLEARANCE_BASE;
     friend class DRC_TEST_PROVIDER_CREEPAGE;
 
 public:
     DRC_ENGINE( BOARD* aBoard = nullptr, BOARD_DESIGN_SETTINGS* aSettings = nullptr );
     virtual ~DRC_ENGINE();
+
+    // We own several lists of raw pointers.  Don't let the compiler fill in copy c'tors that
+    // will only land us in trouble.
+    DRC_ENGINE( const DRC_ENGINE& ) = delete;
+    DRC_ENGINE& operator=( const DRC_ENGINE& ) = delete;
 
     void SetBoard( BOARD* aBoard ) { m_board = aBoard; }
     BOARD* GetBoard() const { return m_board; }
@@ -137,7 +187,7 @@ public:
      * Note: if no log reporter is installed rule parse/compile/run-time errors are returned
      * via a thrown PARSE_ERROR exception.
      */
-    void SetLogReporter( REPORTER* aReporter ) { m_reporter = aReporter; }
+    void SetLogReporter( REPORTER* aReporter ) { m_logReporter = aReporter; }
 
     /**
      * Initialize the DRC engine.
@@ -145,6 +195,8 @@ public:
      * @throws PARSE_ERROR if the rules file contains errors
      */
     void InitEngine( const wxFileName& aRulePath );
+
+    void InitEngine( const std::shared_ptr<DRC_RULE>& rule );
 
     /**
      * Run the DRC tests.
@@ -161,11 +213,63 @@ public:
     DRC_CONSTRAINT EvalZoneConnection( const BOARD_ITEM* a, const BOARD_ITEM* b,
                                        PCB_LAYER_ID aLayer, REPORTER* aReporter = nullptr );
 
+    /**
+     * Evaluate all clearance-related constraints in a single batch call.
+     * This reduces per-call overhead during interactive PNS routing.
+     *
+     * @param a First board item
+     * @param b Second board item (may be nullptr)
+     * @param aLayer Layer to evaluate constraints on
+     * @return DRC_CLEARANCE_BATCH containing all clearance constraint values
+     */
+    DRC_CLEARANCE_BATCH EvalClearanceBatch( const BOARD_ITEM* a, const BOARD_ITEM* b,
+                                            PCB_LAYER_ID aLayer );
+
+    /**
+     * Get the cached own clearance for an item on a specific layer.
+     *
+     * This is used by BOARD_CONNECTED_ITEM::GetOwnClearance() to avoid re-evaluating
+     * DRC rules on every paint refresh.
+     *
+     * @param aItem the item to get clearance for.
+     * @param aLayer the layer in question.
+     * @param aSource optionally reports the source as a user-readable string.
+     * @return the clearance in internal units.
+     */
+    int GetCachedOwnClearance( const BOARD_ITEM* aItem, PCB_LAYER_ID aLayer,
+                               wxString* aSource = nullptr );
+
+    /**
+     * Invalidate the clearance cache for a specific item.
+     *
+     * Called when item properties that could affect clearance (net, type, layer) change.
+     *
+     * @param aUuid the UUID of the item to invalidate.
+     */
+    void InvalidateClearanceCache( const KIID& aUuid );
+
+    /**
+     * Clear the entire clearance cache.
+     *
+     * Called when DRC rules change or board design settings change.
+     */
+    void ClearClearanceCache();
+
+    /**
+     * Initialize the clearance cache for all items on the board.
+     *
+     * Pre-populates the cache to avoid delays during first render. Should be called
+     * after InitEngine() when a board is loaded.
+     */
+    void InitializeClearanceCache();
+
     void ProcessAssertions( const BOARD_ITEM* a,
                             std::function<void( const DRC_CONSTRAINT* )> aFailureHandler,
                             REPORTER* aReporter = nullptr );
 
     bool HasRulesForConstraintType( DRC_CONSTRAINT_T constraintID );
+
+    bool HasGeometryDependentRules() const { return m_hasGeometryDependentRules; }
 
     bool GetReportAllTrackErrors() const { return m_reportAllTrackErrors; }
     bool GetTestFootprints() const { return m_testFootprints; }
@@ -173,22 +277,35 @@ public:
     bool RulesValid() { return m_rulesValid; }
 
     void ReportViolation( const std::shared_ptr<DRC_ITEM>& aItem, const VECTOR2I& aPos,
-                          int aMarkerLayer, DRC_CUSTOM_MARKER_HANDLER* aCustomHandler = nullptr );
+                          int aMarkerLayer, const std::function<void( PCB_MARKER* )>& aPathGenerator = {} );
 
     bool KeepRefreshing( bool aWait = false );
     void AdvanceProgress();
     void SetMaxProgress( int aSize );
     bool ReportProgress( double aProgress );
     bool ReportPhase( const wxString& aMessage );
-    void ReportAux( const wxString& aStr );
     bool IsCancelled() const;
 
-    bool QueryWorstConstraint( DRC_CONSTRAINT_T aRuleId, DRC_CONSTRAINT& aConstraint );
+    REPORTER* GetLogReporter() const { return m_logReporter; }
+
+    bool QueryWorstConstraint( DRC_CONSTRAINT_T aRuleId, DRC_CONSTRAINT& aConstraint,
+                               bool aUnconditionalOnly = false );
     std::set<int> QueryDistinctConstraints( DRC_CONSTRAINT_T aConstraintId );
 
     std::vector<DRC_TEST_PROVIDER*> GetTestProviders() const { return m_testProviders; };
 
     DRC_TEST_PROVIDER* GetTestProvider( const wxString& name ) const;
+
+    /**
+     * Evaluate a DRC condition against all board items and return matches.
+     *
+     * @param aExpression Expression to evaluate
+     * @param aConstraint Constraint context for expression evaluation
+     * @param aReporter Reporter for compile or evaluation errors
+     */
+    std::vector<BOARD_ITEM*> GetItemsMatchingCondition( const wxString& aExpression,
+                                                        DRC_CONSTRAINT_T aConstraint = ASSERTION_CONSTRAINT,
+                                                        REPORTER* aReporter = nullptr );
 
     static bool IsNetADiffPair( BOARD* aBoard, NETINFO_ITEM* aNet, int& aNetP, int& aNetN );
 
@@ -233,7 +350,7 @@ private:
     };
 
     void loadImplicitRules();
-    std::shared_ptr<DRC_RULE> createImplicitRule( const wxString& name );
+    std::shared_ptr<DRC_RULE> createImplicitRule( const wxString& name, DRC_IMPLICIT_SOURCE aImplicitSource );
 
 protected:
     BOARD_DESIGN_SETTINGS*     m_designSettings;
@@ -246,6 +363,7 @@ protected:
     std::vector<DRC_TEST_PROVIDER*>         m_testProviders;
 
     std::vector<int>           m_errorLimits;
+    mutable std::mutex         m_errorLimitsMutex;
     bool                       m_reportAllTrackErrors;
     bool                       m_testFootprints;
 
@@ -253,10 +371,26 @@ protected:
     std::map<DRC_CONSTRAINT_T, std::vector<DRC_ENGINE_CONSTRAINT*>*> m_constraintMap;
 
     DRC_VIOLATION_HANDLER      m_violationHandler;
-    REPORTER*                  m_reporter;
+    REPORTER*                  m_logReporter;
     PROGRESS_REPORTER*         m_progressReporter;
 
     std::shared_ptr<KIGFX::VIEW_OVERLAY> m_debugOverlay;
-};
 
-#endif // DRC_H
+    // Cache for GetOwnClearance lookups to improve rendering performance.
+    // Key is (UUID, layer), value is clearance in internal units.
+    // Protected by m_clearanceCacheMutex for thread-safe access during rendering.
+    std::unordered_map<DRC_OWN_CLEARANCE_CACHE_KEY, int> m_ownClearanceCache;
+
+    // Netclass name -> clearance mapping for fast lookup in EvalRules.
+    // Only written during InitEngine(), read during DRC and rendering.
+    // Protected by m_clearanceCacheMutex for thread-safe access.
+    std::unordered_map<wxString, int> m_netclassClearances;
+
+    // Mutex protecting clearance caches for thread-safe access.
+    // Uses shared_mutex for reader-writer pattern (many concurrent reads, exclusive writes).
+    mutable std::shared_mutex m_clearanceCacheMutex;
+    bool m_hasExplicitClearanceRules = false;
+    bool m_hasGeometryDependentRules = false;
+    bool m_hasDiffPairClearanceOverrides = false;
+    std::map<DRC_CONSTRAINT_T, std::vector<DRC_ENGINE_CONSTRAINT*>> m_explicitConstraints;
+};

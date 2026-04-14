@@ -55,6 +55,7 @@ public:
     int UnmergeCells( const TOOL_EVENT& aEvent )    { return doUnmergeCells( aEvent ); }
 
     int EditTable( const TOOL_EVENT& aEvent );
+    int ExportTableToCSV( const TOOL_EVENT& aEvent );
 
 private:
     ///< Set up handlers for various events.
@@ -65,7 +66,7 @@ private:
     BASE_SCREEN* getScreen() override { return m_frame->GetScreen(); }
 
     const SELECTION& getTableCellSelection() override;
-    void clearSelection() override { m_toolMgr->RunAction( SCH_ACTIONS::clearSelection ); };
+    void             clearSelection() override { m_toolMgr->RunAction( ACTIONS::selectionClear ); };
 
     SCH_TABLECELL* copyCell( SCH_TABLECELL* aSource ) override;
 };

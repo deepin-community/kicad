@@ -267,6 +267,7 @@ wxDataViewCtrl* DIALOG_GENERATORS::addPage( const wxString& aName, const wxStrin
                                                    wxDefaultSize, wxDV_MULTIPLE | wxDV_ROW_LINES );
 
     dataView->Bind( wxEVT_DATAVIEW_SELECTION_CHANGED, &DIALOG_GENERATORS::OnItemSelected, this );
+    dataView->SetLayoutDirection( wxLayout_LeftToRight );
 
     bSizerPage1->Add( dataView, 1, wxEXPAND | wxALL, 5 );
 
@@ -410,7 +411,7 @@ void DIALOG_GENERATORS::OnItemSelected( wxDataViewEvent& aEvent )
         wxVariant var;
         model->GetValue( var, viewItem, uuidCol );
 
-        BOARD_ITEM* brdItem = m_currentBoard->GetItem( var.GetString() );
+        BOARD_ITEM* brdItem = m_currentBoard->ResolveItem( var.GetString() );
 
         if( !brdItem || brdItem->Type() != KICAD_T::PCB_GENERATOR_T )
             continue;
@@ -419,8 +420,8 @@ void DIALOG_GENERATORS::OnItemSelected( wxDataViewEvent& aEvent )
         edaItems.push_back( brdItem );
     }
 
-    m_frame->GetToolManager()->RunAction( PCB_ACTIONS::selectionClear );
-    m_frame->GetToolManager()->RunAction<EDA_ITEMS*>( PCB_ACTIONS::selectItems, &edaItems );
+    m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
+    m_frame->GetToolManager()->RunAction<EDA_ITEMS*>( ACTIONS::selectItems, &edaItems );
     m_frame->FocusOnItems( boardItems );
 }
 
@@ -447,7 +448,7 @@ void DIALOG_GENERATORS::OnRebuildTypeClick( wxCommandEvent& event )
         wxVariant var;
         model->GetValueByRow( var, row, uuidCol );
 
-        BOARD_ITEM* item = m_currentBoard->GetItem( var.GetString() );
+        BOARD_ITEM* item = m_currentBoard->ResolveItem( var.GetString() );
 
         if( !item || item->Type() != KICAD_T::PCB_GENERATOR_T )
             continue;
@@ -455,8 +456,8 @@ void DIALOG_GENERATORS::OnRebuildTypeClick( wxCommandEvent& event )
         items.push_back( item );
     }
 
-    m_frame->GetToolManager()->RunAction( PCB_ACTIONS::selectionClear );
-    m_frame->GetToolManager()->RunAction<EDA_ITEMS*>( PCB_ACTIONS::selectItems, &items );
+    m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
+    m_frame->GetToolManager()->RunAction<EDA_ITEMS*>( ACTIONS::selectItems, &items );
     m_frame->GetToolManager()->RunAction( PCB_ACTIONS::regenerateSelected );
     RebuildModels();
 }

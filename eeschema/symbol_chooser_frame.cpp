@@ -28,6 +28,7 @@
 #include <eeschema_settings.h>
 #include <widgets/panel_symbol_chooser.h>
 #include <symbol_chooser_frame.h>
+#include <algorithm>
 
 
 static std::vector<PICKED_SYMBOL> s_SymbolHistoryList;
@@ -36,7 +37,7 @@ static unsigned                   s_SymbolHistoryMaxCount = 8;
 static void AddSymbolToHistory( const PICKED_SYMBOL& aSymbol )
 {
     // Remove duplicates
-    alg::delete_if( s_SymbolHistoryList,
+    std::erase_if( s_SymbolHistoryList,
                     [&]( const PICKED_SYMBOL& candidate ) -> bool
                     {
                         return candidate.LibId == aSymbol.LibId
@@ -62,12 +63,15 @@ BEGIN_EVENT_TABLE( SYMBOL_CHOOSER_FRAME, SCH_BASE_FRAME )
 END_EVENT_TABLE()
 
 
-#define MODAL_FRAME ( wxRESIZE_BORDER | wxSYSTEM_MENU | wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN \
-                      | wxWANTS_CHARS | wxFRAME_NO_TASKBAR | wxSTAY_ON_TOP )
+#define PARENT_STYLE ( wxRESIZE_BORDER | wxSYSTEM_MENU | wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN \
+                      | wxWANTS_CHARS | wxFRAME_NO_TASKBAR | wxFRAME_FLOAT_ON_PARENT )
+#define MODAL_STYLE ( wxRESIZE_BORDER | wxSYSTEM_MENU | wxCAPTION | wxCLOSE_BOX | wxCLIP_CHILDREN \
+                      | wxWANTS_CHARS | wxFRAME_NO_TASKBAR )
 
-SYMBOL_CHOOSER_FRAME::SYMBOL_CHOOSER_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
+SYMBOL_CHOOSER_FRAME::SYMBOL_CHOOSER_FRAME( KIWAY* aKiway, wxWindow* aParent, bool& aCancelled ) :
         SCH_BASE_FRAME( aKiway, aParent, FRAME_SYMBOL_CHOOSER, _( "Symbol Chooser" ),
-                        wxDefaultPosition, wxDefaultSize, MODAL_FRAME, SYMBOL_CHOOSER_FRAME_NAME )
+                        wxDefaultPosition, wxDefaultSize, aParent ? PARENT_STYLE : MODAL_STYLE,
+                        SYMBOL_CHOOSER_FRAME_NAME )
 {
     SetModal( true );
 
@@ -78,12 +82,14 @@ SYMBOL_CHOOSER_FRAME::SYMBOL_CHOOSER_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     std::vector<PICKED_SYMBOL> dummyAlreadyPlaced;
     m_chooserPanel = new PANEL_SYMBOL_CHOOSER( this, this, nullptr /* no filter */,
                                                s_SymbolHistoryList,
-                                               dummyAlreadyPlaced, false, false,
+                                               dummyAlreadyPlaced, false, false, aCancelled,
+                                               // Accept handler
                                                [this]()
                                                {
                                                    wxCommandEvent dummy;
                                                    OnOK( dummy );
                                                },
+                                               // Escape handler
                                                [this]()
                                                {
                                                    DismissModal( false );
@@ -108,12 +114,17 @@ SYMBOL_CHOOSER_FRAME::SYMBOL_CHOOSER_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     frameSizer->Add( bottomPanel, 0, wxEXPAND );
 
     SetSizer( frameSizer );
-
-    SetTitle( GetTitle() + wxString::Format( _( " (%d items loaded)" ),
-                                             m_chooserPanel->GetItemCount() ) );
-
+    SetTitle( GetTitle() + wxString::Format( _( " (%d items loaded)" ), m_chooserPanel->GetItemCount() ) );
     Layout();
     m_chooserPanel->FinishSetup();
+
+    Bind( wxEVT_CHAR_HOOK, &PANEL_SYMBOL_CHOOSER::OnChar, m_chooserPanel );
+}
+
+
+SYMBOL_CHOOSER_FRAME::~SYMBOL_CHOOSER_FRAME()
+{
+    Unbind( wxEVT_CHAR_HOOK, &PANEL_SYMBOL_CHOOSER::OnChar, m_chooserPanel );
 }
 
 
@@ -135,6 +146,8 @@ bool SYMBOL_CHOOSER_FRAME::ShowModal( wxString* aSymbol, wxWindow* aParent )
 
 void SYMBOL_CHOOSER_FRAME::doCloseWindow()
 {
+    m_chooserPanel->ShutdownCanvases();
+
     // Only dismiss a modal frame once, so that the return values set by
     // the prior DismissModal() are not bashed for ShowModal().
     if( !IsDismissed() )
@@ -179,9 +192,11 @@ void SYMBOL_CHOOSER_FRAME::OnOK( wxCommandEvent& aEvent )
 
 WINDOW_SETTINGS* SYMBOL_CHOOSER_FRAME::GetWindowSettings( APP_SETTINGS_BASE* aCfg )
 {
-    EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( aCfg );
-    wxASSERT( cfg );
-    return &cfg->m_LibViewPanel.window;
+    if( EESCHEMA_SETTINGS* cfg = dynamic_cast<EESCHEMA_SETTINGS*>( aCfg ) )
+        return &cfg->m_LibViewPanel.window;
+
+    wxFAIL_MSG( wxT( "SYMBOL_CHOOSER not running with EESCHEMA_SETTINGS" ) );
+    return &aCfg->m_Window;     // non-null fail-safe
 }
 
 

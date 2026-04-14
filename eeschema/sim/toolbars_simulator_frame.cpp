@@ -18,6 +18,8 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <sim/toolbars_simulator_frame.h>
+
 #include <sim/simulator_frame.h>
 #include <tool/action_menu.h>
 #include <tool/action_toolbar.h>
@@ -27,55 +29,51 @@
 #include <widgets/wx_menubar.h>
 
 
-void SIMULATOR_FRAME::ReCreateHToolbar()
+std::optional<TOOLBAR_CONFIGURATION> SIMULATOR_TOOLBAR_SETTINGS::DefaultToolbarConfig( TOOLBAR_LOC aToolbar )
 {
-    if( m_toolBar )
+    TOOLBAR_CONFIGURATION config;
+
+    // clang-format off
+    switch( aToolbar )
     {
-        m_toolBar->ClearToolbar();
-        m_toolBar->SetToolManager( GetToolManager() );
+    case TOOLBAR_LOC::LEFT:
+    case TOOLBAR_LOC::RIGHT:
+    case TOOLBAR_LOC::TOP_AUX:
+        return std::nullopt;
+
+    case TOOLBAR_LOC::TOP_MAIN:
+        config.AppendAction( SCH_ACTIONS::openWorkbook )
+              .AppendAction( SCH_ACTIONS::saveWorkbook );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::newAnalysisTab )
+              .AppendAction( SCH_ACTIONS::simAnalysisProperties );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::runSimulation )
+              .AppendAction( SCH_ACTIONS::stopSimulation );
+
+        config.AppendSeparator()
+              .AppendAction( ACTIONS::zoomInCenter )
+              .AppendAction( ACTIONS::zoomOutCenter )
+              .AppendAction( ACTIONS::zoomInHorizontally )
+              .AppendAction( ACTIONS::zoomOutHorizontally )
+              .AppendAction( ACTIONS::zoomInVertically )
+              .AppendAction( ACTIONS::zoomOutVertically )
+              .AppendAction( ACTIONS::zoomFitScreen );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::simProbe )
+              .AppendAction( SCH_ACTIONS::simTune );
+
+        config.AppendSeparator()
+              .AppendAction( SCH_ACTIONS::editUserDefinedSignals )
+              .AppendAction( SCH_ACTIONS::showNetlist );
+        break;
     }
-    else
-    {
-        EDA_BASE_FRAME* parent = dynamic_cast<EDA_BASE_FRAME*>( this );
 
-        wxCHECK( parent, /* void */ );
-
-        m_toolBar = new ACTION_TOOLBAR( parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-                                        KICAD_AUI_TB_STYLE | wxAUI_TB_HORZ_LAYOUT );
-    }
-
-    m_toolBar->Add( SCH_ACTIONS::openWorkbook );
-    m_toolBar->Add( SCH_ACTIONS::saveWorkbook );
-
-    m_toolBar->AddScaledSeparator( this );
-    m_toolBar->Add( SCH_ACTIONS::newAnalysisTab );
-    m_toolBar->Add( SCH_ACTIONS::simAnalysisProperties );
-
-    m_toolBar->AddScaledSeparator( this );
-    m_toolBar->Add( SCH_ACTIONS::runSimulation );
-    m_toolBar->Add( SCH_ACTIONS::stopSimulation );
-
-    m_toolBar->AddScaledSeparator( this );
-    m_toolBar->Add( ACTIONS::zoomInCenter );
-    m_toolBar->Add( ACTIONS::zoomOutCenter );
-    m_toolBar->Add( ACTIONS::zoomInHorizontally );
-    m_toolBar->Add( ACTIONS::zoomOutHorizontally );
-    m_toolBar->Add( ACTIONS::zoomInVertically );
-    m_toolBar->Add( ACTIONS::zoomOutVertically );
-    m_toolBar->Add( ACTIONS::zoomFitScreen );
-
-    m_toolBar->AddScaledSeparator( this );
-    m_toolBar->Add( SCH_ACTIONS::simProbe );
-    m_toolBar->Add( SCH_ACTIONS::simTune );
-
-    m_toolBar->AddScaledSeparator( this );
-    m_toolBar->Add( SCH_ACTIONS::editUserDefinedSignals );
-    m_toolBar->Add( SCH_ACTIONS::showNetlist );
-
-    // after adding the buttons to the toolbar, must call Realize() to reflect the changes
-    m_toolBar->KiRealize();
-
-    m_toolBar->Refresh();
+    // clang-format on
+    return config;
 }
 
 
@@ -117,7 +115,12 @@ void SIMULATOR_FRAME::doReCreateMenuBar()
     //-- View menu -----------------------------------------------------------
     //
     ACTION_MENU* viewMenu = new ACTION_MENU( false, tool );
+    // clang-format off
+    viewMenu->Add( SCH_ACTIONS::toggleSimSidePanel, ACTION_MENU::CHECK );
+    viewMenu->Add( SCH_ACTIONS::toggleSimConsole,   ACTION_MENU::CHECK );
+    // clang-format on
 
+    viewMenu->AppendSeparator();
     viewMenu->Add( ACTIONS::zoomUndo );
     viewMenu->Add( ACTIONS::zoomRedo );
 
@@ -131,7 +134,7 @@ void SIMULATOR_FRAME::doReCreateMenuBar()
     viewMenu->Add( ACTIONS::zoomFitScreen );
 
     viewMenu->AppendSeparator();
-    viewMenu->Add( ACTIONS::toggleGrid,                ACTION_MENU::CHECK );
+    viewMenu->Add( ACTIONS::toggleGrid,               ACTION_MENU::CHECK );
     viewMenu->Add( SCH_ACTIONS::toggleLegend,          ACTION_MENU::CHECK );
     viewMenu->Add( SCH_ACTIONS::toggleDottedSecondary, ACTION_MENU::CHECK );
     viewMenu->Add( SCH_ACTIONS::toggleDarkModePlots,   ACTION_MENU::CHECK );

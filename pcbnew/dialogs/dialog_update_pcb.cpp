@@ -30,6 +30,7 @@
 #include <netlist_reader/board_netlist_updater.h>
 #include <tool/tool_manager.h>
 #include <tools/pcb_actions.h>
+#include <tools/pcb_selection_tool.h>
 #include <view/view_controls.h>
 #include <kiface_base.h>
 #include <kiplatform/ui.h>
@@ -41,18 +42,10 @@ DIALOG_UPDATE_PCB::DIALOG_UPDATE_PCB( PCB_EDIT_FRAME* aParent, NETLIST* aNetlist
     m_netlist( aNetlist ),
     m_initialized( false )
 {
-    auto cfg = m_frame->GetPcbNewSettings();
-
-    m_cbRelinkFootprints->SetValue( cfg->m_NetlistDialog.associate_by_ref_sch );
-    m_cbUpdateFootprints->SetValue( cfg->m_NetlistDialog.update_footprints );
-    m_cbDeleteExtraFootprints->SetValue( cfg->m_NetlistDialog.delete_extra_footprints );
-
     m_messagePanel->SetLabel( _("Changes to Be Applied") );
     m_messagePanel->SetFileName( Prj().GetProjectPath() + wxT( "report.txt" ) );
     m_messagePanel->SetLazyUpdate( true );
     m_netlist->SortByReference();
-
-    m_messagePanel->SetVisibleSeverities( cfg->m_NetlistDialog.report_filter );
 
     m_messagePanel->GetSizer()->SetSizeHints( this );
     m_messagePanel->Layout();
@@ -69,27 +62,17 @@ DIALOG_UPDATE_PCB::DIALOG_UPDATE_PCB( PCB_EDIT_FRAME* aParent, NETLIST* aNetlist
 
 DIALOG_UPDATE_PCB::~DIALOG_UPDATE_PCB()
 {
-    PCBNEW_SETTINGS* cfg = nullptr;
-
-    try
-    {
-        cfg = m_frame->GetPcbNewSettings();
-    }
-    catch( const std::runtime_error& e )
-    {
-        wxFAIL_MSG( e.what() );
-    }
-
-    if( cfg )
-    {
-        cfg->m_NetlistDialog.associate_by_ref_sch    = m_cbRelinkFootprints->GetValue();
-        cfg->m_NetlistDialog.update_footprints       = m_cbUpdateFootprints->GetValue();
-        cfg->m_NetlistDialog.delete_extra_footprints = m_cbDeleteExtraFootprints->GetValue();
-        cfg->m_NetlistDialog.report_filter           = m_messagePanel->GetVisibleSeverities();
-    }
-
     if( m_runDragCommand )
     {
+        PCB_SELECTION_TOOL* selTool = m_frame->GetToolManager()->GetTool<PCB_SELECTION_TOOL>();
+        PCB_SELECTION&      selection = selTool->GetSelection();
+
+        // Set the reference point to (0,0) where the new footprints were spread. This ensures
+        // the move tool knows where the items are located, preventing an offset when the "warp
+        // cursor to origin of moved object" preference is disabled.
+        if( selection.Size() > 0 )
+            selection.SetReferencePoint( VECTOR2I( 0, 0 ) );
+
         KIGFX::VIEW_CONTROLS* controls = m_frame->GetCanvas()->GetViewControls();
         controls->SetCursorPosition( controls->GetMousePosition() );
         m_frame->GetToolManager()->RunAction( PCB_ACTIONS::move );
@@ -111,7 +94,7 @@ void DIALOG_UPDATE_PCB::PerformUpdate( bool aDryRun )
     if( !aDryRun )
     {
         m_frame->GetToolManager()->DeactivateTool();
-        m_frame->GetToolManager()->RunAction( PCB_ACTIONS::selectionClear );
+        m_frame->GetToolManager()->RunAction( ACTIONS::selectionClear );
     }
 
     BOARD_NETLIST_UPDATER updater( m_frame, m_frame->GetBoard() );
@@ -120,7 +103,10 @@ void DIALOG_UPDATE_PCB::PerformUpdate( bool aDryRun )
     updater.SetLookupByTimestamp( !m_cbRelinkFootprints->GetValue() );
     updater.SetDeleteUnusedFootprints( m_cbDeleteExtraFootprints->GetValue());
     updater.SetReplaceFootprints( m_cbUpdateFootprints->GetValue() );
+    updater.SetTransferGroups( m_cbTransferGroups->GetValue() );
     updater.SetOverrideLocks( m_cbOverrideLocks->GetValue() );
+    updater.SetUpdateFields( m_cbUpdateFields->GetValue() );
+    updater.SetRemoveExtraFields( m_cbRemoveExtraFields->GetValue() );
     updater.UpdateNetlist( *m_netlist );
 
     m_messagePanel->Flush( true );

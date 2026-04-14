@@ -11,13 +11,13 @@ footprint in the `Capacitor_SMD` library.
 [[managing-footprint-libraries]]
 === Managing footprint libraries
 
-KiCad uses a table of footprint libraries to map footprint libraries of any
-supported library type to a library nickname. KiCad uses a global footprint
-library table as well as a table specific to each project. To edit either
-footprint library table, use **Preferences** -> **Manage Footprint
-Libraries...**.
+KiCad uses a table of footprint libraries to map footprint libraries of any supported library type to a library nickname.
+KiCad uses a global footprint library table as well as a table specific to each project.
+Libraries are not loaded unless they are included in either the global or project-specific library table.
 
-image::images/en/fp_lib_table.png[scaledwidth="80%",alt="footprint library table dialog"]
+To edit either footprint library table, use **Preferences** -> **Manage Footprint Libraries...**.
+
+image::images/fp-lib-table_toplevel.png[scaledwidth="80%",alt="footprint library table dialog"]
 
 The global footprint library table contains the list of libraries that are
 always available regardless of the currently loaded project. The table is
@@ -29,6 +29,14 @@ The project specific footprint library table contains the list of libraries that
 are available specifically for the currently loaded project. If there are any
 project-specific footprint libraries, the table is saved in the file
 `fp-lib-table` in the project folder.
+
+Many (or even all) of the loaded libraries may be contained in a <<nested-library-tables,nested library table>>,
+as shown in the screenshot above.
+To expand a nested library table and view its contents,
+press the image:images/icons/small_new_window_16.png[] button next to the nested library table entry.
+This opens the nested table in a new tab, as shown below.
+
+image::images/fp-lib-table_nested.png[]
 
 KiCad's footprint library management system allows directly using many types
 of footprint libraries, including formats that are native to other non-KiCad EDA
@@ -53,23 +61,36 @@ libraries (and the `.kicad_mod` footprint files within them). All other
 footprint library formats are read-only. To modify a non-KiCad format footprint
 library, you must first convert it to KiCad format.
 
-==== Initial Configuration
+Library tables can also include other library tables, which are called <<nested-library-tables,_nested_ library tables>>.
+When a nested library table is used, the libraries in the nested table are loaded as if they were included directly in the main table.
 
-The first time the PCB Editor (or any other KiCad tool that uses footprints) runs
-and the global footprint table file `fp-lib-table` is not found, KiCad will
-guide the user through setting up a new footprint library table. This process is
-described <<initial-configuration,above>>. You can re-run this process at any
-time by clicking the **Reset Libraries**.
+==== Initial configuration
+
+The first time KiCad runs (or any time KiCad runs and no configuration is found),
+KiCad will guide you through creating a new configuration or importing a configuration from a previous version.
+This includes setting up a new footprint library table.
+This process is described in the xref:../kicad/kicad.adoc#settings[Project Manager documentation].
+
+You can reset your footprint library table to the default by clicking the **Reset Libraries** button in the footprint library table dialog.
 
 WARNING: Resetting your footprint library table will permanently change your
          footprint library table on disk.
 
+The default footprint library table contains a single entry, which points to another footprint library table containing all of KiCad's default footprint libraries.
+This <<nested-library-tables,nested library table>> is maintained as part of the KiCad libraries and is updated along with KiCad and its libraries.
+You should not edit it yourself.
 
+NOTE: KiCad's default footprint libraries are included in your library table via a nested library.
+      This allows the list of default KiCad libraries to be updated when KiCad and its libraries are updated,
+      without affecting your personal library configuration.
+      Your personal library table configuration can be maintained between KiCad versions,
+      while still allowing you to receive updates to the default libraries.
 
-==== Managing Table Entries
+==== Managing table entries
 
 Footprint libraries can only be used if they have been added to either the
-global or project-specific footprint library table.
+global or project-specific footprint library table
+(or to a nested table included in either top-level table).
 
 Add a library either by clicking the
 image:images/icons/small_folder_16.png[Folder icon] button and selecting a
@@ -79,16 +100,20 @@ currently opened library table (Global or Project Specific). Libraries can be
 removed by selecting desired library entries and clicking the
 image:images/icons/small_trash_16.png[Delete icon] button.
 
+When an entry in the library table is itself another library table, you can open this
+<<nested-library-tables,nested table>> by clicking the image:images/icons/small_new_window_16.png[] button next to the nested table's entry.
+This opens the nested table in a new tab, where you can see and edit the libraries included in the nested table.
+To add a nested library table, click the downwards arrow next to the image:images/icons/small_folder_16.png[] button,
+choose the **Table** library type, then browse to the table file.
+
 The image:images/icons/small_up_16.png[Up icon] and
 image:images/icons/small_down_16.png[Down icon] buttons move the selected
 library up and down in the library table. This does not affect the display order
 of libraries in the Footprint Library Browser, Footprint Editor, or Add
 Footprint tool.
 
-Libraries can be made inactive by unchecking the *Active* checkbox in the first
-column. Inactive libraries are still in the library table but do not appear in
-any library browsers and are not loaded from disk, which can reduce loading
-times.
+Libraries can be made inactive by unchecking the *Enable* checkbox in the first column.
+Disabled libraries are still in the library table but do not appear in any library browsers and are not loaded from disk, which can reduce loading times.
 
 A range of libraries can be selected by clicking the first library in the range
 and then kbd:[Shift]-clicking the last library in the range.
@@ -115,8 +140,27 @@ There is an optional description field to add a description of the library
 entry. The option field is not used at this time so adding options will
 have no effect when loading libraries.
 
+[[nested-library-tables]]
+==== Nested library tables
+
+In addition to containing libraries, library tables can also contain other library tables.
+Library tables that are referenced by other library tables in this way are called _nested_ library tables.
+Any libraries in a nested library table are loaded as if they were directly listed in the top-level library table.
+
+Nested library tables let you separate groups of libraries into different library table files,
+then include all of the individual tables into the main top-level library table.
+This could be used, for example, to make a standard library table for your company,
+and share that table with everyone who needs it.
+Each user can then access the standard set of company libraries after they add the shared table as a nested library table in their own global table.
+
+When KiCad is configured to its default library table configuration,
+the global library table contains a single entry, which is a nested library table.
+This nested table is part of KiCad's default libraries and lists all of the KiCad default footprint libraries.
+When KiCad is updated, this nested table is also updated,
+which allows you to receive an updated list of KiCad's default libraries without disturbing your personal library configuration.
+
 [[fp-path-variable-substitution]]
-==== Path Variable Substitution
+==== Path variable substitution
 
 The footprint library tables support path variable substitution, which
 allows you to define path variables containing custom paths to where your
@@ -135,9 +179,9 @@ path variables are updated when the library location changes.
 NOTE: KiCad will automatically resolve versioned path variables from
       older versions of KiCad to the value of the corresponding variable from
       the current KiCad version, as long as the old variable is not explicitly
-      defined itself. For example, `$\{KICAD8_FOOTPRINT_DIR\}` will
-      automatically resolve to the value of `$\{KICAD9_FOOTPRINT_DIR\}` if there
-      is no `KICAD8_FOOTPRINT_DIR` variable defined.
+      defined itself. For example, `$\{KICAD9_FOOTPRINT_DIR\}` will
+      automatically resolve to the value of `$\{KICAD10_FOOTPRINT_DIR\}` if there
+      is no `KICAD9_FOOTPRINT_DIR` variable defined.
 
 `${KIPRJMOD}` is a special path variable that always expands to the
 absolute path of the current project directory. `${KIPRJMOD}` allows libraries
@@ -145,7 +189,7 @@ to be stored in the project folder without having to use an absolute path in the
 project library table. This makes it possible to relocate projects without
 breaking their project library tables.
 
-==== Using the GitHub Plugin
+==== Using the GitHub plugin
 
 NOTE: KiCad removed support for the GitHub library plugin in version 6.0.
 
@@ -168,8 +212,97 @@ or kbd:[shift]-clicking.
 Libraries can also be converted one at a time by opening them in the Footprint
 Editor and saving them as a new library.
 
+=== Browsing footprint libraries
+
+The Footprint Library Browser allows you to quickly examine the contents of
+footprint libraries. The Footprint Library Viewer can be accessed by clicking
+image:images/icons/library_browser_24.png[Library viewer icon] icon on the main
+Board Editor toolbar or with **View** -> **Footprint Library Browser**.
+
+To examine the contents of a library, select a library from the list in the left
+hand pane. All footprints in the selected library will appear in the second
+pane. Select a footprint name to view the footprint.
+
+image::images/footprint_library_browser.png[alt="Footprint Library Browser",scaledwidth="95%"]
+
+Double clicking the name of a footprint or using the
+image:images/icons/insert_module_board_24.png[Insert footprint in board icon]
+button adds the footprint to the board.
+
+The top toolbar contains the following commands:
+
+[width="100%",cols="20%,80%",]
+|=======================================================================
+
+|image:images/icons/lib_previous_24.png[Previous footprint icon]
+|Select previous footprint in library.
+
+|image:images/icons/lib_next_24.png[Next footprint icon]
+|Select next footprint in library.
+
+|image:images/icons/refresh_24.png[] image:images/icons/zoom_in_24.png[]
+image:images/icons/zoom_out_24.png[] image:images/icons/zoom_fit_in_page_24.png[]
+|Zoom tools.
+
+|image:images/icons/shape_3d_24.png[]
+|Open footprint in 3D Viewer.
+
+|image:images/icons/insert_module_board_24.png[]
+|Add the footprint to the board.
+
+|image:images/icons/zoom_auto_fit_in_page_24.png[]
+|Automatically zoom to fit each opened footprint.
+|=======================================================================
+
+The left toolbar contains the following commands:
+
+[width="100%",cols="20%,80%",]
+|=======================================================================
+
+| image:images/icons/cursor_24.png[]
+| Selection tool (the default tool).
+
+| image:images/icons/measurement_24.png[]
+| Interactively measure the distance between two points.
+
+| image:images/icons/grid_24.png[]
+| Turn grid display on/off.
+
+| image:images/icons/polar_coord_24.png[]
+| Switch between polar and Cartesian coordinate display in the status bar.
+
+| image:images/icons/unit_inch_24.png[]
+
+  image:images/icons/unit_mil_24.png[]
+
+  image:images/icons/unit_mm_24.png[]
+| Display/entry of coordinates and dimensions in inches, mils, or millimeters.
+  Clicking the button toggles to the next unit, or you can choose a unit directly by expanding the palette (click and hold/drag).
+
+| image:images/icons/cursor_shape_24.png[cursor shape icon]
+
+  image:images/icons/cursor_fullscreen_24.png[]
+
+  image:images/icons/cursor_fullscreen45_24.png[]
+    | Switches the cursor crosshair between small, fullscreen, and 45-degree-rotated fullscreen.
+      Clicking the button toggles to the next crosshair type, or you can choose a crosshair directly by expanding the palette (click and hold/drag).
+
+| image:images/icons/pad_number_24.png[]
+| Show or hide pad numbers.
+
+| image:images/icons/pad_sketch_24.png[]
+| Switch display of pads between filled and outline mode.
+
+| image:images/icons/text_sketch_24.png[]
+| Switch display of text between filled and outline mode.
+
+| image:images/icons/show_mod_edge_24.png[]
+| Switch display of graphic items between filled and outline mode.
+|=======================================================================
+
+[[footprint-editor]]
 [[creating-and-editing-footprints]]
-=== Creating and editing footprints
+== Creating and editing footprints
 
 A footprint is the physical interface between a component package and a circuit
 board. Footprints can contain:
@@ -194,7 +327,7 @@ category, function, and/or manufacturer. Each library is a folder (usually
 ending in `.pretty`) containing a `.kicad_mod` file for each footprint in the
 library.
 
-==== Footprint editor overview
+=== Footprint editor overview
 
 KiCad provides a footprint editing tool that allows you to create footprint
 libraries; add, edit, delete, or transfer footprints between libraries; export
@@ -214,6 +347,8 @@ quick access to common features and a footprint viewing/editing canvas. Not all
 commands are available on the toolbars, but all commands are available in the
 menus.
 
+NOTE: You can edit the toolbars' contents in the **Toolbar** page of the Footprint Editor Preferences.
+
 In addition to the toolbars, there are collapsible panels for the footprint tree
 and Properties Manager (not shown) on the left, and the appearance panel and
 selection filter on the right. The bottom of the window contains a message panel
@@ -221,7 +356,7 @@ that shows details about the selected object.
 
 image::images/footprint_editor_overview.png[]
 
-===== Top toolbar
+==== Top toolbar
 
 The main toolbar is at the top of the main window. It has buttons for the
 undo/redo commands, zoom commands, footprint/pad properties dialogs, and
@@ -278,7 +413,7 @@ layer/grid management controls.
 
 |====
 
-===== Left toolbar display controls
+==== Left toolbar display controls
 
 The left toolbar provides options to change the display of items in the Footprint
 Editor.
@@ -300,12 +435,26 @@ Editor.
 
   image:images/icons/unit_mm_24.png[]
     | Display/entry of coordinates and dimensions in inches, mils, or millimeters.
-| image:images/icons/cursor_shape_24.png[]
-    | Switch between full-screen and small editing cursor (crosshairs).
-| image:images/icons/hv45mode_24.png[45deg angle wire icon]
-    | Switch between free angle and 45 degree mode for placement of new tracks,
-      zones, graphical shapes, dimensions, and other objects. You can also toggle
-      between free angle and 45 degree mode using kbd:[Shift+Space].
+      Clicking the button toggles to the next unit, or you can choose a unit directly by expanding the palette (click and hold/drag).
+
+| image:images/icons/cursor_shape_24.png[cursor shape icon]
+
+  image:images/icons/cursor_fullscreen_24.png[]
+
+  image:images/icons/cursor_fullscreen45_24.png[]
+    | Switches the cursor crosshair between small, fullscreen, and 45-degree-rotated fullscreen.
+      Clicking the button toggles to the next crosshair type, or you can choose a crosshair directly by expanding the palette (click and hold/drag).
+
+| image:images/icons/lines_any_24.png[free angle wire icon]
+
+  image:images/icons/lines90_24.png[90deg angle wire icon]
+
+  image:images/icons/hv45mode_24.png[45deg angle wire icon]
+
+    | Switches the line mode between free angle, 90 degree mode, and 45 degree mode for
+      placement of new zones, graphical shapes, dimensions, and other objects.
+      Clicking the button toggles to the next line mode, or you can choose a line mode directly by expanding the palette (click and hold/drag).
+      You can also toggle between line modes using kbd:[Shift+Space].
 
 | image:images/icons/pad_sketch_24.png[]
     | Switch display of pads between filled and outline mode.
@@ -330,7 +479,7 @@ Editor.
 
 |====
 
-===== Right toolbar tools
+==== Right toolbar tools
 
 Placement and drawing tools are located in the right toolbar.
 
@@ -339,7 +488,7 @@ Placement and drawing tools are located in the right toolbar.
 | image:images/icons/cursor_24.png[]
     | Selection tool (the default tool).
 | image:images/icons/pad_24.png[]
-    | <<footprint-pads,Add pad>>: click on the board to place a pad.
+    | <<fp-pads,Add pad>>: click on the board to place a pad.
 | image:images/icons/add_keepout_area_24.png[]
     | <<fp-rule-areas,Add rule area>>: Rule areas, formerly known as keepouts, can restrict the placement of items
       and the filling of zones and can also define named areas to apply specific custom design
@@ -395,7 +544,7 @@ Placement and drawing tools are located in the right toolbar.
 
 |====
 
-==== Browsing, modifying, and saving footprints
+=== Browsing, modifying, and saving footprints
 
 The image:images/icons/search_tree_24.png[Footprint tree icon] button displays
 or hides the list of available libraries, which allows you to select an active
@@ -431,27 +580,33 @@ warns you the library copy will not be modified. You can click the link in this
 info bar to open the library version of the footprint instead, or press
 kbd:[Ctrl+Shift+E].
 
-==== Creating a new footprint library
+=== Creating a new footprint library
 
-You can create a new footprint library by clicking **File** ->
-**New Library...**. At this point you must choose whether the new library should
-be added to the global footprint library table or the project footprint library
-table. Libraries in the global library table will be available to all projects,
-while libraries in the project library table will only be available in the
-current project.
+You can create a new footprint library by clicking **File** -> **New Library...**.
+This opens a file browser for you to choose a location and name for the new library.
+Footprint libraries are saved as a folder;
+the folder name is the library name plus the suffix `.pretty`.
 
-image::images/footprint_editor_new_library.png[]
+The file browser also lets you choose whether the new library should be added to the global footprint library table or the project footprint library table.
+Libraries in the global library table will be available to all projects,
+while libraries in the project library table will only be available in the current project.
 
-Following selection of the library table, you must choose a name and location
-for the new library. A new, empty library will be created at the specified
-location.
+NOTE: The global and project footprint library tables are managed using
+      **Preferences** -> **Manage Footprint Libraries...**.
+      This includes deleting and renaming footprint libraries.
+      For more information about managing library tables, see the
+      <<managing-footprint-libraries,footprint library table documentation>>.
 
-==== Creating a new footprint
+After choosing a name, location, and library table, a new, empty library is created.
+When you create new footprints, you can save them in this library.
+
+=== Creating a new footprint
 
 To create a new footprint in the current footprint library, click the
 image:images/icons/new_footprint_24.png[New Footprint icon] button or click
 **File** -> **New Footprint...**. A new, untitled footprint will be created in
 the selected library.
+The new footprint is opened in the editor.
 
 To set the name of the footprint, open its
 <<footprint-editor-properties,properties dialog>>
@@ -484,396 +639,192 @@ NOTE: Rather than manually creating a footprint, for some common footprints you
       based on a set of parameters.
 
 [[footprint-editor-properties]]
-==== Editing footprint properties
+=== Editing footprint properties
 
 Footprints have a number of properties and metadata items that can be defined.
 These include text fields, attributes that can be set or not (such as Do Not
-Populate), clearance and zone connection settings, and 3D model paths. These are
-initially defined in the library copy of the footprint, but they can be modified
-on a per-instance basis once a footprint is added to a board. In other words,
-two copies of the same footprint on a single board can their properties edited
-separately.
+Populate), clearance and zone connection settings, and 3D model paths.
+These are initially defined in the library copy of the footprint,
+but they can be modified on a per-instance basis once a footprint is added to a board.
+In other words, two copies of the same footprint on a single board can have their properties edited separately.
 
-Some properties, namely text fields and attributes, will be automatically set
-for each footprint in a board based on the fields and attributes in the
-footprint's corresponding schematic symbol. Fields and attributes are synced
-from symbols to footprints when you perform the
-<<forward-and-back-annotation,Update PCB From Schematic>> action. They are also
-synced from footprints back to symbols when you perform the Update Schematic
-From PCB action.
+Some properties, namely text fields and attributes,
+will be automatically set for each footprint in a board based on the fields and attributes in the footprint's corresponding schematic symbol.
+Fields and attributes are synced from symbols to footprints when you perform the
+<<forward-and-back-annotation,Update PCB From Schematic>> action.
+They are also synced from footprints back to symbols when you perform the Update Schematic From PCB action.
 
-image::images/footprint_editor_properties.png[]
+To edit footprint properties, click the image:images/icons/module_options_24.png[] button to show the Footprint Properties dialog.
+You can also double click an empty spot in the editing canvas.
 
-To edit footprint properties, click the image:images/icons/module_options_24.png[]
-button to show the Footprint Properties dialog. You can also double click an
-empty spot in the editing canvas.
+image::images/footprint_editor_properties_general.png[]
 
-===== Footprint name, description, and keywords
+The most important settings are in the **General** tab.
+Here you can edit <<fp-fields,footprint fields>> as well as many basic properties for the footprint.
+Other tabs contain options for
+<<fp-layers,footprint layers>>,
+<<fp-clearance-overrides,clearance overrides>>,
+<<fp-pad-connections,pad connections>> including <<net-ties,net ties>> and <<fp-jumper-pads,jumper pads>>,
+<<fp-3d-models,3D models>>,
+and <<fp-embedded-files,embedded files>>.
 
-The footprint name, description, and keywords describe the footprint itself.
-Together they are intended to describe the footprint and help you select an
-appropriate footprint for each component. They are also used when searching for
-footprints in the Footprint Editor and the Add Footprint dialog.
+Footprint fields are explained in a <<fp-fields,separate section>>.
+The other settings in the General tab are:
 
-The **footprint name** contains the name of the footprint. This is the same as
-the footprint's filename on disk, and is also initially the same as the
-footprint's `Value` field. However, the `Value` field can be edited in the
-footprint editor, and when a footprint is added to a board, its `Value` field
-will be updated with the value of the footprint's corresponding symbol.
+* **Footprint name** is the footprint's name in the library.
+  Footprints are identified by a combination of the library and footprint name.
+  The footprint name is the same as the footprint's filename on disk,
+  and is also initially the same as the footprint's `Value` field.
+  However, the `Value` field can be edited in the footprint editor,
+  and when a footprint is added to a board, its `Value` field will be updated with the value of the footprint's corresponding symbol.
 
-The **description** is a description of the footprint. It should be human
-readable, but it is also used when searching for a footprint.
+* **Description** is a description of the footprint.
+It should be human readable, but it is also used when searching for a footprint.
 
 NOTE: This description property is specifically a description of the
       *footprint*. This is not to be confused with the `Description` field,
       which will be set to the description of the footprint's corresponding
-      *symbol* when the footprint is added to a board.
+      symbol when the footprint is added to a board.
 
-The **keywords** are space-separated words related to the footprint. They are
-used when searching for a footprint.
+* The **keywords** should contain additional terms related to the footprint.
+  Keywords are primarily used, in combination with the footprint name and the `Description` field,
+  for searching for the footprint in the Footprint Chooser and the Footprint Editor.
+  Those three items are also displayed when you select a footprint in the Footprint Chooser.
 
-===== Footprint fields
+* **Component type** is one of SMD, Through hole, or Unspecified.
+  A footprint's type affects KiCad's behavior in a few ways:
 
-Footprints contain multiple fields, which are named values containing
-information related to the footprint. Fields can be visible and shown on any
-board layer, or they can be hidden and only shown in the footprint's properties.
-Some fields have special meaning to KiCad: `Reference` and `Footprint` are both
-both used by KiCad to identify schematic symbols and PCB footprints, for
-example. Other fields may contain information that is important for a design but
-is not interpreted by KiCad, like pricing or stock information for a part.
+ ** Footprint type can be used to filter footprints from component placement files as well as other exports, such as STEP files.
+    Additionally, the footprint type is included as metadata in IPC-2581 exports.
+ ** Footprint 3D models can be shown and hidden in the 3D viewer based on their type.
+    For example, SMD models can be hidden while through hole models are still displayed.
+ ** Footprints of different types are reported separately in the <<board-statistics,Board Statistics dialog>>.
+ ** DRC and the <<checking-footprints,footprint checker>> will report footprints containing pads that do not match the parent
+   footprint's type, for example through hole pads in an SMD footprint.
 
-Any fields defined in a library footprint will be included in the footprint when
-it is added to a board. You can also add new fields to footprints in the board.
-Whether they are in the library footprint or not, these fields can then be
-edited on a per-footprint basis in the board. Symbol fields are also transferred
-to the board and added as fields in the corresponding footprint.
+* **Not in schematic**, **Exclude from position files**, **Exclude from bill of materials**, and **Do not populate** set the default state of these attributes when the footprint is added to the board.
+  These attributes are overridden by the value of the attributes in the footprint's linked symbol.
 
-NOTE: Footprint fields are different than graphic text. Fields are named, i.e.
-      they have both a name (`Reference`) and a value (`R101`), whereas
-      footprint text only has a value. Fields can be added to and deleted from
-      footprints in a board in the Footprint Properties dialog, while text items
-      can only be added to a footprint in the footprint editor. Fields are also
-      synced between footprints and their corresponding symbols in the
-      schematic. Before KiCad version 8.0, footprints did not have named fields,
-      only graphic text.
+ ** If **not in schematic** is checked, KiCad will not expect the footprint to correspond to a symbol in the schematic.
+    When updating a PCB from the schematic, KiCad will ordinarily remove footprints that don't have corresponding symbols according to the **delete footprints with no symbols** setting.
+    However, such footprints will not be deleted when they have **not in schematic** set.
 
-All library footprints are defined with four default fields which correspond to
-the xref:../eeschema/eeschema.adoc#symbol-properties[default fields in library symbols]:
-`Reference`, `Value`, `Datasheet`, and `Description`. These default
-fields cannot be deleted. The `Reference` field initially has the value `REF**`,
-while the `Value` field is initially set to the name of the
-footprint. In the board, the values of the four default fields will be set to
-the values of the matching fields in the footprint's corresponding symbol.
+ ** If **exclude from POS files** is checked, KiCad will not include the footprint in component placement file exports.
 
-NOTE: The `Description` footprint field is the description of the symbol, not
-      the footprint, and will be overwritten by the value of the corresponding
-      symbol's description. Footprints have a separate footprint description
-      property (not a field), which is specifically intended for a description
-      of the footprint.
+ ** If **exclude from bill of materials** is checked, the component will not be included in bill of materials exports in either the schematic or PCB editors.
+    This attribute is synced to and from the footprint's corresponding schematic symbol.
 
-Fields each have an associated layer, which determines which board layer the
-field will be placed on. Fields can also be visible or hidden.
+ ** The **do not populate** attribute is primarily a schematic symbol attribute,
+    and is synced to and from the footprint's corresponding schematic symbol.
+    Footprints with this attribute set can optionally be excluded from component placement file exports and some other types of outputs.
+    These footprints can also be hidden in the 3D viewer.
 
-To edit an existing footprint field, double-click the field, select it or hover
-and press kbd:[E], or right-click on the field text and select **Properties...**.
-
-To add new fields, delete optional fields, or edit existing fields, use the
-image:images/icons/module_options_24.png[] icon on the main tool bar to open the
-Footprint Properties dialog. Fields can be arbitrarily named, but names starting
-with `ki_`, e.g. `ki_description`, are reserved by KiCad and should not be used
-for user fields.
-
-Fields have a number of properties, each of which is shown as a column in the
-properties grid. Not all columns are shown by default; columns can be shown or
-hidden by right clicking on the grid header and selecting or deselecting columns
-from the menu.
-
-[[footprint-attributes]]
-===== Footprint attributes
-
-Footprints have several attributes, which are properties of the footprint that
-affect how it is handled by other parts of KiCad.
-
-Every footprint has a **component type**: **SMD**, **Through hole**, or
-**Unspecified**. A footprint's type affects KiCad's behavior in a few ways:
-
-* Footprint type controls the default type of new pads added to the footprint.
-  For *through hole* and *Unspecified* footprints, new pads will be through hole
-  by default, although they can be changed after creation. For *SMD* footprints,
-  new pads will be SMD by default.
-* Footprint type can be used to filter footprints from component placement files
-  as well as other exports, such as STEP files. Additionally, the footprint type
-  is included as metadata in IPC-2581 exports.
-* Footprint 3D models can be shown and hidden in the 3D viewer based on their
-  type. For example, SMD models can be hidden while through hole models are
-  still displayed.
-* Footprints of different types are reported separately in the
-  <<board-statistics,Board Statistics dialog>>.
-* DRC will report footprints containing pads that do not match the parent
-  footprint's type, for example through hole pads in an SMD footprint.
-
-If **not in schematic** is checked, KiCad will not expect the footprint to
-correspond to a symbol in the schematic. When updating a PCB from the schematic,
-KiCad will ordinarily remove footprints that don't have corresponding symbols
-according to the **delete footprints with no symbols** setting. However, such
-footprints will not be deleted when they have **not in schematic** set.
-
-If **exclude from POS files** is checked, KiCad will not include the footprint
-in component placement file exports.
-
-If **exclude from bill of materials** is checked, the component will not be
-included in bill of materials exports in either the schematic or PCB editors.
-This attribute is synced to and from the footprint's corresponding schematic
-symbol.
-
-If **exempt from courtyard requirement** is checked, the footprint will not
-trigger a DRC violation if it does not contain a courtyard. Without this
-attribute set, a footprint without graphics on the `F.Courtyard` or
-`B.Courtyard` layer will cause a "Footprint has no courtyard defined" DRC
-violation.
-
-The **do not populate** attribute is primarily a schematic symbol attribute, and
-is synced to and from the footprint's corresponding schematic symbol. Footprints
-with this attribute set can optionally be excluded from component placement file
-exports and some other types of outputs. These footprints can also be hidden in
-the 3D viewer.
-
-===== Private footprint layers
-
-Footprints can have private footprint layers, which are layers that can be
-viewed and edited in the Footprint Editor but are not shown in the footprint
-when it is added to a board. Therefore any objects that are on private layers
-will not be visible in the PCB Editor or included in PCB fabrication outputs.
-This may be useful, for example, for notes or graphics that are of interest when
-drawing or editing a footprint but not needed at the board level.
-
-Any of the existing `User.*` layers (`User.Drawings`, `User.Comments`,
-`User.Eco1`, `User.1`, etc.) can optionally be a private layer. To make a layer
-private, add a private layer in the **General** tab of the footprint properties
-dialog, then select the desired layer. Any objects on that layer will not be
-shown on the board.
-
-===== Clearance overrides and settings
-
-The **Clearance Overrides and Settings** tab holds settings for
-footprint-specific overrides to board clearance and mask/paste expansion,
-pad-to-zone connections, and net tie settings for allowing pads within the
-footprint to short different nets.
-
-image::images/footprint_editor_properties_clearance.png[]
-
-**Pad clearance** controls the minimum clearance between the footprint's pads and any copper shape
-(tracks, vias, pads, zones) on a different net.  This value is normally empty, which will cause
-the pad clearance to be inherited from the board's design rules and netclass rules. This value can
-be overridden for individual pads by setting the pad's clearance to a nonblank value.
-
-NOTE: Prior to KiCad version 9, a pad clearance of `0` caused the pad clearance value to be inherited.
-      In KiCad 9 and later, a pad clearance of `0` sets the clearance to `0`, while a blank pad
-      clearance causes the clearance to be inherited.
-
-The aperture appearing on any technical layer will have the same shape and size as the pad shape on
-the copper layer(s).  In the PCB manufacturing process, the manufacturer will often change the
-relative size of mask and paste apertures relative to the copper pad size, but since this size
-change is specific to a manufacturing process, most manufacturers expect the design data to be
-provided with the apertures set to the same size as the copper pads.  For specific situations where
-you need to oversize or undersize a technical layer aperture in the design data, you can use the
-settings here. These values can be overridden for individual pads by setting the pad's expansion
-or clearance to a nonzero value.
-
-**Solder mask expansion** controls the size difference between the pad shape and the aperture shape
-on the F.Mask and B.Mask layers.  A positive number means the solder mask aperture will be larger
-than the copper shape.  This number is an inflation applied to all directions.  For example, a
-value of `0.1mm` here will cause the solder mask aperture to be inflated by `0.1mm`, meaning that
-there will be an `0.1mm` border on all sides of the pad and the solder mask opening will be `0.2mm`
-wider than the pad when measured along a given axis.
-
-**Solder paste absolute clearance** controls the size difference between the pad shape and the
-aperture shape on the F.Paste and B.Paste layers.  Its behavior is otherwise identical to the
-behavior of the **solder mask expansion** setting.
-
-**Solder paste relative clearance** allows setting a solder paste clearance value as a percentage
-of the pad size rather than an absolute distance value.  If both relative and absolute clearances
-are specified, they are added together to determine the solder paste aperture size.
-
-**Pad connection to zones** controls whether the footprint's pads will have solid, thermal relief,
-or no connection to zones.  Like the other overrides, this one may be set for an individual pad or
-for an entire footprint.  The default setting for this control is **From zone setting**, which uses
-the connection mode specified in the connection zones' properties. This setting can be overridden
-for individual pads by setting the pad's connection mode to a value other than
-**From parent footprint**.
-
-[[net-ties]]
-====== Creating net ties
-
-Footprints can act as net ties, where two separate nets are electrically connected by copper.
-Connecting nets together would normally causes a DRC error due to violating the clearance between
-two nets, but a footprint can be configured to short nets without causing a DRC violation.
-This can be used to connect multiple grounds at a specific location, to make kelvin sense
-connections to a component, or for other applications.
-
-image::images/net_tie_group.png[]
-
-Net ties connect two or more nets in one contiguous region of copper. Each net in a net tie must
-have its own pad. Pads are not ordinarily allowed to short to other pads; to allow pads to be
-shorted in net ties, the shorting pads must be added to a *net tie group*. To create a net tie
-group, add the pad numbers of the shorting pads to the **Net Ties** table in the
-**Clearance Overrides and Settings** tab of the Footprint Properties dialog. For example, to
-allow pads `1` and `2` to short in a footprint, add a line to the table with the contents `1,2`.
-
-After creating a net tie group, the specified pads are allowed to be electrically shorted. Pads in
-net tie groups can be connected either by directly overlapping the pads or by adding a copper
-shape that overlaps both pads.
-
-Footprints can contain multiple net tie groups. Each group can short two or more nets, but every
-group must remain electrically separate from other groups.
-
-[[footprint-3d-models]]
-===== 3D models
-
-The **3D Models** tab allows you to attach external 3D model files to a
-footprint and view the footprint in three dimensions along with any attached
-models.
-
-image::images/footprint_editor_properties_3dmodels.png[]
-
-The main part of the window is a 3D preview of the footprint and any attached
-models. The buttons to the right of the preview let you enable or disable
-an orthographic projection (image:images/icons/ortho_16.png[]), show or hide the
-PCB model (image:images/icons/axis3d_16.png[]), align the view to one of the six
-face-aligned perspectives (image:images/icons/axis3d_left_16.png[]), and refresh
-the view (image:images/icons/refresh_16.png[]). The bottom button
-(image:images/icons/options_3drender_16.png[]) lets you set the thickness of the
-PCB in the preview.
-
-The top of the dialog lets you attach external models. Each added model will
-be shown in the footprint preview as well as in the full PCB 3D view when the
-footprint is added to a board. Footprint models can be in STEP, VRML, or
-<<idf-component-outlines,IDF>> format. The models are specified as paths to the
-model files, which can contain xref:../kicad/kicad.adoc#path-variables[path variables]
-such as `${KIPRJMOD}` or `${KICAD9_3DMODEL_DIR}`. Click the **Configure Paths**
-button to configure path variables. If there is a problem loading a model file
-from the specified path, an icon in the leftmost column will indicate an error.
-
-NOTE: KiCad will automatically resolve versioned path variables from
-      older versions of KiCad to the value of the corresponding variable from
-      the current KiCad version, as long as the old variable is not explicitly
-      defined itself. For example, `$\{KICAD8_FOOTPRINT_DIR\}` will
-      automatically resolve to the value of `$\{KICAD9_FOOTPRINT_DIR\}` if there
-      is no `KICAD8_FOOTPRINT_DIR` variable defined.
-
-NOTE: Many footprints in KiCad's standard library do not yet have model files
-      created for them. However, these footprints may contain a path to a 3D
-      model that does not yet exist, in anticipation of the 3D model being
-      created in the future.
-
-By default, models are added with their origin placed at the footprint's origin,
-with no offset, scaling, or rotation. Offset, scaling, and rotation can be
-applied to a model using the controls to the left of the preview canvas. The
-model's opacity can be adjusted using the **opacity** slider, and the model can
-be completely hidden by deselecting the **show** checkbox in the rightmost
-column of the model table.
-
-[[fp-embedding-files]]
-==== Embedding files in footprints
-
-External files can be embedded within a footprint.
-Embedding a file stores a copy of the file inside the footprint. The footprint
-can then refer to the embedded copy of the file instead of the external file,
-which makes the footprint more portable as it doesn't rely on an external file,
-although the footprint's filesize is increased as a result.
-In footprints this is especially useful for embedding 3D models. Files embedded
-in a footprint are deduplicated when the footprint is added to a board: if a
-file is embedded in a footprint, and multiple instances of that footprint are
-added to the board, only one copy of the file will be embedded, and all of the
-footprint instances will refer to the same embedded file. Files embedded in a
-footprint cannot be referred to in the parent board. File embedding is explained
-in more detail in the <<pcb-embedding-files,Board Setup documentation>>.
-
-image::images/fp_embedded_files.png[]
-
-NOTE: You can add a 3D model to a footprint and embed it in one step. To do so,
-      add a 3D model in the **3D Models**, and enable the **Embed File**
-      checkbox in the file browser while choosing a model. This embeds the
-      file and automatically uses the embedded reference as the file path
-      instead of the path to the external file.
-
-[[footprint-pads]]
-==== Footprint pads
+[[fp-pads]]
+=== Footprint pads
 
 Pads are added to a footprint by clicking the image:images/icons/pad_24.png[] button in the
 right toolbar, then clicking again in the desired location in the canvas. The tool continues
 adding new pads each time you click on the canvas until you cancel the tool (kbd:[Esc]).
+Each new pad has its pad number incremented by one relative to the previous pad number.
 
-New pads have their pad type set by the <<footprint-attributes,footprint's type>>, though you can
-change the pad type later. New pads in SMD footprints are SMD by default, while pads in Through Hole
-and Unspecified footprints are through hole. Each new pad has its pad number incremented by 1 relative
-to the previous pad number.
+You can configure basic surface-mount or through-hole pad shapes in the <<footprint-pad-properties,Pad Properties>> dialog.
+Some pads may require designing <<custom-pad-shapes,custom-shaped pads>> or <<pad-post-machining-and-backdrilling,postmachining/backdrilling>>.
+
+KiCad also offers tools to help make it easier to design footprints containing many pads,
+including <<default-pad-properties,default pad properties>>,
+a <<renumbering-pads,pad renumbering tool>>,
+a <<pad-table,pad table>>,
+and an <<pad-arrays,array tool>>.
 
 [[footprint-pad-properties]]
-===== Pad properties
+==== Editing pad properties
 
 You can edit a pad after adding it by opening the pad's properties dialog (kbd:[E]). These
 properties are also editable using the <<editing-object-properties,Properties Manager>>.
 
-====== General tab
-
-The **General** tab of the pad properties dialog shows the physical properties of the pad, including
-its geometry, shape, and layer settings.
+The most frequently edited properties of a pad are in the **General** tab.
+These include the pad's position, geometry, and layer settings.
+Other tabs let you configure <<pad-connections,zone, thermal, and teardrop connections>> to the pad,
+<<pad-clearance-overrides,electrical clearance and solder mask / paste expansion>> overrides,
+and <<backdrills,post-machining and backdrilling>>.
 
 image::images/pad_properties_general.png[scaledwidth="70%"]
 
-**Pad type:** this setting controls which features are enabled for the pad:
+The pad settings in the General tab are:
 
-* **SMD** pads are electrically-connected and have no hole.  In other words, they exist on a single
-  copper layer.
+**Pad type** controls which features are enabled for the pad.
 
-* **Through-hole** pads are electrically-connected and have a plated hole.  The hole exists on every
-  layer, and the copper pad exists on multiple layers (see **Copper layers** setting below).
+* **SMD** pads are electrically-connected and have no hole.
+  In other words, they exist on a single copper layer.
 
-* **Edge Connector** pads are SMD pads that are allowed to overlap the board outline on the
-  `Edge.Cuts` layer.
+* **Through-hole** pads are electrically-connected and have a plated hole.
+  The hole exists on every layer, and the copper pad exists on multiple layers (see **Copper layers** setting below).
+
+* **Edge Connector** pads are SMD pads that are allowed to overlap the board outline on the `Edge.Cuts` layer.
 
 * **NPTH, Mechanical** pads are non-plated through holes that do not have an electrical connection.
 
-* **SMD Aperture** pads are pads that have no hole and no electrical connection.  These can be used
-  to add specific designs to a technical layer, for example a paste or solder mask aperture.
+* **SMD Aperture** pads are pads that have no hole and no electrical connection.
+  These can be used to add specific designs to a technical layer, for example a paste or solder mask aperture.
 
-The **Copper layers** setting controls which copper layers will have a shape associated with the
-pad.
+The **Copper layers** setting controls which copper layers will have a shape associated with the pad.
 
-For SMD pads, the options are `F.Cu` or `B.Cu`, controlling whether the pad sits on the front or
-the back of the board _relative to the footprint's location_.  In other words, if a pad is set to
-exist on `B.Cu` in its properties, and the footprint is flipped to the back of the board, _that pad
-will now exist on `F.Cu`, because it also has been flipped_.
+* For SMD pads, the options are `F.Cu` or `B.Cu`, controlling whether the pad sits on the front or the back of the board _relative to the footprint's location_.
+  In other words, if a pad is set to exist on `B.Cu` in its properties, and the footprint is flipped to the back of the board,
+  _that pad will now exist on `F.Cu`, because it also has been flipped_.
 
-For through-hole pads, it is possible to remove the pad shape from copper layers where the pad is
-not electrically connected to other copper (tracks or filled zones).  Setting the copper layers to
-**connected layers only** will remove the pad shape from any unconnected layers, and setting to
-**`F.Cu`, `B.Cu`, and connected layers** will remove the pad shape from any internal unconnected
-layers.  This can be useful in dense board designs to increase the routable area on internal
-layers.
+* For through-hole pads, it is possible to remove the pad shape from copper layers where the pad is not electrically connected to other copper (tracks or filled zones).
+  Setting the copper layers to **connected layers only** will remove the pad shape from any unconnected layers,
+  and setting to **`F.Cu`, `B.Cu`, and connected layers** will remove the pad shape from any internal unconnected layers.
+  This can be useful in dense board designs to increase the routable area on internal layers.
 
-The **Technical layers** checkboxes control which technical layers will have an aperture added with
-the pad's shape.  By default, pads have apertures on the paste and mask layers matching their
-copper layer.
+The **Technical layers** checkboxes control which technical layers will have an aperture added with the pad's shape.
+By default, pads have apertures on the paste and mask layers matching their copper layer.
 
-NOTE: It is not possible to define a different pad shape or size on different copper layers in the
-      current version of KiCad.
+* For SMD pads, the mask and paste apertures are on whichever outer layer matches the pad's copper layer.
 
-The **Pad number** controls what the pad will be electrically connected to in the board. A pad has
-the same net connection as the pin with the same number in the corresponding schematic symbol.
+* For through-hole pads, mask apertures are on both `F.Mask` and `B.Mask` by default, with no paste apertures.
+  The front and back mask and paste layers can be enabled or disabled independently.
 
-Pad **Position X** and **Y** are the location of the center of the pad, relative to the footprint's
-origin.
+NOTE: The solder mask expansion and solder paste margin values in the **Clearance Overrides** tab
+      apply to all of the pad's enabled mask and paste layers.
 
-**Pad shape** controls the basic shape of the pad. This can be *circular*, *oval*, *rectangular*,
-*trapezoidal*, *rounded rectangle*, *chamfered rectangle*, *chamfered with other corners rounded*,
-*custom (circular base)*, or *custom (rectangular base)*. Each pad shape has its own set of
-options; for example, rounded rectangles have settings for *pad size X* and *Y*, *angle*,
-*corner size*, and *corner radius*.
+The **Pad number** controls what the pad will be electrically connected to in the board.
+A pad has the same net connection as the pin with the same number in the corresponding schematic symbol.
+
+Pad **Position X** and **Y** are the location of the center of the pad, relative to the footprint's origin.
+
+A pad's diameter and hole size can be defined on a per-layer basis.
+This is also known as defining the pad's __padstack__.
+The **Padstack mode** controls whether the pad shape is the same on all layers or whether individual layers are individually controlled.
+
+* In the **Normal** padstack mode, the pad's diameter and hole size are the same on all layers.
+* In the **Front/Inner/Back** padstack mode, the pad's diameter and hole size can be controlled separately for the front layer, the back layer, and the inner layers
+  (the inner layers will all have the same settings).
+  The **Edit layer** dropdown controls which layer (or group of layers) is currently being displayed and edited.
+* In the **Custom** padstack mode, the via's diameter and hole size can be controlled completely independently on each layer.
+  The **Edit layer** dropdown controls which layer is currently being displayed and edited.
+
+**Pad shape** controls the basic shape of the pad. Pad shapes can be one of:
+
+* circular
+* oval
+* rectangular
+* trapezoidal
+* rounded rectangle
+* chamfered rectangle
+* chamfered with other corners rounded
+* custom (circular base)
+* custom (rectangular base)
+
+Each pad shape has its own set of options;
+for example, rounded rectangles have settings for *pad size X* and *Y*, *angle*, *corner size*, and *corner radius*.
 
 NOTE: The size of a pad can also be adjusted interactively in the canvas by dragging the editing
       handles at the pad corners.
+
+NOTE: Some components may require pads with unusual shapes that cannot be configured in this dialog.
+      You can create <<custom-pad-shapes,custom pad shapes>> for such components.
 
 Through-hole and NPTH pads have a hole in addition to the pad itself. The **hole shape** can be
 *circular* or *oval*, with corresponding size controls. By default the pad is centered on the
@@ -895,14 +846,19 @@ affect DRC. The following fabrication properties are available:
   in SMD footprints (PTH pads without this property cause a DRC violation when
   they are used in SMD footprints). It also affects Gerber X2 output.
 
-* Pads with the *castellated pad* property are allowed to intersect the board edge and still be
-  routed (it is otherwise a DRC error for a pad to intersect the board edge, which makes routing
-  impossible). It also affects Gerber X2 output.
+* The *castellated pad* property is for pads that intentionally intersect the board edge such that
+  they will be bisected when the board is manufactured. Pads with this property are allowed to
+  intersect the board edge and still be routed (it is otherwise a DRC error for a pad to intersect
+  the board edge, which makes routing impossible). In STEP exports, pads with this property are
+  clipped to the board edge. This property also affects Gerber X2 output.
 
 * Through hole pads with the *mechanical* property can be used in SMD footprints
   without causing a DRC violation. This can be used for mounting pads or other
   mechanical through hole pads in surface mount footprints. This is similar to the
   *heatsink pad* property, but does not affect Gerber X2 output.
+
+* The **press-fit pad** property is for pads designed to have component leads pressed into them without solder.
+  This property only affects Gerber X2 output.
 
 * *None* is for pads for which none of the other fabrication properties apply. It has no effect.
 
@@ -912,9 +868,13 @@ This can be used to specify internal bondwire lengths for more accurate length m
 other situations where the electrical length of a net is longer than the length of the routed
 tracks on the board.
 
-====== Connections tab
+**Specify pad to die delay:** This setting is similar to the pad-to-die length, but for time-domain tuning.
+It allows a time delay to be associated with this pad that will be added to the routed track delay by the track length tuning tools.
 
-The **Connections** tab contains settings for how pads connect to other objects, including
+[[pad-connections]]
+==== Pad connections
+
+The **Connections** tab of a pad's properties contains settings for how pads connect to other objects, including
 settings for teardrops, zone connections, and thermal reliefs.
 
 image::images/pad_properties_connections.png[]
@@ -944,9 +904,10 @@ NOTE: Prior to KiCad version 9, a relief gap or spoke width of `0` caused that v
       In KiCad 9 and later, a relief gap or spoke width of `0` sets that value to `0`, while a blank
       value causes the value to be inherited.
 
-====== Clearance Overrides tab
+[[pad-clearance-overrides]]
+==== Pad clearance overrides
 
-The **Clearance Overrides** tab holds settings for pad-specific overrides to board clearance and
+The **Clearance Overrides** tab of a pad's properties holds settings for pad-specific overrides to board clearance and
 mask/paste expansion.
 
 image::images/pad_properties_overrides.png[scaledwidth="70%"]
@@ -975,97 +936,26 @@ value of `0.1mm` here will cause the solder mask aperture to be inflated by `0.1
 there will be an `0.1mm` border on all sides of the pad and the solder mask opening will be `0.2mm`
 wider than the pad when measured along a given axis.
 
-**Solder paste absolute clearance** controls the size difference between the pad shape and the
-aperture shape on the F.Paste and B.Paste layers.  Its behavior is otherwise identical to the
-behavior of the **solder mask expansion** setting.
+**Solder paste clearance** is a setting to specify the solder paste shape relative to the parent pad size
+(the size difference between the pad shape and the aperture shape on the F.Paste and B.Paste layers).
+This can be specified as an absolute offset from the pad edge (e.g. `-0.1mm`),
+a value relative to the pad dimension (e.g. `-5%`),
+or both (e.g. `-0.1mm - 5%`).
+If it is `0` or blank, the solder paste aperture will be the same size as the pad.
+Positive values mean solder paste aperture larger than the pad.
+Negative values mean solder paste aperture smaller than the pad.
 
-**Solder paste relative clearance** allows setting a solder paste clearance value as a percentage
-of the pad size rather than an absolute distance value.  If both relative and absolute clearances
-are specified, they are added together to determine the solder paste aperture size.
+[[pad-post-machining-and-backdrilling]]
+==== Pad post-machining and backdrilling
 
-===== Working with multiple pads
+You can control post-machining and backdrill operations for pads in the **Backdrill** tab of the pad's properties.
 
-When you place a new pad, the new pad's properties are copied from the
-*default pad properties*. Each time any pad is edited, the pad's updated
-properties are stored as the default pad properties, so that new pads will match
-the properties of the most recently edited pad.
+image::images/pad_properties_backdrill.png[]
 
-You can directly edit the default pad properties by selecting **Edit** ->
-**Default Pad Properties...**, or choose an existing pad to represent the
-default by right clicking the pad and choosing
-**Copy Pad Properties to Default**. New pads will use that pad's properties as
-their defaults until a new default is selected, either by editing another pad,
-editing the default pad properties, or manually copying a different pad's
-properties to the default.
-
-There are several ways to update existing pads with the properties of other
-pads. You can apply the default pad properties to an explicit selection of pads
-by selecting the desired target pads, right clicking, and choosing
-**Paste Default Pad Properties to Selected** from the right click context menu.
-You can also update other pads with a selected pad's properties using
-**Push Default Pad Properties to Other Pads...**, also in the right click
-context menu.
-
-image::images/push_pad_properties.png[]
-
-This tool has several options to filter which pads are targeted.
-
-If **do not modify pads having a different shape** is selected, only pads with
-the exact same shape properties as the selected pad will be updated.
-
-If **do not modify pads having different layers** is selected, only pads on the
-same layer(s) as the selected pad will be updated.
-
-If **do not modify pads having a different orientation** is selected, only pads
-with the same orientation as the selected pad will be updated.
-
-If **do not modify pads pads having a different type** is selected, only pads
-with the same pad type as the selected pad will be updated.
-
-If no options are selected, all pads in the footprint will be updated.
-
-You can create an array of pads from a source pad by right clicking the source
-pad and selecting **Create from Selection** -> **Create Array...**
-(kbd:[Ctrl+T]). The basic functionality of this tool is described in the
-<<creating-arrays,PCB Editor documentation>>. For pads, however, there are
-additional options for controlling pad numbering.
-
-image::images/create_array_pads_grid.png[]
-
-For grid arrays, you can select a numbering direction, either
-**horizontal, then vertical** or **vertical, then horizontal**. If
-**reverse numbering on alternate rows/columns** is selected, the direction of
-increasing pad numbers will alternate from one row/column to the next.
-
-The initial pad number in the array can either be the first unused pad number in
-the footprint (**use first free number**) or the specified
-**pad numbering start** value. After the first number, the pad numbering can
-either be **continuous** (1, 2, 3, ...) or **coordinate** based, in other words,
-dependent on both the row and column (A1, A2, ..., B1, ...). In addition to the
-initial pad number (**pad numbering start**), you can specify a numbering step
-(**pad numbering skip**). For coordinate-based numbering, you can configure
-separate starting numbers and steps for each axis. You can select whether pad
-numbers use decimal digits (0-9), hexadecimal digits (0-F), the full alphabet,
-or the alphabet excepting certain ambiguous letters (I, O, S, Q, X, and Z).
-
-Finally, you can quickly renumber existing pads using the Renumber Pads tool
-(**Edit** -> **Renumber Pads...**).
-
-image::images/renumber_pads.png[]
-
-The tool has several options. Pads will be renumbered starting at the selected
-**first pad number**, and each subsequent pad will have its number incremented
-by the **numbering step**. You can also choose an optional **pad name prefix**
-which will be inserted before of the incrementing part of each pad number.
-
-Once you click **OK**, you will be prompted to click on a pad, which will be
-assigned a new pad number based on the selected initial pad number and prefix.
-You can keep clicking on pads to assign them the next number in the sequence
-based on the selected numbering step. Double click on a pad to renumber that pad
-and end the sequence, or press kbd:[Esc] to discard the changes.
+<<postmachining,Post-machining>> and <<backdrills,backdrilling>> are explained in their own sections.
 
 [[custom-pad-shapes]]
-===== Custom pad shapes
+==== Custom pad shapes
 
 For some footprints, the built-in pad shapes (round, rectangular, etc.) may not
 be sufficient. In these cases you can construct custom pads with arbitrary
@@ -1140,8 +1030,109 @@ Thermal relief templates only determine the spoke location: spoke width and
 relief gap are still defined in the pad, footprint, and/or zone properties, as
 normal.
 
+[[default-pad-properties]]
+==== Default pad properties
+
+When you place a new pad, the new pad's properties are copied from the
+*default pad properties*. Each time any pad is edited, the pad's updated
+properties are stored as the default pad properties, so that new pads will match
+the properties of the most recently edited pad.
+
+You can directly edit the default pad properties by selecting **Edit** ->
+**Default Pad Properties...**, or choose an existing pad to represent the
+default by right clicking the pad and choosing
+**Copy Pad Properties to Default**. New pads will use that pad's properties as
+their defaults until a new default is selected, either by editing another pad,
+editing the default pad properties, or manually copying a different pad's
+properties to the default.
+
+There are several ways to update existing pads with the properties of other
+pads. You can apply the default pad properties to an explicit selection of pads
+by selecting the desired target pads, right clicking, and choosing
+**Paste Default Pad Properties to Selected** from the right click context menu.
+You can also update other pads with a selected pad's properties using
+**Push Default Pad Properties to Other Pads...**, also in the right click
+context menu.
+
+image::images/push_pad_properties.png[]
+
+This tool has several options to filter which pads are targeted.
+
+* If **do not modify pads having a different shape** is selected,
+  only pads with the exact same shape properties as the selected pad will be updated.
+
+* If **do not modify pads having different layers** is selected,
+  only pads on the same layer(s) as the selected pad will be updated.
+
+* If **do not modify pads having a different orientation** is selected,
+  only pads with the same orientation as the selected pad will be updated.
+
+* If **do not modify pads pads having a different type** is selected,
+  only pads with the same pad type as the selected pad will be updated.
+
+* If no options are selected, all pads in the footprint will be updated.
+
+[[renumbering-pads]]
+==== Renumbering pads
+
+You can quickly renumber existing pads using the Renumber Pads tool (**Edit** -> **Renumber Pads...**).
+
+image::images/renumber_pads.png[]
+
+The tool has several options. Pads will be renumbered starting at the selected
+**first pad number**, and each subsequent pad will have its number incremented
+by the **numbering step**. You can also choose an optional **pad name prefix**
+which will be inserted before of the incrementing part of each pad number.
+
+Once you click **OK**, you will be prompted to click on a pad, which will be
+assigned a new pad number based on the selected initial pad number and prefix.
+You can keep clicking on pads to assign them the next number in the sequence
+based on the selected numbering step. Double click on a pad to renumber that pad
+and end the sequence, or press kbd:[Esc] to discard the changes.
+
+[[pad-table]]
+==== Pad table
+
+Another way to edit pads is to use the Pad Table, which is accessible via the
+image:images/icons/pin_table_24.png[Pad table icon] button.
+The Pad Table displays all of the pads in the footprint and their properties in a table view,
+so it is useful for making bulk pad changes.
+Any pad property can be edited by clicking on the appropriate cell.
+
+NOTE: Columns of the pad table can be shown or hidden by right-clicking on the
+header row and checking or unchecking additional columns.
+
+image::images/footprint_editor_pad_table.png[alt="Pad table",scaledwidth="95%"]
+
+[[pad-arrays]]
+==== Pad arrays
+
+You can create an array of pads from a source pad by right clicking the source pad and selecting **Create from Selection** -> **Create Array...** (kbd:[Ctrl+T]).
+
+This array tool can also be used for creating arrays of other objects,
+as described in the <<creating-arrays,PCB Editor documentation>>.
+For pads, however, there are additional options for controlling pad numbering.
+
+image::images/create_array_pads_grid.png[]
+
+For grid arrays, you can select a numbering direction, either
+**horizontal, then vertical** or **vertical, then horizontal**. If
+**reverse numbering on alternate rows/columns** is selected, the direction of
+increasing pad numbers will alternate from one row/column to the next.
+
+The initial pad number in the array can either be the first unused pad number in
+the footprint (**use first free number**) or the specified
+**pad numbering start** value. After the first number, the pad numbering can
+either be **continuous** (1, 2, 3, ...) or **coordinate** based, in other words,
+dependent on both the row and column (A1, A2, ..., B1, ...). In addition to the
+initial pad number (**pad numbering start**), you can specify a numbering step
+(**pad numbering skip**). For coordinate-based numbering, you can configure
+separate starting numbers and steps for each axis. You can select whether pad
+numbers use decimal digits (0-9), hexadecimal digits (0-F), the full alphabet,
+or the alphabet excepting certain ambiguous letters (I, O, S, Q, X, and Z).
+
 [[fp-graphical-objects]]
-==== Footprint graphics and text
+=== Footprint graphics and text
 
 Footprints can contain graphic shapes, text, and dimensions. These objects can
 be placed on nonphysical layers, like `F.Fab` or `User.Drawings`, or they can be
@@ -1180,7 +1171,7 @@ NOTE: You can customize the default style of newly-created text and shape object
 Graphical objects and their properties are described in more detail in the
 <<pcb-graphical-objects,PCB Editor documentation>>.
 
-===== Bulk editing footprint text and graphics
+==== Bulk editing footprint text and graphics
 
 Properties of text and graphics can be edited in bulk using the *Edit Text and
 Graphics Properties* dialog (**Edit** -> **Edit Text & Graphic Properties...**).
@@ -1190,7 +1181,7 @@ image::images/edit_text_and_graphics_properties_footprint.png[]
 This dialog is described in more detail in the
 <<pcbnew-edit-text-and-graphics-properties,PCB Editor documentation>>.
 
-===== Cleaning up footprint graphics
+==== Cleaning up footprint graphics
 
 There is a dedicated tool for performing common cleanup operations on
 graphics, which is run via **Tools** -> **Cleanup Graphics...**.
@@ -1212,8 +1203,311 @@ Any changes that will be applied to the footprint are displayed at the bottom of
 the dialog. They are not applied until you press the **Update Footprint**
 button.
 
+[[fp-fields]]
+=== Footprint fields
+
+Footprints contain multiple fields, which are named values containing
+information related to the footprint. Fields can be visible and shown on any
+board layer, or they can be hidden and only shown in the footprint's properties.
+Some fields have special meaning to KiCad: `Reference` and `Footprint` are both
+both used by KiCad to identify schematic symbols and PCB footprints, for
+example. Other fields may contain information that is important for a design but
+is not interpreted by KiCad, like pricing or stock information for a part.
+
+Any fields defined in a library footprint will be included in the footprint when
+it is added to a board. You can also add new fields to footprints in the board.
+Whether they are in the library footprint or not, these fields can then be
+edited on a per-footprint basis in the board. Symbol fields are also transferred
+to the board and added as fields in the corresponding footprint.
+
+NOTE: Footprint fields are different than graphic text. Fields are named, i.e.
+      they have both a name (`Reference`) and a value (`R101`), whereas
+      footprint text only has a value. Fields can be added to and deleted from
+      footprints in a board in the Footprint Properties dialog, while text items
+      can only be added to a footprint in the footprint editor. Fields are also
+      synced between footprints and their corresponding symbols in the
+      schematic. Before KiCad version 8.0, footprints did not have named fields,
+      only graphic text.
+
+All library footprints are defined with four default fields which correspond to
+the xref:../eeschema/eeschema.adoc#symbol-properties[default fields in library symbols]:
+`Reference`, `Value`, `Datasheet`, and `Description`. These default
+fields cannot be deleted. The `Reference` field initially has the value `REF**`,
+while the `Value` field is initially set to the name of the
+footprint. In the board, the values of the four default fields will be set to
+the values of the matching fields in the footprint's corresponding symbol.
+
+NOTE: The `Description` footprint field is the description of the symbol, not
+      the footprint, and will be overwritten by the value of the corresponding
+      symbol's description. Footprints have a separate footprint description
+      property (not a field), which is specifically intended for a description
+      of the footprint.
+
+Fields each have an associated layer, which determines which board layer the
+field will be placed on. Fields can also be visible or hidden.
+
+To edit an existing footprint field, double-click the field, select it or hover
+and press kbd:[E], or right-click on the field text and select **Properties...**.
+
+To add new fields, delete optional fields, or edit existing fields, use the
+image:images/icons/module_options_24.png[] icon on the main tool bar to open the
+Footprint Properties dialog. Fields can be arbitrarily named, but names starting
+with `ki_`, e.g. `ki_description`, are reserved by KiCad and should not be used
+for user fields.
+
+Fields have a number of properties, each of which is shown as a column in the
+properties grid. Not all columns are shown by default; columns can be shown or
+hidden by right clicking on the grid header and selecting or deselecting columns
+from the menu.
+
+[[fp-layers]]
+=== Footprint layers
+
+By default, footprints have a front copper layer (`F.Cu`), a back copper layer (`B.Cu`), and a third copper layer that represents all inner copper layers on any board the footprint is added to (`Inner layers`).
+However, you can customize this stackup by enabling the **Use custom stackup** option in the Layers tab of a footprint's properties.
+When this setting is enabled, you must specify the exact number of copper layers contained in the footprint using the **Copper layers** dropdown.
+You can then customize any of these copper layers in the Footprint Editor,
+but if the footprint is added to a board with fewer copper layers,
+any items on the extra copper layers will be ignored.
+
+image::images/footprint_editor_properties_layers.png[]
+
+You can also add additional user (non-copper) layers using the **User Layers** table.
+Any layers configured in this table will be added to the footprint,
+and you can edit these layers like any other footprint layer.
+When the footprint is added to a board, these layers will be visible in the board editor if the board is configured to include those layers.
+
+NOTE: You can globally configure the number of user layers in footprints,
+      as well as their names,
+      in the **User Layer Names** section of the Footprint Editor's preferences.
+      These user layers are shown in all footprints in addition to any layers configured in an individual footprint.
+
+==== Private footprint layers
+
+Footprints can also have private footprint layers, which are layers that can be
+viewed and edited in the Footprint Editor but are never shown in the footprint
+when it is added to a board. Therefore any objects that are on private layers
+will not be visible in the PCB Editor or included in PCB fabrication outputs.
+This may be useful, for example, for notes or graphics that are of interest when
+drawing or editing a footprint but not needed at the board level.
+
+Any of the existing `User.*` layers (`User.Drawings`, `User.Comments`,
+`User.Eco1`, `User.1`, etc.) can optionally be a private layer. To make a layer
+private, add a private layer in the **Layers** tab of the footprint properties
+dialog, then select the desired layer. Any objects on that layer will not be
+shown on the board.
+
+[[fp-clearance-overrides]]
+=== Clearance overrides
+
+The **Clearance Overrides** tab of Footprint properties holds settings for footprint-specific overrides to board clearance and mask/paste expansion.
+
+image::images/footprint_editor_properties_clearance_overrides.png[]
+
+**Pad clearance** controls the minimum clearance between the footprint's pads and any copper shape
+(tracks, vias, pads, zones) on a different net.  This value is normally empty, which will cause
+the pad clearance to be inherited from the board's design rules and netclass rules. This value can
+be overridden for individual pads by setting the pad's clearance to a nonblank value.
+
+NOTE: Prior to KiCad version 9, a pad clearance of `0` caused the pad clearance value to be inherited.
+      In KiCad 9 and later, a pad clearance of `0` sets the clearance to `0`, while a blank pad
+      clearance causes the clearance to be inherited.
+
+The aperture appearing on any technical layer will have the same shape and size as the pad shape on
+the copper layer(s).  In the PCB manufacturing process, the manufacturer will often change the
+relative size of mask and paste apertures relative to the copper pad size, but since this size
+change is specific to a manufacturing process, most manufacturers expect the design data to be
+provided with the apertures set to the same size as the copper pads.  For specific situations where
+you need to oversize or undersize a technical layer aperture in the design data, you can use the
+settings here. These values can be overridden for individual pads by setting the pad's expansion
+or clearance to a nonzero value.
+
+**Solder mask expansion** controls the size difference between the pad shape and the aperture shape
+on the F.Mask and B.Mask layers.  A positive number means the solder mask aperture will be larger
+than the copper shape.  This number is an inflation applied to all directions.  For example, a
+value of `0.1mm` here will cause the solder mask aperture to be inflated by `0.1mm`, meaning that
+there will be an `0.1mm` border on all sides of the pad and the solder mask opening will be `0.2mm`
+wider than the pad when measured along a given axis.
+
+**Solder paste clearance** is a setting to specify the solder paste shape relative to the parent pad size
+(the size difference between the pad shape and the aperture shape on the F.Paste and B.Paste layers).
+This can be specified as an absolute offset from the pad edge (e.g. `-0.1mm`),
+a value relative to the pad dimension (e.g. `-5%`),
+or both (e.g. `-0.1mm - 5%`).
+If it is `0` or blank, the solder paste aperture will be the same size as the pad.
+Positive values mean solder paste aperture larger than the pad.
+Negative values mean solder paste aperture smaller than the pad.
+
+If **exempt from courtyard requirement** is checked, the footprint will not
+trigger a DRC violation if it does not contain a courtyard. Without this
+attribute set, a footprint without graphics on the `F.Courtyard` or
+`B.Courtyard` layer will cause a "Footprint has no courtyard defined" DRC
+violation.
+
+==== Clearance override hierarchy
+
+Clearance, mask expansion, and paste margin values are resolved through a hierarchy of overrides.
+When a value is set at multiple levels, the most specific level takes precedence:
+
+1. **Pad-level override:** A value set directly on an individual pad.  This is the highest-priority
+   override and applies only to that specific pad.
+
+2. **Footprint-level override:** A value set in the footprint's **Clearance Overrides** tab.  This
+   applies to all pads in the footprint that do not have their own pad-level override.
+
+3. **Board-level default:** The global values configured in
+   **Board Setup** -> <<board-setup-stackup,**Solder Mask/Paste**>>.  These apply to all pads
+   that do not have a footprint-level or pad-level override.
+
+[[fp-pad-connections]]
+=== Pad connections, net ties, and jumper pads
+
+The Pad Connections tab of Footprint Properties holds settings for how pads in the footprint connect to zones,
+whether the footprint can short two different nets (a <<net-ties,net tie>>),
+and whether pads in the footprint are internally connected in the attached component (<<jumper-pads,jumper pads>>).
+
+image::images/footprint_editor_properties_pad_connections_jumpers.png[]
+
+**Pad connection to zones** controls whether the footprint's pads will have solid, thermal relief, or no connection to zones.
+The default setting for this control is **From zone setting**, which uses the connection mode specified in the connection zones' properties.
+The control in this tab sets the override for an entire footprint,
+but you can also override the setting for individual pads in each pad's properties by setting the pad's connection mode to a value other than **From parent footprint**.
+
+[[net-ties]]
+==== Net ties
+
+Footprints can act as net ties, where two separate nets are electrically connected by copper.
+Connecting nets together would normally causes a DRC error due to violating the clearance between
+two nets, but a footprint can be configured to short nets without causing a DRC violation.
+This can be used to connect multiple grounds at a specific location, to make kelvin sense
+connections to a component, or for other applications.
+
+image::images/net_tie_group.png[]
+
+Net ties connect two or more nets in one contiguous region of copper. Each net in a net tie must
+have its own pad. Pads are not ordinarily allowed to short to other pads; to allow pads to be
+shorted in net ties, the shorting pads must be added to a *net tie group*. To create a net tie
+group, add the pad numbers of the shorting pads to the **Net Ties** table in the
+**Pad Connections** tab of the Footprint Properties dialog. For example, to
+allow pads `1` and `2` to short in a footprint, add a line to the table with the contents `1,2` or `1 2`.
+
+After creating a net tie group, the specified pads are allowed to be electrically shorted. Pads in
+net tie groups can be connected either by directly overlapping the pads or by adding a copper
+shape that overlaps both pads.
+
+Footprints can contain multiple net tie groups. Each group can short two or more nets, but every
+group must remain electrically separate from other groups.
+
+[[fp-jumper-pads]]
+==== Jumper pads
+
+You can configure a footprint to _jumper_ some or all of its pads internally.
+Any jumpered pads will always have the same net;
+they are considered shorted together, even if they are not explicitly connected together in the schematic and PCB.
+
+Footprint with jumper pads represent components that internally short together multiple pads.
+Examples of such components are wire jumpers,
+connectors with multiple connected shield pads,
+and switches with multiple shorted pads on each side of the switch.
+
+image::images/footprint_jumper_pads_disabled.png[caption="",title="A footprint without jumpered pads. The ratsnest shows missing connections between same-numbered pads."]
+
+image::images/footprint_jumper_pads_enabled.png[caption="",title="The same footprint in the same circuit with same-number pads jumpered (internally connected by the component). PCB connections between the same-numbered pads are no longer required."]
+
+Because KiCad considers the jumpered pads to be shorted by the component,
+you only need to connect to one of the shorted pads in the schematic and PCB.
+
+NOTE: Jumper pads are different than net ties.
+      A xref:../pcbnew.adoc#net-ties[net tie] allows copper to bridge two different nets,
+      and each pad in the net tie has a different net.
+      With jumper pads, each pad has the same net,
+      and the electrical connection between jumper pads is assumed to be off-board in the attached component.
+
+You can configure jumper pads in the **Pad Connections** tab of a footprint's Properties.
+
+When the **All pads with duplicate numbers are jumpers** setting is enabled,
+all pads (and pins in the linked symbol) will be jumpered to the other pads with the same number.
+For example, all pads numbered 1 will be considered connected to each other.
+
+You can also configure jumper pad groups for pads that don't have the same number by adding **Explicit pad jumper groups** with the image:images/icons/small_plus_16.png[] button.
+Enter multiple pad numbers separated by spaces or commas.
+A pad jumper group with the text `1 2`  or `1, 2` will jumper together pads 1 and 2. A group with `3 4 5` or `3, 4, 5` will jumper together pads 3, 4, and 5.
+
+NOTE: Like many other footprint properties, a footprint's jumper pad settings are transferred from the linked symbol.
+      You can configure a symbol's jumper pins using the xref:../eeschema/eeschema.adoc#sym-jumper-pins[Symbol Editor].
+
+[[fp-3d-models]]
+=== 3D models
+
+The **3D Models** tab of Footprint Properties allows you to attach external 3D model files to a
+footprint and view the footprint in three dimensions along with any attached
+models.
+
+image::images/footprint_editor_properties_3dmodels.png[]
+
+The main part of the window is a 3D preview of the footprint and any attached
+models. The buttons to the right of the preview let you enable or disable
+an orthographic projection (image:images/icons/ortho_16.png[]), show or hide the
+PCB model (image:images/icons/axis3d_16.png[]), align the view to one of the six
+face-aligned perspectives (image:images/icons/axis3d_left_16.png[]), and refresh
+the view (image:images/icons/refresh_16.png[]). The bottom button
+(image:images/icons/options_3drender_16.png[]) lets you set the thickness of the
+PCB in the preview.
+
+The top of the dialog lets you attach external models. Each added model will
+be shown in the footprint preview as well as in the full PCB 3D view when the
+footprint is added to a board. Footprint models can be in STEP, VRML, or
+<<idf-component-outlines,IDF>> format. The models are specified as paths to the
+model files, which can contain xref:../kicad/kicad.adoc#path-variables[path variables]
+such as `${KIPRJMOD}` or `${KICAD9_3DMODEL_DIR}`. Click the **Configure Paths**
+button to configure path variables. If there is a problem loading a model file
+from the specified path, an icon in the leftmost column will indicate an error.
+
+NOTE: KiCad will automatically resolve versioned path variables from
+      older versions of KiCad to the value of the corresponding variable from
+      the current KiCad version, as long as the old variable is not explicitly
+      defined itself. For example, `$\{KICAD8_FOOTPRINT_DIR\}` will
+      automatically resolve to the value of `$\{KICAD9_FOOTPRINT_DIR\}` if there
+      is no `KICAD8_FOOTPRINT_DIR` variable defined.
+
+NOTE: Many footprints in KiCad's standard library do not yet have model files
+      created for them. However, these footprints may contain a path to a 3D
+      model that does not yet exist, in anticipation of the 3D model being
+      created in the future.
+
+By default, models are added with their origin placed at the footprint's origin,
+with no offset, scaling, or rotation. Offset, scaling, and rotation can be
+applied to a model using the controls to the left of the preview canvas. The
+model's opacity can be adjusted using the **opacity** slider, and the model can
+be completely hidden by deselecting the **show** checkbox in the rightmost
+column of the model table.
+
+[[fp-embedding-files]]
+=== Embedding files
+
+External files can be embedded within a footprint.
+Embedding a file stores a copy of the file inside the footprint. The footprint
+can then refer to the embedded copy of the file instead of the external file,
+which makes the footprint more portable as it doesn't rely on an external file,
+although the footprint's filesize is increased as a result.
+In footprints this is especially useful for embedding 3D models. Files embedded
+in a footprint are deduplicated when the footprint is added to a board: if a
+file is embedded in a footprint, and multiple instances of that footprint are
+added to the board, only one copy of the file will be embedded, and all of the
+footprint instances will refer to the same embedded file. Files embedded in a
+footprint cannot be referred to in the parent board. File embedding is explained
+in more detail in the <<pcb-embedding-files,Board Setup documentation>>.
+
+image::images/footprint_editor_properties_embedded_files.png[]
+
+NOTE: You can add a 3D model to a footprint and embed it in one step. To do so,
+      add a 3D model in the **3D Models**, and enable the **Embed File**
+      checkbox in the file browser while choosing a model. This embeds the
+      file and automatically uses the embedded reference as the file path
+      instead of the path to the external file.
+
 [[fp-rule-areas]]
-==== Rule areas
+=== Rule areas
 
 Rule areas, also known as keepouts, are footprint regions that can have specific
 DRC rules defined for them. Some basic rules are available that will raise DRC
@@ -1235,7 +1529,7 @@ Rule areas are described in more detail in the <<pcb-rule-areas,PCB editor>>
 documentation.
 
 [[fp-reference-images]]
-==== Reference images
+=== Reference images
 
 Just like in the PCB Editor, you can use reference images in the Footprint
 Editor to assist with your footprint designs. Footprint reference images are
@@ -1250,7 +1544,7 @@ Reference images are described in more detail in the
 <<pcb-reference-images,PCB Editor documentation>>.
 
 [[footprint-wizards]]
-==== Footprint wizards
+=== Footprint wizards
 
 KiCad provides a set of footprint wizards that can be used to create some common
 kinds of footprints based on a set of parameters. Wizards for the following
@@ -1289,7 +1583,7 @@ the <<creating-footprint-wizards,Scripting section>> of the Advanced Topics
 chapter.
 
 [[checking-footprints]]
-==== Checking footprints
+=== Checking footprints
 
 The Footprint Editor can check for common issues in your footprints. Run the
 footprint checker using the image:images/icons/erc_24.png[] button in the top
@@ -1313,88 +1607,8 @@ The footprint checker checks for:
 * Surface mount pads on both the front and back
 * Surface mount pads with mismatched copper and paste/mask layers (front copper
   and back paste/mask, or vice versa)
+* Pads co-located with or too close to other holes
+* Collisions between silkscreen and solder mask openings
 * Pads that short to other pads outside of net tie groups
 * Nonexistent pads in net tie groups
 * Pads in that appear in multiple net tie groups
-
-=== Browsing footprint libraries
-
-The Footprint Library Browser allows you to quickly examine the contents of
-footprint libraries. The Footprint Library Viewer can be accessed by clicking
-image:images/icons/library_browser_24.png[Library viewer icon] icon on the main
-Board Editor toolbar or with **View** -> **Footprint Library Browser**.
-
-To examine the contents of a library, select a library from the list in the left
-hand pane. All footprints in the selected library will appear in the second
-pane. Select a footprint name to view the footprint.
-
-image::images/footprint_library_browser.png[alt="Footprint Library Browser",scaledwidth="95%"]
-
-Double clicking the name of a footprint or using the
-image:images/icons/insert_module_board_24.png[Insert footprint in board icon]
-button adds the footprint to the board.
-
-The top toolbar contains the following commands:
-
-[width="100%",cols="20%,80%",]
-|=======================================================================
-
-|image:images/icons/lib_previous_24.png[Previous footprint icon]
-|Select previous footprint in library.
-
-|image:images/icons/lib_next_24.png[Next footprint icon]
-|Select next footprint in library.
-
-|image:images/icons/refresh_24.png[] image:images/icons/zoom_in_24.png[]
-image:images/icons/zoom_out_24.png[] image:images/icons/zoom_fit_in_page_24.png[]
-|Zoom tools.
-
-|image:images/icons/shape_3d_24.png[]
-|Open footprint in 3D Viewer.
-
-|image:images/icons/insert_module_board_24.png[]
-|Add the footprint to the board.
-
-|image:images/icons/zoom_auto_fit_in_page_24.png[]
-|Automatically zoom to fit each opened footprint.
-|=======================================================================
-
-The left toolbar contains the following commands:
-
-[width="100%",cols="20%,80%",]
-|=======================================================================
-
-| image:images/icons/cursor_24.png[]
-| Selection tool (the default tool).
-
-| image:images/icons/measurement_24.png[]
-| Interactively measure the distance between two points.
-
-| image:images/icons/grid_24.png[]
-| Turn grid display on/off.
-
-| image:images/icons/polar_coord_24.png[]
-| Switch between polar and Cartesian coordinate display in the status bar.
-
-| image:images/icons/unit_inch_24.png[]
-
-  image:images/icons/unit_mil_24.png[]
-
-  image:images/icons/unit_mm_24.png[]
-| Display/entry of coordinates and dimensions in inches, mils, or millimeters.
-
-| image:images/icons/cursor_shape_24.png[]
-| Switch between full-screen and small editing cursor (crosshairs).
-
-| image:images/icons/pad_number_24.png[]
-| Show or hide pad numbers.
-
-| image:images/icons/pad_sketch_24.png[]
-| Switch display of pads between filled and outline mode.
-
-| image:images/icons/text_sketch_24.png[]
-| Switch display of text between filled and outline mode.
-
-| image:images/icons/show_mod_edge_24.png[]
-| Switch display of graphic items between filled and outline mode.
-|=======================================================================

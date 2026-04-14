@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include <wx/stream.h>
 #include <wx/string.h>
 
@@ -38,6 +40,18 @@ namespace KICAD_FORMAT {
  */
 KICOMMON_API void FormatBool( OUTPUTFORMATTER* aOut, const wxString& aKey, bool aValue );
 
+/**
+ * Writes an optional boolean to the formatter.
+ * If a value is present, calls FormatBool.
+ * If no value is present, Writes (aKey none).
+ * 
+ * @param aOut is the output formatter to write to
+ * @param aKey is the name of the boolean flag
+ * @param aValue is the value to write
+ */
+KICOMMON_API void FormatOptBool( OUTPUTFORMATTER* aOut, const wxString& aKey,
+                                 std::optional<bool> aValue );
+
 KICOMMON_API void FormatUuid( OUTPUTFORMATTER* aOut, const KIID& aUuid );
 
 /**
@@ -45,6 +59,38 @@ KICOMMON_API void FormatUuid( OUTPUTFORMATTER* aOut, const KIID& aUuid );
  */
 KICOMMON_API void FormatStreamData( OUTPUTFORMATTER& aOut, const wxStreamBuffer& aStream );
 
-KICOMMON_API void Prettify( std::string& aSource, bool aCompactSave );
+/**
+ * Controls the pretty-printing mode used by Prettify
+ */
+enum class KICOMMON_API FORMAT_MODE
+{
+    NORMAL,                     ///< Follows standard pretty-printing rules
+    COMPACT_TEXT_PROPERTIES,    ///< Collapses certain text properties to single-line
+    LIBRARY_TABLE               ///< Puts library table rows on a single line
+};
+
+/**
+ * Pretty-prints s-expression text according to KiCad format rules
+ *
+ * Formatting rules:
+ * - All extra (non-indentation) whitespace is trimmed
+ * - Indentation is one tab
+ * - Starting a new list (open paren) starts a new line with one deeper indentation
+ * - Lists with no inner lists go on a single line
+ * - End of multi-line lists (close paren) goes on a single line at same indentation as its start
+ *
+ * For example:
+ * (first
+ *  (second
+ *   (third list)
+ *   (another list)
+ *  )
+ *  (fifth)
+ *  (sixth thing with lots of tokens
+ *   (and a sub list)
+ *  )
+ * )
+ */
+KICOMMON_API void Prettify( std::string& aSource, FORMAT_MODE aMode = FORMAT_MODE::NORMAL );
 
 } // namespace KICAD_FORMAT

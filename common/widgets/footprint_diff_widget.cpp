@@ -42,20 +42,23 @@ FOOTPRINT_DIFF_WIDGET::FOOTPRINT_DIFF_WIDGET( wxWindow* aParent, KIWAY& aKiway )
     wxStaticText* libLabel = new wxStaticText( this, wxID_ANY, _( "Library" ) );
     m_slider = new wxSlider( this, wxID_ANY, 50, 0, 100 );
 
-    bottomSizer->Add( schLabel, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxALIGN_CENTRE_VERTICAL, 6 );
-    bottomSizer->Add( m_slider, 1, wxLEFT | wxRIGHT | wxALIGN_BOTTOM, 30 );
-    bottomSizer->Add( libLabel, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxALIGN_CENTRE_VERTICAL, 6 );
+    bottomSizer->Add( schLabel, 0, wxALIGN_CENTRE_VERTICAL, 6 );
+    bottomSizer->Add( m_slider, 1, wxLEFT | wxALIGN_CENTRE_VERTICAL, 6 );
+    bottomSizer->Add( libLabel, 0, wxLEFT | wxALIGN_CENTRE_VERTICAL, 6 );
 
     m_toggleButton = new wxBitmapButton( this, wxID_ANY, KiBitmapBundle( BITMAPS::swap ) );
     wxString toggleTooltip = _( "Toggle between A and B display" );
     toggleTooltip = AddHotkeyName( toggleTooltip, '/', HOTKEY_ACTION_TYPE::IS_COMMENT );
     m_toggleButton->SetToolTip( toggleTooltip );
 
-    bottomSizer->Add( m_toggleButton, 0, wxLEFT | wxRIGHT | wxALIGN_CENTRE_VERTICAL, 6 );
+    bottomSizer->Add( m_toggleButton, 0, wxLEFT | wxALIGN_CENTRE_VERTICAL, 6 );
 
-    m_outerSizer->Add( bottomSizer, 0, wxTOP | wxLEFT | wxRIGHT | wxEXPAND, 10 );
+    m_outerSizer->Add( bottomSizer, 0, wxTOP | wxEXPAND, 6 );
 
     Layout();
+
+    if( aParent->GetSizer() )
+        aParent->GetSizer()->Fit( aParent );
 
     m_slider->Bind( wxEVT_SCROLL_TOP, &FOOTPRINT_DIFF_WIDGET::onSlider, this );
    	m_slider->Bind( wxEVT_SCROLL_BOTTOM, &FOOTPRINT_DIFF_WIDGET::onSlider, this );
@@ -85,12 +88,13 @@ void FOOTPRINT_DIFF_WIDGET::DisplayDiff( FOOTPRINT* aBoardFootprint,
     m_boardItemCopy->ClearSelected();
     m_boardItemCopy->ClearBrightened();
 
-    m_boardItemCopy->RunOnDescendants(
+    m_boardItemCopy->RunOnChildren(
             [&]( BOARD_ITEM* item )
             {
                 item->ClearSelected();
                 item->ClearBrightened();
-            } );
+            },
+            RECURSE_MODE::RECURSE );
 
     m_boardItemCopy->Move( -m_boardItemCopy->GetPosition() );
 
@@ -138,11 +142,12 @@ void FOOTPRINT_DIFF_WIDGET::onSlider( wxScrollEvent& aEvent )
 
         m_boardItemCopy->SetForcedTransparency( val );
 
-        m_boardItemCopy->RunOnDescendants(
+        m_boardItemCopy->RunOnChildren(
                 [&]( BOARD_ITEM* item )
                 {
                     item->SetForcedTransparency( val );
-                } );
+                },
+                RECURSE_MODE::RECURSE );
     }
 
     if( m_libraryItem )
@@ -156,11 +161,12 @@ void FOOTPRINT_DIFF_WIDGET::onSlider( wxScrollEvent& aEvent )
 
         m_libraryItem->SetForcedTransparency( val );
 
-        m_libraryItem->RunOnDescendants(
+        m_libraryItem->RunOnChildren(
                 [&]( BOARD_ITEM* item )
                 {
                     item->SetForcedTransparency( val );
-                } );
+                },
+                RECURSE_MODE::RECURSE );
     }
 
     RefreshAll();

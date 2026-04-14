@@ -18,6 +18,9 @@ PANEL_SETUP_DIMENSIONS_BASE::PANEL_SETUP_DIMENSIONS_BASE( wxWindow* parent, wxWi
 	m_staticTextDefPropDim->Wrap( -1 );
 	mainSizer->Add( m_staticTextDefPropDim, 0, wxTOP|wxRIGHT|wxLEFT, 13 );
 
+
+	mainSizer->Add( 0, 2, 0, 0, 5 );
+
 	m_staticline1 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
 	mainSizer->Add( m_staticline1, 0, wxEXPAND|wxBOTTOM, 5 );
 
@@ -108,7 +111,7 @@ PANEL_SETUP_DIMENSIONS_BASE::PANEL_SETUP_DIMENSIONS_BASE( wxWindow* parent, wxWi
 	gbSizer1->Add( m_dimensionExtensionOffsetUnits, wxGBPosition( 3, 5 ), wxGBSpan( 1, 1 ), wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT, 5 );
 
 
-	mainSizer->Add( gbSizer1, 1, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 5 );
+	mainSizer->Add( gbSizer1, 1, wxEXPAND|wxALL, 5 );
 
 
 	this->SetSizer( mainSizer );

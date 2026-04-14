@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -37,7 +37,11 @@ DIALOG_FIELD_PROPERTIES_BASE::DIALOG_FIELD_PROPERTIES_BASE( wxWindow* parent, wx
 	m_TextCtrl = new wxTextCtrl( this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
 	bTextValueBoxSizer->Add( m_TextCtrl, 1, wxALIGN_CENTER_VERTICAL|wxLEFT, 5 );
 
-	m_StyledTextCtrl = new wxStyledTextCtrl( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN, wxEmptyString );
+	m_StyledTextCtrlBorder = new wxPanel( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_THEME|wxTAB_TRAVERSAL );
+	wxBoxSizer* bSizer10;
+	bSizer10 = new wxBoxSizer( wxVERTICAL );
+
+	m_StyledTextCtrl = new wxStyledTextCtrl( m_StyledTextCtrlBorder, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE, wxEmptyString );
 	m_StyledTextCtrl->SetUseTabs( true );
 	m_StyledTextCtrl->SetTabWidth( 4 );
 	m_StyledTextCtrl->SetIndent( 4 );
@@ -67,7 +71,13 @@ DIALOG_FIELD_PROPERTIES_BASE::DIALOG_FIELD_PROPERTIES_BASE( wxWindow* parent, wx
 	m_StyledTextCtrl->MarkerDefine( wxSTC_MARKNUM_FOLDERTAIL, wxSTC_MARK_EMPTY );
 	m_StyledTextCtrl->SetSelBackground( true, wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHT ) );
 	m_StyledTextCtrl->SetSelForeground( true, wxSystemSettings::GetColour( wxSYS_COLOUR_HIGHLIGHTTEXT ) );
-	bTextValueBoxSizer->Add( m_StyledTextCtrl, 1, wxRIGHT|wxLEFT, 5 );
+	bSizer10->Add( m_StyledTextCtrl, 1, wxEXPAND, 5 );
+
+
+	m_StyledTextCtrlBorder->SetSizer( bSizer10 );
+	m_StyledTextCtrlBorder->Layout();
+	bSizer10->Fit( m_StyledTextCtrlBorder );
+	bTextValueBoxSizer->Add( m_StyledTextCtrlBorder, 1, wxEXPAND | wxALL, 5 );
 
 	m_TextValueSelectButton = new STD_BITMAP_BUTTON( this, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW|0 );
 	bTextValueBoxSizer->Add( m_TextValueSelectButton, 0, wxALIGN_CENTER_VERTICAL, 5 );
@@ -84,9 +94,9 @@ DIALOG_FIELD_PROPERTIES_BASE::DIALOG_FIELD_PROPERTIES_BASE( wxWindow* parent, wx
 
 	bUpperBoxSizer->Add( bTextValueBoxSizer, 1, wxEXPAND|wxTOP|wxBOTTOM|wxRIGHT, 5 );
 
-	m_note = new wxStaticText( this, wxID_ANY, _("(%s)"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_note = new wxStaticText( this, wxID_ANY, _("Sheet filename can only be modified in Sheet Properties dialog."), wxDefaultPosition, wxDefaultSize, 0 );
 	m_note->Wrap( -1 );
-	bUpperBoxSizer->Add( m_note, 0, wxBOTTOM|wxRIGHT|wxLEFT, 10 );
+	bUpperBoxSizer->Add( m_note, 0, wxBOTTOM|wxRIGHT|wxLEFT, 20 );
 
 
 	bPropertiesSizer->Add( bUpperBoxSizer, 0, wxBOTTOM|wxRIGHT|wxLEFT|wxEXPAND, 5 );
@@ -102,7 +112,7 @@ DIALOG_FIELD_PROPERTIES_BASE::DIALOG_FIELD_PROPERTIES_BASE( wxWindow* parent, wx
 
 	m_nameVisible = new wxCheckBox( this, wxID_ANY, _("Show field name"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_nameVisible->Hide();
-	m_nameVisible->SetToolTip( _("Show the field name in addtion to its value") );
+	m_nameVisible->SetToolTip( _("Show the field name in addition to its value") );
 
 	bSizer9->Add( m_nameVisible, 0, wxRIGHT|wxLEFT, 20 );
 

@@ -29,6 +29,9 @@
 #include <drc_rules_lexer.h>
 #include <pcbexpr_evaluator.h>
 #include <reporter.h>
+#include <component_classes/component_class_assignment_rule.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 using namespace DRCRULE_T;
 
@@ -42,24 +45,18 @@ DRC_RULES_PARSER::DRC_RULES_PARSER( const wxString& aSource, const wxString& aSo
 }
 
 
-DRC_RULES_PARSER::DRC_RULES_PARSER( FILE* aFile, const wxString& aFilename ) :
-        DRC_RULES_LEXER( aFile, aFilename ),
-        m_requiredVersion( 0 ),
-        m_tooRecent( false ),
-        m_reporter( nullptr )
-{
-}
-
-
-void DRC_RULES_PARSER::reportError( const wxString& aMessage )
+void DRC_RULES_PARSER::reportError( const wxString& aMessage, int aOffset )
 {
     wxString rest;
     wxString first = aMessage.BeforeFirst( '|', &rest );
 
     if( m_reporter )
     {
-        wxString msg = wxString::Format( _( "ERROR: <a href='%d:%d'>%s</a>%s" ), CurLineNumber(),
-                                         CurOffset(), first, rest );
+        wxString msg = wxString::Format( _( "ERROR: <a href='%d:%d'>%s</a>%s" ),
+                                         CurLineNumber(),
+                                         CurOffset() + aOffset,
+                                         first,
+                                         rest );
 
         m_reporter->Report( msg, RPT_SEVERITY_ERROR );
     }
@@ -67,12 +64,12 @@ void DRC_RULES_PARSER::reportError( const wxString& aMessage )
     {
         wxString msg = wxString::Format( _( "ERROR: %s%s" ), first, rest );
 
-        THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
+        THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(), CurOffset() + aOffset );
     }
 }
 
 
-void DRC_RULES_PARSER::reportDeprecation( const wxString& oldToken, const wxString newToken )
+void DRC_RULES_PARSER::reportDeprecation( const wxString& oldToken, const wxString& newToken )
 {
     if( m_reporter )
     {
@@ -83,6 +80,18 @@ void DRC_RULES_PARSER::reportDeprecation( const wxString& oldToken, const wxStri
 
         m_reporter->Report( msg, RPT_SEVERITY_WARNING );
     }
+}
+
+
+bool DRC_RULES_PARSER::checkUnresolvedTextVariable()
+{
+    size_t pos = curText.find( "${" );
+
+    if( pos == std::string::npos )
+        return false;
+
+    reportError( _( "Unresolved text variable" ), (int) pos );
+    return true;
 }
 
 
@@ -104,6 +113,47 @@ void DRC_RULES_PARSER::parseUnknown()
 }
 
 
+void DRC_RULES_PARSER::expected( const wxString& expectedTokens )
+{
+    wxString msg;
+
+    if( curText.starts_with( "${" ) )
+        msg.Printf( _( "Unresolved text variable." ) );
+    else
+        msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(), expectedTokens );
+
+    reportError( msg );
+    parseUnknown();
+}
+
+
+wxString DRC_RULES_PARSER::parseExpression()
+{
+    wxString expr;
+    int      depth = 1;
+
+    for( T token = NextTok();  token != T_EOF;  token = NextTok() )
+    {
+        if( token == T_LEFT )
+            depth++;
+
+        if( token == T_RIGHT )
+        {
+            if( --depth == 0 )
+                break;
+        }
+
+        if( !expr.IsEmpty() )
+            expr += CurSeparator();
+
+        checkUnresolvedTextVariable();
+        expr += FromUTF8();
+    }
+
+    return expr;
+}
+
+
 void DRC_RULES_PARSER::Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, REPORTER* aReporter )
 {
     bool     haveVersion = false;
@@ -113,6 +163,9 @@ void DRC_RULES_PARSER::Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, RE
 
     for( T token = NextTok(); token != T_EOF; token = NextTok() )
     {
+        if( checkUnresolvedTextVariable() )
+            continue;
+
         if( token != T_LEFT )
             reportError( _( "Missing '('." ) );
 
@@ -133,28 +186,18 @@ void DRC_RULES_PARSER::Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, RE
             if( (int) token == DSN_RIGHT )
             {
                 reportError( _( "Missing version number." ) );
-                break;
             }
-
-            if( (int) token == DSN_NUMBER )
+            else if( (int) token == DSN_NUMBER )
             {
                 m_requiredVersion = (int)strtol( CurText(), nullptr, 10 );
                 m_tooRecent = ( m_requiredVersion > DRC_RULE_FILE_VERSION );
-                token = NextTok();
+
+                if( (int) NextTok() != DSN_RIGHT )
+                    reportError( _( "Missing ')'." ) );
             }
             else
             {
-                msg.Printf( _( "Unrecognized item '%s'.| Expected version number." ),
-                            FromUTF8() );
-                reportError( msg );
-            }
-
-            if( (int) token != DSN_RIGHT )
-            {
-                msg.Printf( _( "Unrecognized item '%s'." ),
-                            FromUTF8() );
-                reportError( msg );
-                parseUnknown();
+                expected( _( "version number" ) );  // translate "version number"; it is not a token
             }
 
             break;
@@ -168,10 +211,73 @@ void DRC_RULES_PARSER::Parse( std::vector<std::shared_ptr<DRC_RULE>>& aRules, RE
             break;
 
         default:
-            msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
-                        wxT( "rule or version" ) );
-            reportError( msg );
-            parseUnknown();
+            expected( wxT( "rule or version" ) );
+        }
+    }
+
+    if( m_reporter && !m_reporter->HasMessage() )
+        m_reporter->Report( _( "No errors found." ), RPT_SEVERITY_INFO );
+
+    m_reporter = nullptr;
+}
+
+
+void DRC_RULES_PARSER::ParseComponentClassAssignmentRules(
+        std::vector<std::shared_ptr<COMPONENT_CLASS_ASSIGNMENT_RULE>>& aRules, REPORTER* aReporter )
+{
+    bool     haveVersion = false;
+    wxString msg;
+
+    m_reporter = aReporter;
+
+    for( T token = NextTok(); token != T_EOF; token = NextTok() )
+    {
+        if( token != T_LEFT )
+            reportError( _( "Missing '('." ) );
+
+        token = NextTok();
+
+        if( !haveVersion && token != T_version )
+        {
+            reportError( _( "Missing version statement." ) );
+            haveVersion = true; // don't keep on reporting it
+        }
+
+        switch( token )
+        {
+        case T_version:
+            haveVersion = true;
+            token = NextTok();
+
+            if( (int) token == DSN_RIGHT )
+            {
+                reportError( _( "Missing version number." ) );
+            }
+            else if( (int) token == DSN_NUMBER )
+            {
+                m_requiredVersion = (int) strtol( CurText(), nullptr, 10 );
+                m_tooRecent = ( m_requiredVersion > DRC_RULE_FILE_VERSION );
+
+                if( (int) NextTok() != DSN_RIGHT )
+                    reportError( _( "Missing ')'." ) );
+            }
+            else
+            {
+                expected( _( "version number" ) );  // translate "version number"; it is not a token
+            }
+
+            break;
+
+        case T_assign_component_class:
+            aRules.emplace_back( parseComponentClassAssignment() );
+            break;
+
+        case T_EOF:
+            reportError( _( "Incomplete statement." ) );
+            break;
+
+        default:
+            expected( wxT( "assign_component_class or version" ) );
         }
     }
 
@@ -192,10 +298,14 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
     if( !IsSymbol( token ) )
         reportError( _( "Missing rule name." ) );
 
+    checkUnresolvedTextVariable();
     rule->m_Name = FromUTF8();
 
     for( token = NextTok(); token != T_RIGHT && token != T_EOF; token = NextTok() )
     {
+        if( checkUnresolvedTextVariable() )
+            continue;
+
         if( token != T_LEFT )
             reportError( _( "Missing '('." ) );
 
@@ -213,25 +323,21 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
             if( (int) token == DSN_RIGHT )
             {
                 reportError( _( "Missing condition expression." ) );
-                break;
             }
-
-            if( IsSymbol( token ) )
+            else if( IsSymbol( token ) )
             {
+                checkUnresolvedTextVariable();
                 rule->m_Condition = new DRC_RULE_CONDITION( FromUTF8() );
-                rule->m_Condition->Compile( m_reporter, CurLineNumber(), CurOffset() );
+
+                if( !rule->m_Condition->Compile( m_reporter, CurLineNumber(), CurOffset() ) )
+                    reportError( wxString::Format( _( "Could not parse expression '%s'." ), FromUTF8() ) );
+
+                if( (int) NextTok() != DSN_RIGHT )
+                    reportError( _( "Missing ')'." ) );
             }
             else
             {
-                msg.Printf( _( "Unrecognized item '%s'.| Expected quoted expression." ),
-                            FromUTF8() );
-                reportError( msg );
-            }
-
-            if( (int) NextTok() != DSN_RIGHT )
-            {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
-                parseUnknown();
+                expected( _( "quoted expression" ) );   // translate "quoted expression"; it is not a token
             }
 
             break;
@@ -252,10 +358,7 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
             return rule;
 
         default:
-            msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
-                        wxT( "constraint, condition, or disallow" ) );
-            reportError( msg );
-            parseUnknown();
+            expected( wxT( "constraint, condition, or disallow" ) );
         }
     }
 
@@ -266,13 +369,114 @@ std::shared_ptr<DRC_RULE> DRC_RULES_PARSER::parseDRC_RULE()
 }
 
 
+std::shared_ptr<COMPONENT_CLASS_ASSIGNMENT_RULE> DRC_RULES_PARSER::parseComponentClassAssignment()
+{
+    std::shared_ptr<DRC_RULE_CONDITION> condition;
+
+    T        token = NextTok();
+    wxString msg;
+
+    if( !IsSymbol( token ) )
+        reportError( _( "Missing component class name." ) );
+
+    checkUnresolvedTextVariable();
+    wxString componentClass = FromUTF8();
+
+    for( token = NextTok(); token != T_RIGHT && token != T_EOF; token = NextTok() )
+    {
+        if( token != T_LEFT )
+            reportError( _( "Missing '('." ) );
+
+        token = NextTok();
+
+        switch( token )
+        {
+        case T_condition:
+            token = NextTok();
+
+            if( (int) token == DSN_RIGHT )
+            {
+                reportError( _( "Missing condition expression." ) );
+            }
+            else if( IsSymbol( token ) )
+            {
+                checkUnresolvedTextVariable();
+                condition = std::make_shared<DRC_RULE_CONDITION>( FromUTF8() );
+
+                if( !condition->Compile( m_reporter, CurLineNumber(), CurOffset() ) )
+                    reportError( wxString::Format( _( "Could not parse expression '%s'." ), FromUTF8() ) );
+
+                if( (int) NextTok() != DSN_RIGHT )
+                    reportError( _( "Missing ')'." ) );
+            }
+            else
+            {
+                expected( _( "quoted expression" ) );   // translate "quoted expression"; it is not a token
+            }
+
+            break;
+
+        case T_EOF:
+            reportError( _( "Incomplete statement." ) );
+            return nullptr;
+
+        default:
+            expected( wxT( "condition" ) );
+        }
+    }
+
+    if( (int) CurTok() != DSN_RIGHT )
+        reportError( _( "Missing ')'." ) );
+
+    return std::make_shared<COMPONENT_CLASS_ASSIGNMENT_RULE>( componentClass, std::move( condition ) );
+}
+
+
 void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 {
     DRC_CONSTRAINT c;
     int            value;
+    EDA_UNITS      units = EDA_UNITS::UNSCALED;
+    EDA_DATA_TYPE  unitsType = EDA_DATA_TYPE::UNITLESS;
     wxString       msg;
+    bool           allowsTimeDomain = false;
+
+    auto validateAndSetValueWithUnits =
+            [this, &allowsTimeDomain, &unitsType, &c]( int aValue, const EDA_UNITS aUnits, auto aSetter )
+            {
+                const EDA_DATA_TYPE unitsTypeTmp = UNITS_PROVIDER::GetTypeFromUnits( aUnits );
+
+                if( !allowsTimeDomain && unitsTypeTmp == EDA_DATA_TYPE::TIME )
+                    reportError( _( "Time based units not allowed for constraint type." ) );
+
+                if( ( c.m_Value.HasMin() || c.m_Value.HasMax() || c.m_Value.HasOpt() )
+                    && unitsType != unitsTypeTmp )
+                {
+                    reportError( _( "Mixed units for constraint values." ) );
+                }
+
+                unitsType = unitsTypeTmp;
+                aSetter( aValue );
+
+                if( allowsTimeDomain )
+                {
+                    if( unitsType == EDA_DATA_TYPE::TIME )
+                    {
+                        c.SetOption( DRC_CONSTRAINT::OPTIONS::TIME_DOMAIN );
+                        c.ClearOption( DRC_CONSTRAINT::OPTIONS::SPACE_DOMAIN );
+                    }
+                    else
+                    {
+                        c.SetOption( DRC_CONSTRAINT::OPTIONS::SPACE_DOMAIN );
+                        c.ClearOption( DRC_CONSTRAINT::OPTIONS::TIME_DOMAIN );
+                    }
+                }
+            };
 
     T token = NextTok();
+
+    if( checkUnresolvedTextVariable() )
+        return;
 
     if( token == T_mechanical_clearance )
     {
@@ -292,12 +496,14 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
     else if( (int) token == DSN_RIGHT || token == T_EOF )
     {
         msg.Printf( _( "Missing constraint type.|  Expected %s." ),
-                    wxT( "assertion, clearance, hole_clearance, edge_clearance, "
-                         "physical_clearance, physical_hole_clearance, courtyard_clearance, "
-                         "silk_clearance, hole_size, hole_to_hole, track_width, annular_width, "
-                         "via_diameter, disallow, zone_connection, thermal_relief_gap, "
-                         "thermal_spoke_width, min_resolved_spokes, length, skew, via_count, "
+                    wxT( "assertion, clearance, hole_clearance, edge_clearance, physical_clearance, "
+                         "physical_hole_clearance, courtyard_clearance, silk_clearance, hole_size, "
+                         "hole_to_hole, track_width, track_angle, track_segment_length, annular_width, "
+                         "disallow, zone_connection, thermal_relief_gap, thermal_spoke_width, "
+                         "min_resolved_spokes, solder_mask_expansion, solder_paste_abs_margin, "
+                         "solder_paste_rel_margin, length, skew, via_count, via_dangling, via_diameter, "
                          "diff_pair_gap or diff_pair_uncoupled" ) );
+
         reportError( msg );
         return;
     }
@@ -321,10 +527,15 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
     case T_connection_width:          c.m_Type = CONNECTION_WIDTH_CONSTRAINT;          break;
     case T_annular_width:             c.m_Type = ANNULAR_WIDTH_CONSTRAINT;             break;
     case T_via_diameter:              c.m_Type = VIA_DIAMETER_CONSTRAINT;              break;
+    case T_via_dangling:              c.m_Type = VIA_DANGLING_CONSTRAINT;              break;
     case T_zone_connection:           c.m_Type = ZONE_CONNECTION_CONSTRAINT;           break;
     case T_thermal_relief_gap:        c.m_Type = THERMAL_RELIEF_GAP_CONSTRAINT;        break;
     case T_thermal_spoke_width:       c.m_Type = THERMAL_SPOKE_WIDTH_CONSTRAINT;       break;
     case T_min_resolved_spokes:       c.m_Type = MIN_RESOLVED_SPOKES_CONSTRAINT;       break;
+    case T_solder_mask_expansion:     c.m_Type = SOLDER_MASK_EXPANSION_CONSTRAINT;     break;
+    case T_solder_mask_sliver:        c.m_Type = SOLDER_MASK_SLIVER_CONSTRAINT;        break;
+    case T_solder_paste_abs_margin:   c.m_Type = SOLDER_PASTE_ABS_MARGIN_CONSTRAINT;   break;
+    case T_solder_paste_rel_margin:   c.m_Type = SOLDER_PASTE_REL_MARGIN_CONSTRAINT;   break;
     case T_disallow:                  c.m_Type = DISALLOW_CONSTRAINT;                  break;
     case T_length:                    c.m_Type = LENGTH_CONSTRAINT;                    break;
     case T_skew:                      c.m_Type = SKEW_CONSTRAINT;                      break;
@@ -333,15 +544,16 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
     case T_diff_pair_uncoupled:       c.m_Type = MAX_UNCOUPLED_CONSTRAINT;             break;
     case T_physical_clearance:        c.m_Type = PHYSICAL_CLEARANCE_CONSTRAINT;        break;
     case T_physical_hole_clearance:   c.m_Type = PHYSICAL_HOLE_CLEARANCE_CONSTRAINT;   break;
+    case T_bridged_mask:              c.m_Type = BRIDGED_MASK_CONSTRAINT;              break;
     default:
-        msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
-                    wxT( "assertion, clearance, hole_clearance, edge_clearance, "
-                         "physical_clearance, physical_hole_clearance, courtyard_clearance, "
-                         "silk_clearance, hole_size, hole_to_hole, track_width, track_angle, track_segment_length, annular_width, "
-                         "disallow, zone_connection, thermal_relief_gap, thermal_spoke_width, "
-                         "min_resolved_spokes, length, skew, via_count, via_diameter, "
-                         "diff_pair_gap or diff_pair_uncoupled" ) );
-        reportError( msg );
+        expected( wxT( "assertion, clearance, hole_clearance, edge_clearance, physical_clearance, "
+                       "physical_hole_clearance, courtyard_clearance, silk_clearance, hole_size, "
+                       "hole_to_hole, track_width, track_angle, track_segment_length, annular_width, "
+                       "disallow, zone_connection, thermal_relief_gap, thermal_spoke_width, "
+                       "min_resolved_spokes, solder_mask_expansion, solder_mask_sliver, "
+                       "solder_paste_abs_margin, solder_paste_rel_margin, length, skew, via_count, "
+                       "via_dangling, via_diameter, diff_pair_gap, diff_pair_uncoupled or bridged_mask" ) );
+        return;
     }
 
     if( aRule->FindConstraint( c.m_Type ) )
@@ -352,7 +564,11 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
     bool unitless = c.m_Type == VIA_COUNT_CONSTRAINT
                     || c.m_Type == MIN_RESOLVED_SPOKES_CONSTRAINT
-                    || c.m_Type == TRACK_ANGLE_CONSTRAINT;
+                    || c.m_Type == TRACK_ANGLE_CONSTRAINT
+                    || c.m_Type == VIA_DANGLING_CONSTRAINT
+                    || c.m_Type == BRIDGED_MASK_CONSTRAINT;
+
+    allowsTimeDomain = c.m_Type == LENGTH_CONSTRAINT || c.m_Type == SKEW_CONSTRAINT;
 
     if( c.m_Type == DISALLOW_CONSTRAINT )
     {
@@ -363,10 +579,15 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
 
             switch( token )
             {
-            case T_track:      c.m_DisallowFlags |= DRC_DISALLOW_TRACKS;     break;
-            case T_via:        c.m_DisallowFlags |= DRC_DISALLOW_VIAS;       break;
-            case T_micro_via:  c.m_DisallowFlags |= DRC_DISALLOW_MICRO_VIAS; break;
-            case T_buried_via: c.m_DisallowFlags |= DRC_DISALLOW_BB_VIAS;    break;
+            case T_track:       c.m_DisallowFlags |= DRC_DISALLOW_TRACKS;        break;
+            case T_via:         c.m_DisallowFlags |= DRC_DISALLOW_THROUGH_VIAS
+                                              | DRC_DISALLOW_BLIND_VIAS
+                                              | DRC_DISALLOW_BURIED_VIAS
+                                              | DRC_DISALLOW_MICRO_VIAS;       break;
+            case T_through_via: c.m_DisallowFlags |= DRC_DISALLOW_THROUGH_VIAS; break;
+            case T_blind_via:   c.m_DisallowFlags |= DRC_DISALLOW_BLIND_VIAS;   break;
+            case T_buried_via:  c.m_DisallowFlags |= DRC_DISALLOW_BURIED_VIAS;  break;
+            case T_micro_via:   c.m_DisallowFlags |= DRC_DISALLOW_MICRO_VIAS;  break;
             case T_pad:        c.m_DisallowFlags |= DRC_DISALLOW_PADS;       break;
             case T_zone:       c.m_DisallowFlags |= DRC_DISALLOW_ZONES;      break;
             case T_text:       c.m_DisallowFlags |= DRC_DISALLOW_TEXTS;      break;
@@ -379,11 +600,9 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
                 return;
 
             default:
-                msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
-                            wxT( "track, via, micro_via, buried_via, pad, zone, text, graphic, "
-                                 "hole, or footprint." ) );
-                reportError( msg );
-                break;
+                expected( wxT( "track, via, through_via, blind_via, micro_via, buried_via, pad, zone, text, "
+                               "graphic, hole, or footprint." ) );
+                return;
             }
         }
 
@@ -411,10 +630,8 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
             return;
 
         default:
-            msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ), FromUTF8(),
-                        "solid, thermal_reliefs or none." );
-            reportError( msg );
-            break;
+            expected( wxT( "solid, thermal_reliefs or none." ) );
+            return;
         }
 
         if( (int) NextTok() != DSN_RIGHT )
@@ -436,15 +653,14 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
         {
             value = (int) strtol( CurText(), nullptr, 10 );
             c.m_Value.SetMin( value );
+
+            if( (int) NextTok() != DSN_RIGHT )
+                reportError( _( "Missing ')'." ) );
         }
         else
         {
-            reportError( _( "Expecting number." ) );
-            parseUnknown();
+            expected( _( "number" ) );  // translate "number"; it is not a token
         }
-
-        if( (int) NextTok() != DSN_RIGHT )
-            reportError( _( "Missing ')'." ) );
 
         aRule->AddConstraint( c );
         return;
@@ -460,17 +676,13 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
         {
             c.m_Test = new DRC_RULE_CONDITION( FromUTF8() );
             c.m_Test->Compile( m_reporter, CurLineNumber(), CurOffset() );
+
+            if( (int) NextTok() != DSN_RIGHT )
+                reportError( _( "Missing ')'." ) );
         }
         else
         {
-            msg.Printf( _( "Unrecognized item '%s'.| Expected quoted expression." ), FromUTF8() );
-            reportError( msg );
-        }
-
-        if( (int) NextTok() != DSN_RIGHT )
-        {
-            reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
-            parseUnknown();
+            expected( _( "quoted expression" ) );   // translate "quoted expression"; it is not a token
         }
 
         aRule->AddConstraint( c );
@@ -487,131 +699,132 @@ void DRC_RULES_PARSER::parseConstraint( DRC_RULE* aRule )
         switch( token )
         {
         case T_within_diff_pairs:
-            if( c.m_Type != SKEW_CONSTRAINT )
-            {
+            if( c.m_Type == SKEW_CONSTRAINT )
+                c.SetOption( DRC_CONSTRAINT::OPTIONS::SKEW_WITHIN_DIFF_PAIRS );
+            else
                 reportError( _( "within_diff_pairs option invalid for constraint type." ) );
-                break;
-            }
-
-            c.SetOption( DRC_CONSTRAINT::OPTIONS::SKEW_WITHIN_DIFF_PAIRS );
 
             if( (int) NextTok() != DSN_RIGHT )
-            {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
-                parseUnknown();
-            }
+                reportError( _( "Missing ')'." ) );
 
             break;
-        case T_min:
-            token = NextTok();
 
-            if( (int) token == DSN_RIGHT )
+        case T_min:
+        {
+            size_t   offset = CurOffset() + GetTokenString( token ).length();
+            wxString expr = parseExpression();
+
+            if( expr.IsEmpty() )
             {
                 reportError( _( "Missing min value." ) );
                 break;
             }
 
-            parseValueWithUnits( FromUTF8(), value, unitless );
-            c.m_Value.SetMin( value );
-
-            if( (int) NextTok() != DSN_RIGHT )
-            {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
-                parseUnknown();
-            }
+            parseValueWithUnits( (int) offset, expr, value, units, unitless );
+            validateAndSetValueWithUnits( value, units,
+                                          [&c]( const int aValue )
+                                          {
+                                              c.m_Value.SetMin( aValue );
+                                          } );
 
             break;
+        }
 
         case T_max:
-            token = NextTok();
+        {
+            size_t   offset = CurOffset() + GetTokenString( token ).length();
+            wxString expr = parseExpression();
 
-            if( (int) token == DSN_RIGHT )
+            if( expr.IsEmpty() )
             {
                 reportError( _( "Missing max value." ) );
                 break;
             }
 
-            parseValueWithUnits( FromUTF8(), value, unitless );
-
-            c.m_Value.SetMax( value );
-
-            if( (int) NextTok() != DSN_RIGHT )
-            {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
-                parseUnknown();
-            }
+            parseValueWithUnits( (int) offset, expr, value, units, unitless );
+            validateAndSetValueWithUnits( value, units,
+                                          [&c]( const int aValue )
+                                          {
+                                              c.m_Value.SetMax( aValue );
+                                          } );
 
             break;
+        }
 
         case T_opt:
-            token = NextTok();
+        {
+            size_t   offset = CurOffset() + GetTokenString( token ).length();
+            wxString expr = parseExpression();
 
-            if( (int) token == DSN_RIGHT )
+            if( expr.IsEmpty() )
             {
                 reportError( _( "Missing opt value." ) );
                 break;
             }
 
-            parseValueWithUnits( FromUTF8(), value, unitless );
-            c.m_Value.SetOpt( value );
-
-            if( (int) NextTok() != DSN_RIGHT )
-            {
-                reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
-                parseUnknown();
-            }
+            parseValueWithUnits( (int) offset, expr, value, units, unitless );
+            validateAndSetValueWithUnits( value, units,
+                                          [&c]( const int aValue )
+                                          {
+                                              c.m_Value.SetOpt( aValue );
+                                          } );
 
             break;
+        }
 
         case T_EOF:
             reportError( _( "Incomplete statement." ) );
             return;
 
         default:
-            msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ),
-                        FromUTF8(),
-                        wxT( "min, max, or opt" ) );
-            reportError( msg );
-            parseUnknown();
+            expected( wxT( "min, max, opt, or within_diff_pairs" ) );
         }
     }
-
-    if( (int) CurTok() != DSN_RIGHT )
-        reportError( _( "Missing ')'." ) );
 
     aRule->AddConstraint( c );
 }
 
 
-void DRC_RULES_PARSER::parseValueWithUnits( const wxString& aExpr, int& aResult, bool aUnitless )
+void DRC_RULES_PARSER::parseValueWithUnits( int aOffset, const wxString& aExpr, int& aResult,
+                                            EDA_UNITS& aUnits, bool aUnitless )
 {
-    auto errorHandler = [&]( const wxString& aMessage, int aOffset )
-    {
-        wxString rest;
-        wxString first = aMessage.BeforeFirst( '|', &rest );
+    aResult = 0.0;
+    aUnits = EDA_UNITS::UNSCALED;
 
-        if( m_reporter )
-        {
-            wxString msg = wxString::Format( _( "ERROR: <a href='%d:%d'>%s</a>%s" ),
-                                             CurLineNumber(), CurOffset() + aOffset, first, rest );
+    auto errorHandler =
+            [&]( const wxString& message, int offset )
+            {
+                wxString rest;
+                wxString first = message.BeforeFirst( '|', &rest );
 
-            m_reporter->Report( msg, RPT_SEVERITY_ERROR );
-        }
-        else
-        {
-            wxString msg = wxString::Format( _( "ERROR: %s%s" ), first, rest );
+                if( m_reporter )
+                {
+                    wxString msg = wxString::Format( _( "ERROR: <a href='%d:%d'>%s</a>%s" ),
+                                                     CurLineNumber(),
+                                                     aOffset + offset,
+                                                     first,
+                                                     rest );
 
-            THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(),
-                               CurOffset() + aOffset );
-        }
-    };
+                    m_reporter->Report( msg, RPT_SEVERITY_ERROR );
+                }
+                else
+                {
+                    wxString msg = wxString::Format( _( "ERROR: %s%s" ), first, rest );
+
+                    THROW_PARSE_ERROR( msg, CurSource(), CurLine(), CurLineNumber(),
+                                       CurOffset() + aOffset );
+                }
+            };
 
     PCBEXPR_EVALUATOR evaluator( aUnitless ? (LIBEVAL::UNIT_RESOLVER*) new PCBEXPR_UNITLESS_RESOLVER()
-                                            : (LIBEVAL::UNIT_RESOLVER*) new PCBEXPR_UNIT_RESOLVER() );
+                                           : (LIBEVAL::UNIT_RESOLVER*) new PCBEXPR_UNIT_RESOLVER() );
     evaluator.SetErrorCallback( errorHandler );
 
-    evaluator.Evaluate( aExpr );
-    aResult = evaluator.Result();
+    if( evaluator.Evaluate( aExpr ) )
+    {
+        aResult = evaluator.Result();
+        aUnits = evaluator.Units();
+    }
 }
 
 
@@ -653,16 +866,15 @@ LSET DRC_RULES_PARSER::parseLayer( wxString* aSource )
 
         if( !retVal.any() )
         {
-            reportError( wxString::Format( _( "Unrecognized layer '%s'." ), layerName ) );
+            if( !checkUnresolvedTextVariable() )
+                reportError( wxString::Format( _( "Unrecognized layer '%s'." ), layerName ) );
+
             retVal.set( Rescue );
         }
     }
 
     if( (int) NextTok() != DSN_RIGHT )
-    {
-        reportError( wxString::Format( _( "Unrecognized item '%s'." ), FromUTF8() ) );
-        parseUnknown();
-    }
+        reportError( _( "Missing ')'." ) );
 
     return retVal;
 }
@@ -689,11 +901,7 @@ SEVERITY DRC_RULES_PARSER::parseSeverity()
     case T_exclusion: retVal = RPT_SEVERITY_EXCLUSION; break;
 
     default:
-        msg.Printf( _( "Unrecognized item '%s'.| Expected %s." ),
-                    FromUTF8(),
-                    wxT( "ignore, warning, error, or exclusion" ) );
-        reportError( msg );
-        parseUnknown();
+        expected( wxT( "ignore, warning, error, or exclusion" ) );
     }
 
     if( (int) NextTok() != DSN_RIGHT )

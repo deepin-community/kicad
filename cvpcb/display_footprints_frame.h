@@ -47,11 +47,6 @@ public:
     DISPLAY_FOOTPRINTS_FRAME( KIWAY* aKiway, wxWindow* aParent );
     ~DISPLAY_FOOTPRINTS_FRAME() override;
 
-    void    ReCreateHToolbar() override;
-    void    ReCreateVToolbar() override;
-    void    ReCreateOptToolbar() override;
-    void    UpdateToolbarControlSizes() override;
-
     /**
      * Refresh the full display for this frame.
      *

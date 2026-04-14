@@ -66,11 +66,28 @@ wxString SIM_LIB_MGR::ResolveLibraryPath( const wxString& aLibraryPath, REPORTER
     for( const EMBEDDED_FILES* embeddedFiles : m_embeddedFilesStack )
         embeddedFilesStack.push_back( embeddedFiles );
 
-    wxString expandedPath = resolver.ResolvePath( aLibraryPath, wxEmptyString, embeddedFilesStack );
+    wxString resolvedPath = resolver.ResolvePath( aLibraryPath, wxEmptyString,
+                                                  std::move( embeddedFilesStack ) );
+
+    // If FILENAME_RESOLVER found the file, use that result
+    if( !resolvedPath.IsEmpty() )
+    {
+        wxFileName fn( resolvedPath );
+
+        if( fn.IsAbsolute() )
+            return fn.GetFullPath();
+    }
+
+    // Fall back to the original behavior for paths not found by FILENAME_RESOLVER.
+    // First expand any environment variables in the path.
+    wxString expandedPath = ExpandEnvVarSubstitutions( aLibraryPath, m_project );
+
+    // Convert to UNIX format
+    expandedPath.Replace( '\\', '/' );
 
     wxFileName fn( expandedPath );
 
-    if( fn.IsAbsolute() )
+    if( fn.IsAbsolute() && fn.Exists() )
         return fn.GetFullPath();
 
     wxFileName projectFn( m_project ? m_project->AbsolutePath( expandedPath ) : expandedPath );
@@ -78,6 +95,7 @@ wxString SIM_LIB_MGR::ResolveLibraryPath( const wxString& aLibraryPath, REPORTER
     if( projectFn.Exists() )
         return projectFn.GetFullPath();
 
+    // Check relative to SPICE_LIB_DIR environment variable
     wxFileName spiceLibFn( expandedPath );
     wxString   spiceLibDir;
 
@@ -173,16 +191,17 @@ SIM_MODEL& SIM_LIB_MGR::CreateModel( const SIM_MODEL* aBaseModel,
 }
 
 
-SIM_MODEL& SIM_LIB_MGR::CreateModel( const SIM_MODEL* aBaseModel,
-                                     const std::vector<SCH_PIN*>& aPins,
-                                     const std::vector<SCH_FIELD>& aFields, REPORTER& aReporter )
+SIM_MODEL& SIM_LIB_MGR::CreateModel( const SIM_MODEL* aBaseModel, const std::vector<SCH_PIN*>& aPins,
+                                     const std::vector<SCH_FIELD>& aFields, bool aResolve, int aDepth,
+                                     REPORTER& aReporter )
 {
-    m_models.push_back( SIM_MODEL::Create( aBaseModel, aPins, aFields, aReporter ) );
+    m_models.push_back( SIM_MODEL::Create( aBaseModel, aPins, aFields, aResolve, aDepth, aReporter ) );
     return *m_models.back();
 }
 
 SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const SCH_SHEET_PATH* aSheetPath, SCH_SYMBOL& aSymbol,
-                                             REPORTER& aReporter )
+                                             bool aResolve, int aDepth, const wxString& aVariantName,
+                                             REPORTER& aReporter, const wxString& aMergedSimPins )
 {
     // Note: currently this creates a resolved model (all Kicad variables references are resolved
     // before building the model).
@@ -195,16 +214,20 @@ SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const SCH_SHEET_PATH* aSheetPath, S
 
     for( const SCH_FIELD& field : aSymbol.GetFields() )
     {
-        if( field.GetId() == REFERENCE_FIELD )
+        if( field.GetId() == FIELD_T::REFERENCE )
         {
-            fields.emplace_back( VECTOR2I(), -1, &aSymbol, field.GetName() );
+            fields.emplace_back( &aSymbol, FIELD_T::USER, field.GetName() );
             fields.back().SetText( aSymbol.GetRef( aSheetPath ) );
         }
-        else if( field.GetId() == VALUE_FIELD
-                 || field.GetName().StartsWith( wxS( "Sim." ) ) )
+        else if( field.GetId() == FIELD_T::VALUE || field.GetName().StartsWith( wxS( "Sim." ) ) )
         {
-            fields.emplace_back( VECTOR2I(), -1, &aSymbol, field.GetName() );
-            fields.back().SetText( field.GetShownText( aSheetPath, false ) );
+            fields.emplace_back( &aSymbol, FIELD_T::USER, field.GetName() );
+
+            // For multi-unit symbols, use merged Sim.Pins from all units if provided
+            if( !aMergedSimPins.IsEmpty() && field.GetName() == SIM_PINS_FIELD )
+                fields.back().SetText( aMergedSimPins );
+            else
+                fields.back().SetText( field.GetShownText( aSheetPath, false, aDepth, aVariantName ) );
         }
     }
 
@@ -217,7 +240,7 @@ SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const SCH_SHEET_PATH* aSheetPath, S
                         return &field;
                 }
 
-                fields.emplace_back( &aSymbol, -1, name );
+                fields.emplace_back( &aSymbol, FIELD_T::USER, name );
                 return &fields.back();
             };
 
@@ -228,7 +251,7 @@ SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const SCH_SHEET_PATH* aSheetPath, S
     bool     storeInValue = false;
 
     // Infer RLC and VI models if they aren't specified
-    if( SIM_MODEL::InferSimModel( aSymbol, &fields, true, SIM_VALUE_GRAMMAR::NOTATION::SI,
+    if( SIM_MODEL::InferSimModel( aSymbol, &fields, aResolve, aDepth, SIM_VALUE_GRAMMAR::NOTATION::SI,
                                   &deviceType, &modelType, &modelParams, &pinMap ) )
     {
         getOrCreateField( SIM_DEVICE_FIELD )->SetText( deviceType );
@@ -250,7 +273,7 @@ SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const SCH_SHEET_PATH* aSheetPath, S
                    return StrNumCmp( lhs->GetNumber(), rhs->GetNumber(), true ) < 0;
                } );
 
-    SIM_LIBRARY::MODEL model = CreateModel( fields, sourcePins, true, aReporter );
+    SIM_LIBRARY::MODEL model = CreateModel( fields, aResolve, aDepth, sourcePins, aReporter );
 
     model.model.SetIsStoredInValue( storeInValue );
 
@@ -259,19 +282,20 @@ SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const SCH_SHEET_PATH* aSheetPath, S
 
 
 SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const std::vector<SCH_FIELD>& aFields,
-                                             const std::vector<SCH_PIN*>& aPins, bool aResolved,
+                                             bool aResolve, int aDepth,
+                                             const std::vector<SCH_PIN*>& aPins,
                                              REPORTER& aReporter )
 {
-    std::string libraryPath = SIM_MODEL::GetFieldValue( &aFields, SIM_LIBRARY::LIBRARY_FIELD );
-    std::string baseModelName = SIM_MODEL::GetFieldValue( &aFields, SIM_LIBRARY::NAME_FIELD );
+    std::string libraryPath = GetFieldValue( &aFields, SIM_LIBRARY::LIBRARY_FIELD, aResolve, aDepth );
+    std::string baseModelName = GetFieldValue( &aFields, SIM_LIBRARY::NAME_FIELD, aResolve, aDepth );
 
     if( libraryPath != "" )
     {
-        return CreateModel( libraryPath, baseModelName, aFields, aPins, aReporter );
+        return CreateModel( libraryPath, baseModelName, aFields, aResolve, aDepth, aPins, aReporter );
     }
     else
     {
-        m_models.push_back( SIM_MODEL::Create( aFields, aPins, aResolved, aReporter ) );
+        m_models.push_back( SIM_MODEL::Create( aFields, aResolve, aDepth, aPins, aReporter ) );
         return { baseModelName, *m_models.back() };
     }
 }
@@ -280,6 +304,7 @@ SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const std::vector<SCH_FIELD>& aFiel
 SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const wxString& aLibraryPath,
                                              const std::string& aBaseModelName,
                                              const std::vector<SCH_FIELD>& aFields,
+                                             bool aResolve, int aDepth,
                                              const std::vector<SCH_PIN*>& aPins,
                                              REPORTER& aReporter )
 {
@@ -327,7 +352,7 @@ SIM_LIBRARY::MODEL SIM_LIB_MGR::CreateModel( const wxString& aLibraryPath,
         }
     }
 
-    m_models.push_back( SIM_MODEL::Create( baseModel, aPins, aFields, aReporter ) );
+    m_models.push_back( SIM_MODEL::Create( baseModel, aPins, aFields, aResolve, aDepth, aReporter ) );
 
     return { modelName, *m_models.back() };
 }

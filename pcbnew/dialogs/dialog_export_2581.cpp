@@ -17,7 +17,15 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <dialogs/dialog_export_2581.h>
+#include "dialogs/dialog_export_2581.h"
+
+#include <set>
+#include <map>
+#include <vector>
+
+#include <wx/filedlg.h>
+#include <wx/filefn.h>
+#include <kiplatform/ui.h>
 
 #include <board.h>
 #include <footprint.h>
@@ -26,17 +34,17 @@
 #include <pcbnew_settings.h>
 #include <pgm_base.h>
 #include <project.h>
-#include <project/board_project_settings.h>
 #include <project/project_file.h>
+#include <pcb_io/pcb_io_mgr.h>
+#include <widgets/wx_html_report_panel.h>
+#include <widgets/wx_progress_reporters.h>
 #include <settings/settings_manager.h>
+#include <string_utils.h>
 #include <widgets/std_bitmap_button.h>
 #include <jobs/job_export_pcb_ipc2581.h>
+#include <wx_filename.h>
 
-#include <set>
-#include <vector>
-#include <wx/filedlg.h>
 
-static wxString s_oemColumn = wxEmptyString;
 
 DIALOG_EXPORT_2581::DIALOG_EXPORT_2581( PCB_EDIT_FRAME* aParent ) :
         DIALOG_EXPORT_2581_BASE( aParent ),
@@ -48,22 +56,11 @@ DIALOG_EXPORT_2581::DIALOG_EXPORT_2581( PCB_EDIT_FRAME* aParent ) :
     SetupStandardButtons( { { wxID_OK,     _( "Export" ) },
                             { wxID_CANCEL, _( "Close" )  } } );
 
-    wxString path = m_parent->GetLastPath( LAST_PATH_2581 );
+    // DIALOG_SHIM needs a unique hash_key because classname will be the same for both job and
+    // non-job versions.
+    m_hash_key = TO_UTF8( GetTitle() );
 
-    if( path.IsEmpty() )
-    {
-        wxFileName brdFile( m_parent->GetBoard()->GetFileName() );
-        brdFile.SetExt( wxT( "xml" ) );
-        path = brdFile.GetFullPath();
-    }
-
-    m_outputFileName->SetValue( path );
-
-    m_textDistributor->SetSize( m_choiceDistPN->GetSize() );
-
-    // Fill wxChoice (and others) items with data before calling finishDialogSettings()
-    // to calculate suitable widgets sizes
-    Init();
+    init();
 
     // Now all widgets have the size fixed, call FinishDialogSettings
     finishDialogSettings();
@@ -80,13 +77,13 @@ DIALOG_EXPORT_2581::DIALOG_EXPORT_2581( JOB_EXPORT_PCB_IPC2581* aJob, PCB_EDIT_F
 
     SetupStandardButtons();
 
-    m_outputFileName->SetValue( m_job->GetConfiguredOutputPath() );
+    SetTitle( m_job->GetSettingsDialogTitle() );
 
-    m_textDistributor->SetSize( m_choiceDistPN->GetSize() );
+    // DIALOG_SHIM needs a unique hash_key because classname will be the same for both job and
+    // non-job versions.
+    m_hash_key = TO_UTF8( GetTitle() );
 
-    // Fill wxChoice (and others) items with data before calling finishDialogSettings()
-    // to calculate suitable widgets sizes
-    Init();
+    init();
 
     // Now all widgets have the size fixed, call FinishDialogSettings
     finishDialogSettings();
@@ -105,23 +102,14 @@ void DIALOG_EXPORT_2581::onBrowseClicked( wxCommandEvent& event )
                       m_cbCompress->IsChecked() ? compressed_files : ipc_files,
                       wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
 
+    KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
     if( dlg.ShowModal() == wxID_CANCEL )
         return;
 
     m_outputFileName->SetValue( dlg.GetPath() );
 
 }
-
-void DIALOG_EXPORT_2581::onOKClick( wxCommandEvent& event )
-{
-    if( !m_job )
-    {
-        m_parent->SetLastPath( LAST_PATH_2581, m_outputFileName->GetValue() );
-    }
-
-    event.Skip();
-}
-
 
 void DIALOG_EXPORT_2581::onCompressCheck( wxCommandEvent& event )
 {
@@ -159,21 +147,13 @@ void DIALOG_EXPORT_2581::onMfgPNChange( wxCommandEvent& event )
         int it = 0;
 
         if( it = m_choiceMfg->FindString( wxT( "manufacturer" ) ); it != wxNOT_FOUND )
-        {
             m_choiceMfg->Select( it );
-        }
         else if( it = m_choiceMfg->FindString( _( "manufacturer" ) ); it != wxNOT_FOUND )
-        {
             m_choiceMfg->Select( it );
-        }
         else if( it = m_choiceMfg->FindString( wxT( "mfg" ) ); it != wxNOT_FOUND )
-        {
             m_choiceMfg->Select( it );
-        }
         else if( it = m_choiceMfg->FindString( _( "mfg" ) ); it != wxNOT_FOUND )
-        {
             m_choiceMfg->Select( it );
-        }
     }
 }
 
@@ -242,51 +222,142 @@ void DIALOG_EXPORT_2581::onDistPNChange( wxCommandEvent& event )
 }
 
 
-bool DIALOG_EXPORT_2581::Init()
+void DIALOG_EXPORT_2581::onOKClick( wxCommandEvent& event )
 {
-    SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-    PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
+    if( m_job )
+    {
+        if( TransferDataFromWindow() )
+            EndModal( wxID_OK );
+
+        return;
+    }
+
+    if( !TransferDataFromWindow() )
+        return;
+
+    m_messagesPanel->Clear();
+
+    REPORTER& reporter = m_messagesPanel->Reporter();
+
+    wxFileName pcbFileName = GetOutputPath();
+    WX_FILENAME::ResolvePossibleSymlinks( pcbFileName );
+
+    if( pcbFileName.GetName().empty() )
+    {
+        reporter.Report( _( "The board must be saved before generating IPC-2581 file." ),
+                         RPT_SEVERITY_ERROR );
+        return;
+    }
+
+    if( !m_parent->IsWritable( pcbFileName ) )
+    {
+        reporter.Report( wxString::Format( _( "Insufficient permissions to write file '%s'." ),
+                                           pcbFileName.GetFullPath() ),
+                         RPT_SEVERITY_ERROR );
+        return;
+    }
+
+    wxString tempFile = wxFileName::CreateTempFileName( wxS( "pcbnew_ipc" ) );
+
+    WX_PROGRESS_REPORTER progress( this, _( "Generate IPC-2581 File" ), 5, PR_CAN_ABORT );
+
+    std::map<std::string, UTF8> props;
+
+    props[ "units" ] = TO_UTF8( GetUnitsString() );
+    props[ "sigfig" ] = TO_UTF8( GetPrecision() );
+    props[ "version" ] = TO_UTF8( wxString( GetVersion() ) );
+    props[ "OEMRef" ] = TO_UTF8( GetOEM() );
+    props[ "mpn" ] = TO_UTF8( GetMPN() );
+    props[ "mfg" ] = TO_UTF8( GetMfg() );
+    props[ "dist" ] = TO_UTF8( GetDist() );
+    props[ "distpn" ] = TO_UTF8( GetDistPN() );
+
+    wxString bomRev = m_textBomRev->GetValue();
+
+    if( !bomRev.IsEmpty() )
+        props[ "bomrev" ] = TO_UTF8( bomRev );
+
+    try
+    {
+        IO_RELEASER<PCB_IO> pi( PCB_IO_MGR::FindPlugin( PCB_IO_MGR::IPC2581 ) );
+        pi->SetProgressReporter( &progress );
+        pi->SetReporter( &reporter );
+        pi->SaveBoard( tempFile, m_parent->GetBoard(), &props );
+    }
+    catch( const IO_ERROR& ioe )
+    {
+        reporter.Report( wxString::Format( _( "Error generating IPC-2581 file '%s'.\n%s" ),
+                                           pcbFileName.GetFullPath(), ioe.What() ),
+                         RPT_SEVERITY_ERROR );
+
+        wxRemoveFile( tempFile );
+        return;
+    }
+
+    if( wxFileExists( pcbFileName.GetFullPath() ) )
+        wxRemoveFile( pcbFileName.GetFullPath() );
+
+    if( !wxRenameFile( tempFile, pcbFileName.GetFullPath() ) )
+    {
+        reporter.Report( wxString::Format( _( "Failed to create file '%s'." ), pcbFileName.GetFullPath() ),
+                         RPT_SEVERITY_ERROR );
+        wxRemoveFile( tempFile );
+        return;
+    }
+
+    reporter.Report( _( "IPC-2581 file generated successfully." ), RPT_SEVERITY_ACTION );
+}
+
+
+void DIALOG_EXPORT_2581::init()
+{
+    m_textDistributor->SetSize( m_choiceDistPN->GetSize() );
 
     std::set<wxString> options;
-    BOARD* board = m_parent->GetBoard();
 
-    for( FOOTPRINT* fp : board->Footprints() )
+    for( FOOTPRINT* fp : m_parent->GetBoard()->Footprints() )
     {
         for( PCB_FIELD* field : fp->GetFields() )
+        {
+            wxCHECK2( field, continue );
+
             options.insert( field->GetName() );
+        }
     }
-
-    if( !m_job )
-    {
-        m_choiceUnits->SetSelection( cfg->m_Export2581.units );
-        m_precision->SetValue( cfg->m_Export2581.precision );
-        m_versionChoice->SetSelection( cfg->m_Export2581.version );
-        m_cbCompress->SetValue( cfg->m_Export2581.compress );
-    }
-    else
-    {
-        SetTitle( m_job->GetSettingsDialogTitle() );
-
-        m_choiceUnits->SetSelection( m_job->m_units == JOB_EXPORT_PCB_IPC2581::IPC2581_UNITS::MM ? 0 : 1 );
-        m_precision->SetValue( static_cast<int>( m_job->m_precision ) );
-        m_versionChoice->SetSelection( m_job->m_version == JOB_EXPORT_PCB_IPC2581::IPC2581_VERSION::B ? 0 : 1 );
-        m_cbCompress->SetValue( m_job->m_compress );
-    }
-
-    // DIALOG_SHIM needs a unique hash_key because classname will be the same for both job and
-    // non-job versions (which have different sizes).
-    m_hash_key = TO_UTF8( GetTitle() );
-
-    wxCommandEvent dummy;
-    onCompressCheck( dummy );
 
     std::vector<wxString> items( options.begin(), options.end() );
     m_oemRef->Append( items );
     m_choiceMPN->Append( items );
     m_choiceMfg->Append( items );
     m_choiceDistPN->Append( items );
+}
 
-    m_oemRef->SetStringSelection( s_oemColumn );
+
+bool DIALOG_EXPORT_2581::TransferDataToWindow()
+{
+    if( !m_job )
+    {
+        wxString path = m_outputFileName->GetValue();
+
+        if( path.IsEmpty() )
+        {
+            wxFileName brdFile( m_parent->GetBoard()->GetFileName() );
+            brdFile.SetExt( wxT( "xml" ) );
+            path = brdFile.GetFullPath();
+            m_outputFileName->SetValue( path );
+        }
+    }
+    else
+    {
+        m_choiceUnits->SetSelection( m_job->m_units == JOB_EXPORT_PCB_IPC2581::IPC2581_UNITS::MM ? 0 : 1 );
+        m_precision->SetValue( static_cast<int>( m_job->m_precision ) );
+        m_versionChoice->SetSelection( m_job->m_version == JOB_EXPORT_PCB_IPC2581::IPC2581_VERSION::B ? 0 : 1 );
+        m_cbCompress->SetValue( m_job->m_compress );
+        m_outputFileName->SetValue( m_job->GetConfiguredOutputPath() );
+    }
+
+    wxCommandEvent dummy;
+    onCompressCheck( dummy );
 
     PROJECT_FILE& prj = Prj().GetProjectFile();
 
@@ -303,6 +374,12 @@ bool DIALOG_EXPORT_2581::Init()
         distPnCol = prj.m_IP2581Bom.distPN;
         mfgCol = prj.m_IP2581Bom.mfg;
         distCol = prj.m_IP2581Bom.dist;
+        wxString bomRev = prj.m_IP2581Bom.bomRev;
+
+        if( bomRev.IsEmpty() )
+            bomRev = prj.m_IP2581Bom.schRevision;
+
+        m_textBomRev->SetValue( bomRev );
     }
     else
     {
@@ -311,6 +388,7 @@ bool DIALOG_EXPORT_2581::Init()
         distPnCol = m_job->m_colDistPn;
         mfgCol = m_job->m_colMfg;
         distCol = m_job->m_colDist;
+        m_textBomRev->SetValue( m_job->m_bomRev );
     }
 
     if( !m_choiceMPN->SetStringSelection( internalIdCol ) )
@@ -355,28 +433,19 @@ bool DIALOG_EXPORT_2581::Init()
     return true;
 }
 
+
 bool DIALOG_EXPORT_2581::TransferDataFromWindow()
 {
     if( !m_job )
     {
-        SETTINGS_MANAGER& mgr = Pgm().GetSettingsManager();
-        PCBNEW_SETTINGS*  cfg = mgr.GetAppSettings<PCBNEW_SETTINGS>( "pcbnew" );
-
-        cfg->m_Export2581.units = m_choiceUnits->GetSelection();
-        cfg->m_Export2581.precision = m_precision->GetValue();
-        cfg->m_Export2581.version = m_versionChoice->GetSelection();
-        cfg->m_Export2581.compress = m_cbCompress->GetValue();
-
         PROJECT_FILE& prj = Prj().GetProjectFile();
-        wxString      empty;
 
         prj.m_IP2581Bom.id = GetOEM();
         prj.m_IP2581Bom.mfg = GetMfg();
         prj.m_IP2581Bom.MPN = GetMPN();
         prj.m_IP2581Bom.distPN = GetDistPN();
         prj.m_IP2581Bom.dist = GetDist();
-
-        s_oemColumn = m_oemRef->GetStringSelection();
+        prj.m_IP2581Bom.bomRev = m_textBomRev->GetValue();
     }
     else
     {
@@ -387,6 +456,7 @@ bool DIALOG_EXPORT_2581::TransferDataFromWindow()
         m_job->m_colDistPn = GetDistPN();
         m_job->m_colMfg = GetMfg();
         m_job->m_colMfgPn = GetMPN();
+        m_job->m_bomRev = m_textBomRev->GetValue();
 
         m_job->m_version = GetVersion() == 'B' ? JOB_EXPORT_PCB_IPC2581::IPC2581_VERSION::B
 											   : JOB_EXPORT_PCB_IPC2581::IPC2581_VERSION::C;

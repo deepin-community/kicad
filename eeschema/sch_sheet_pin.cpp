@@ -36,6 +36,8 @@
 #include <sch_painter.h>
 #include <schematic.h>
 #include <trigo.h>
+#include <properties/property.h>
+#include <properties/property_mgr.h>
 
 
 SCH_SHEET_PIN::SCH_SHEET_PIN( SCH_SHEET* parent, const VECTOR2I& pos, const wxString& text ) :
@@ -65,17 +67,9 @@ EDA_ITEM* SCH_SHEET_PIN::Clone() const
 }
 
 
-void SCH_SHEET_PIN::Print( const SCH_RENDER_SETTINGS* aSettings, int aUnit, int aBodyStyle,
-                           const VECTOR2I& aOffset, bool aForceNoFill, bool aDimmed )
+void SCH_SHEET_PIN::swapData( SCH_ITEM* aItem )
 {
-    // The icon selection is handle by the virtual method CreateGraphicShape called by ::Print
-    SCH_HIERLABEL::Print( aSettings, aUnit, aBodyStyle, aOffset, aForceNoFill, aDimmed );
-}
-
-
-void SCH_SHEET_PIN::SwapData( SCH_ITEM* aItem )
-{
-    SCH_HIERLABEL::SwapData( aItem );
+    SCH_HIERLABEL::swapData( aItem );
 
     wxCHECK_RET( aItem->Type() == SCH_SHEET_PIN_T,
                  wxString::Format( "SCH_SHEET_PIN object cannot swap data with %s object.",
@@ -113,7 +107,7 @@ void SCH_SHEET_PIN::SetNumber( int aNumber )
 
 void SCH_SHEET_PIN::SetSide( SHEET_SIDE aEdge )
 {
-    SCH_SHEET* Sheet = GetParent();
+    SCH_SHEET* sheet = GetParent();
 
     // use SHEET_UNDEFINED_SIDE to adjust text orientation without changing edge
 
@@ -121,25 +115,25 @@ void SCH_SHEET_PIN::SetSide( SHEET_SIDE aEdge )
     {
     case SHEET_SIDE::LEFT:
         m_edge = aEdge;
-        SetTextX( Sheet->m_pos.x );
+        SetTextX( sheet->m_pos.x );
         SetSpinStyle( SPIN_STYLE::RIGHT ); // Orientation horiz inverse
         break;
 
     case SHEET_SIDE::RIGHT:
         m_edge = aEdge;
-        SetTextX( Sheet->m_pos.x + Sheet->m_size.x );
+        SetTextX( sheet->m_pos.x + sheet->m_size.x );
         SetSpinStyle( SPIN_STYLE::LEFT ); // Orientation horiz normal
         break;
 
     case SHEET_SIDE::TOP:
         m_edge = aEdge;
-        SetTextY( Sheet->m_pos.y );
+        SetTextY( sheet->m_pos.y );
         SetSpinStyle( SPIN_STYLE::BOTTOM ); // Orientation vert BOTTOM
         break;
 
     case SHEET_SIDE::BOTTOM:
         m_edge = aEdge;
-        SetTextY( Sheet->m_pos.y + Sheet->m_size.y );
+        SetTextY( sheet->m_pos.y + sheet->m_size.y );
         SetSpinStyle( SPIN_STYLE::UP ); // Orientation vert UP
         break;
 
@@ -155,7 +149,7 @@ enum SHEET_SIDE SCH_SHEET_PIN::GetSide() const
 }
 
 
-void SCH_SHEET_PIN::ConstrainOnEdge( VECTOR2I aPos, bool aAllowEdgeSwitch )
+void SCH_SHEET_PIN::ConstrainOnEdge( const VECTOR2I& aPos, bool aAllowEdgeSwitch )
 {
     SCH_SHEET* sheet = GetParent();
 
@@ -336,7 +330,7 @@ void SCH_SHEET_PIN::GetEndPoints( std::vector<DANGLING_END_ITEM>& aItemList )
 
 wxString SCH_SHEET_PIN::GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const
 {
-    return wxString::Format( _( "Hierarchical Sheet Pin %s" ),
+    return wxString::Format( _( "Hierarchical Sheet Pin '%s'" ),
                              aFull ? GetShownText( false ) : KIUI::EllipsizeMenuText( GetText() ) );
 }
 

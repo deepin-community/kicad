@@ -10,6 +10,7 @@
 #include <wx/artprov.h>
 #include <wx/xrc/xmlres.h>
 #include <wx/intl.h>
+class COLOR_SWATCH;
 class STD_BITMAP_BUTTON;
 class WX_HTML_REPORT_PANEL;
 
@@ -20,6 +21,7 @@ class WX_HTML_REPORT_PANEL;
 #include <wx/font.h>
 #include <wx/colour.h>
 #include <wx/settings.h>
+#include <wx/sizer.h>
 #include <wx/choice.h>
 #include <wx/textctrl.h>
 #include <wx/bmpbuttn.h>
@@ -27,7 +29,6 @@ class WX_HTML_REPORT_PANEL;
 #include <wx/image.h>
 #include <wx/icon.h>
 #include <wx/button.h>
-#include <wx/sizer.h>
 #include <wx/checklst.h>
 #include <wx/statbox.h>
 #include <wx/checkbox.h>
@@ -55,6 +56,8 @@ class DIALOG_PLOT_BASE : public DIALOG_SHIM
 		wxBoxSizer* m_MainSizer;
 		wxStaticText* m_staticTextPlotFmt;
 		wxChoice* m_plotFormatOpt;
+		wxStaticText* m_variantLabel;
+		wxChoice* m_variantChoiceCtrl;
 		wxStaticText* m_staticTextDir;
 		wxTextCtrl* m_outputDirectoryName;
 		STD_BITMAP_BUTTON* m_browseButton;
@@ -75,8 +78,6 @@ class DIALOG_PLOT_BASE : public DIALOG_SHIM
 		wxChoice* m_drillShapeOpt;
 		wxStaticText* scalingLabel;
 		wxChoice* m_scaleOpt;
-		wxStaticText* plotModeLabel;
-		wxChoice* m_plotModeOpt;
 		wxCheckBox* m_useAuxOriginCheckBox;
 		wxCheckBox* m_plotMirrorOpt;
 		wxCheckBox* m_plotPSNegativeOpt;
@@ -93,10 +94,6 @@ class DIALOG_PLOT_BASE : public DIALOG_SHIM
 		wxCheckBox* m_useGerberX2Format;
 		wxCheckBox* m_useGerberNetAttributes;
 		wxCheckBox* m_disableApertMacros;
-		wxStaticBoxSizer* m_HPGLOptionsSizer;
-		wxStaticText* m_hpglPenLabel;
-		wxTextCtrl* m_hpglPenCtrl;
-		wxStaticText* m_hpglPenUnits;
 		wxStaticBoxSizer* m_PSOptionsSizer;
 		wxStaticText* m_fineAdjustXLabel;
 		wxTextCtrl* m_fineAdjustXCtrl;
@@ -111,6 +108,7 @@ class DIALOG_PLOT_BASE : public DIALOG_SHIM
 		wxStaticText* DXF_exportUnitsLabel;
 		wxChoice* m_DXF_plotUnits;
 		wxCheckBox* m_DXF_plotTextStrokeFontOpt;
+		wxCheckBox* m_DXF_exportAsMultiLayeredFile;
 		wxStaticBoxSizer* m_svgOptionsSizer;
 		wxStaticText* svgPrecisionLabel;
 		wxSpinCtrl* m_svgPrecsision;
@@ -124,6 +122,8 @@ class DIALOG_PLOT_BASE : public DIALOG_SHIM
 		wxCheckBox* m_backFPPropertyPopups;
 		wxCheckBox* m_pdfMetadata;
 		wxCheckBox* m_pdfSingle;
+		wxStaticText* m_pdfBackgroundColorText;
+		COLOR_SWATCH* m_pdfBackgroundColorSwatch;
 		WX_HTML_REPORT_PANEL* m_messagesPanel;
 		wxBoxSizer* m_sizerButtons;
 		wxButton* m_buttonDRC;
@@ -140,10 +140,10 @@ class DIALOG_PLOT_BASE : public DIALOG_SHIM
 		virtual void onOpenOutputDirectory( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onDNPCheckbox( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onSketchPads( wxCommandEvent& event ) { event.Skip(); }
-		virtual void OnSetScaleOpt( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onBoardSetup( wxHyperlinkEvent& event ) { event.Skip(); }
 		virtual void OnGerberX2Checked( wxCommandEvent& event ) { event.Skip(); }
 		virtual void OnChangeDXFPlotMode( wxCommandEvent& event ) { event.Skip(); }
+		virtual void onPDFColorChoice( wxCommandEvent& event ) { event.Skip(); }
 		virtual void onRunDRC( wxCommandEvent& event ) { event.Skip(); }
 		virtual void CreateDrillFile( wxCommandEvent& event ) { event.Skip(); }
 		virtual void Plot( wxCommandEvent& event ) { event.Skip(); }

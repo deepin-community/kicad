@@ -38,6 +38,7 @@
 #include <pcb_target.h>
 #include <pcb_dimension.h>
 #include <pcb_textbox.h>
+#include <pcb_barcode.h>
 #include <pcb_table.h>
 #include <pcb_shape.h>
 #include <dialog_drc.h>
@@ -52,21 +53,8 @@
 // Handles the selection of command events.
 void PCB_EDIT_FRAME::Process_Special_Functions( wxCommandEvent& event )
 {
-    int  id = event.GetId();
-    const PCB_DISPLAY_OPTIONS& displ_opts = GetDisplayOptions();
-
-    switch( id )   // Execute command
+    switch( event.GetId() )   // Execute command
     {
-    case 0:
-        break;
-
-    case ID_TOOLBARH_PCB_SELECT_LAYER:
-        SetActiveLayer( ToLAYER_ID( m_SelLayerBox->GetLayerSelection() ) );
-
-        if( displ_opts.m_ContrastModeDisplay != HIGH_CONTRAST_MODE::NORMAL )
-            GetCanvas()->Refresh();
-        break;
-
     case ID_MENU_EXPORT_FOOTPRINTS_TO_LIBRARY:
         ExportFootprintsToLibrary( false );
         break;
@@ -154,8 +142,7 @@ void PCB_EDIT_FRAME::OnEditItemRequest( BOARD_ITEM* aItem )
     {
         DIALOG_DIMENSION_PROPERTIES dlg( this, static_cast<PCB_DIMENSION_BASE*>( aItem ) );
 
-        // TODO: why is this QuasiModal?
-        dlg.ShowQuasiModal();
+        dlg.ShowModal();
         break;
     }
 
@@ -163,12 +150,17 @@ void PCB_EDIT_FRAME::OnEditItemRequest( BOARD_ITEM* aItem )
         ShowGraphicItemPropertiesDialog( static_cast<PCB_SHAPE*>( aItem ) );
         break;
 
+    case PCB_BARCODE_T:
+        ShowBarcodePropertiesDialog( static_cast<PCB_BARCODE*>( aItem ) );
+        break;
+
     case PCB_ZONE_T:
         Edit_Zone_Params( static_cast<ZONE*>( aItem ) );
         break;
 
     case PCB_GROUP_T:
-        m_toolManager->RunAction( PCB_ACTIONS::groupProperties, static_cast<PCB_GROUP*>( aItem ) );
+        m_toolManager->RunAction( ACTIONS::groupProperties,
+                                  static_cast<EDA_GROUP*>( static_cast<PCB_GROUP*>( aItem ) ) );
         break;
 
     case PCB_GENERATOR_T:
@@ -177,6 +169,9 @@ void PCB_EDIT_FRAME::OnEditItemRequest( BOARD_ITEM* aItem )
 
     case PCB_MARKER_T:
         m_toolManager->GetTool<DRC_TOOL>()->CrossProbe( static_cast<PCB_MARKER*>( aItem ) );
+        break;
+
+    case PCB_POINT_T:
         break;
 
     default:

@@ -35,11 +35,22 @@
 #include <kicommon.h>
 #include <wx/string.h>
 #include <wx/arrstr.h>
-//#include <wx/richmsgdlg.h>
-//#include <vector>
-//#include <functional>
 
 class wxWindow;
+
+
+// On Windows, to have the best dark mode experience we need to sub in the generic dialogs
+// as wx can't retheme the native dialogs
+#if defined( _WIN32 ) && wxCHECK_VERSION( 3, 3, 0 )
+#define KICAD_MESSAGE_DIALOG_BASE wxGenericMessageDialog
+#define KICAD_RICH_MESSAGE_DIALOG_BASE wxGenericRichMessageDialog
+// incase we in the future declare our own message dialog class
+#define KICAD_MESSAGE_DIALOG KICAD_MESSAGE_DIALOG_BASE
+#else
+#define KICAD_MESSAGE_DIALOG_BASE wxMessageDialog
+#define KICAD_RICH_MESSAGE_DIALOG_BASE wxRichMessageDialog
+#define KICAD_MESSAGE_DIALOG KICAD_MESSAGE_DIALOG_BASE
+#endif
 
 
 /**
@@ -61,6 +72,10 @@ KICOMMON_API bool AskOverrideLock( wxWindow* aParent, const wxString& aMessage )
  */
 KICOMMON_API bool HandleUnsavedChanges( wxWindow* aParent, const wxString& aMessage,
                                         const std::function<bool()>& aSaveFunction );
+
+/** Return the result code from the last call to HandleUnsavedChanges(): wxID_YES, wxID_NO or
+ *  wxID_CANCEL (or -1 if none yet). */
+KICOMMON_API int GetLastUnsavedChangesResponse();
 
 
 /**
@@ -86,10 +101,8 @@ KICOMMON_API bool ConfirmRevertDialog( wxWindow* parent, const wxString& aMessag
 
 /**
  * Display an error or warning message box with \a aMessage.
- *
- * @warning Setting \a displaytime does not work.  Do not use it.
  */
-KICOMMON_API void DisplayError( wxWindow* aParent, const wxString& aText, int aDisplayTime = 0 );
+KICOMMON_API void DisplayError( wxWindow* aParent, const wxString& aText );
 
 /**
  * Display an error message with \a aMessage

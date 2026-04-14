@@ -30,7 +30,6 @@
 #include <embedded_files.h>
 
 #ifdef __WIN32__
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
 
@@ -66,6 +65,13 @@ void fontconfig::FONTCONFIG::SetReporter( REPORTER* aReporter )
 {
     std::lock_guard lock( g_fontConfigMutex );
     s_reporter = aReporter;
+}
+
+
+REPORTER* fontconfig::FONTCONFIG::GetReporter()
+{
+    std::lock_guard lock( g_fontConfigMutex );
+    return s_reporter;
 }
 
 

@@ -12,8 +12,8 @@ _KiCad {kicad-version-short} Reference Manual_
 [[copyright]]
 *Copyright*
 
-This document is Copyright (C) 2010-2021 by its contributors as listed
-below. You may distribute it and/or modify it under the terms of either
+This document is Copyright The KiCad Documentation Contributors.
+You may distribute it and/or modify it under the terms of either
 the GNU General Public License (https://www.gnu.org/licenses/gpl.html),
 version 3 or later, or the Creative Commons Attribution License
 (https://creativecommons.org/licenses/by/3.0/), version 3.0 or later.

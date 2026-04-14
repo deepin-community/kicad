@@ -20,14 +20,18 @@
 
 #include <kiplatform/app.h>
 
+#include <wx/app.h>
 #include <wx/log.h>
 #include <wx/string.h>
 #include <wx/window.h>
+#if wxCHECK_VERSION( 3, 3, 0 )
+#include <wx/msw/darkmode.h>
+#endif
 
 #include <windows.h>
 #include <strsafe.h>
 #include <config.h>
-#include <VersionHelpers.h>
+#include <versionhelpers.h>
 #include <iostream>
 #include <cstdio>
 
@@ -59,6 +63,25 @@ extern "C"
     }
 }
 #endif
+
+#if wxCHECK_VERSION( 3, 3, 0 )
+class KICAD_DARK_MODE_SETTINGS : public wxDarkModeSettings
+{
+public:
+    wxColour GetColour( wxSystemColour index ) override
+    {
+        switch( index )
+        {
+            // This fixes "Control Light"
+        case wxSYS_COLOUR_3DLIGHT:
+            return wxColour( 0x2B2B2B );
+
+        default: return wxDarkModeSettings::GetColour( index );
+        }
+    }
+};
+#endif
+
 
 bool KIPLATFORM::APP::Init()
 {
@@ -98,6 +121,10 @@ bool KIPLATFORM::APP::Init()
 #endif
         wxLog::SetActiveTarget( new wxLogStderr );
     }
+
+#if wxCHECK_VERSION( 3, 3, 0 )
+    wxTheApp->MSWEnableDarkMode( 0, new KICAD_DARK_MODE_SETTINGS() );
+#endif
 
     return true;
 }

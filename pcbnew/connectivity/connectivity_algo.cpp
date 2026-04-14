@@ -28,13 +28,18 @@
 #include <algorithm>
 #include <future>
 #include <mutex>
+#include <ranges>
 
 #include <connectivity/connectivity_algo.h>
 #include <progress_reporter.h>
 #include <geometry/geometry_utils.h>
+#include <board.h>
 #include <board_commit.h>
 #include <thread_pool.h>
+#include <footprint.h>
+#include <pad.h>
 #include <pcb_shape.h>
+#include <pcb_track.h>
 
 #include <wx/log.h>
 
@@ -206,8 +211,9 @@ bool CN_CONNECTIVITY_ALGO::Add( BOARD_ITEM* aItem )
                     for( CN_ITEM* zitem : m_itemList.Add( zone, layer ) )
                         m_itemMap[zone].Link( zitem );
                 } );
-    }
+
         break;
+    }
 
     default:
         return false;
@@ -270,24 +276,29 @@ void CN_CONNECTIVITY_ALGO::searchConnections()
     {
         std::vector<std::future<size_t>> returns( dirtyItems.size() );
 
-        auto conn_lambda =
-                [&dirtyItems]( size_t aItem, CN_LIST* aItemList,
-                               PROGRESS_REPORTER* aReporter) -> size_t
-                {
-                    if( aReporter && aReporter->IsCancelled() )
-                        return 0;
-
-                    CN_VISITOR visitor( dirtyItems[aItem] );
-                    aItemList->FindNearby( dirtyItems[aItem], visitor );
-
-                    if( aReporter )
-                        aReporter->AdvanceProgress();
-
-                    return 1;
-                };
+        // Collect deferred net code changes to avoid data races in parallel search.
+        // Free vias connected to zones have their net codes updated after all parallel
+        // work completes.
+        std::vector<std::pair<BOARD_CONNECTED_ITEM*, int>> deferredNetCodes;
+        std::mutex deferredNetCodesMutex;
 
         for( size_t ii = 0; ii < dirtyItems.size(); ++ii )
-            returns[ii] = tp.submit( conn_lambda, ii, &m_itemList, m_progressReporter );
+        {
+            returns[ii] = tp.submit_task(
+                    [&dirtyItems, ii, this, &deferredNetCodes, &deferredNetCodesMutex] () ->size_t
+                    {
+                        if( m_progressReporter && m_progressReporter->IsCancelled() )
+                            return 0;
+
+                        CN_VISITOR visitor( dirtyItems[ii], &deferredNetCodes, &deferredNetCodesMutex );
+                        m_itemList.FindNearby( dirtyItems[ii], visitor );
+
+                        if( m_progressReporter )
+                            m_progressReporter->AdvanceProgress();
+
+                        return 1;
+                    } );
+        }
 
         for( const std::future<size_t>& ret : returns )
         {
@@ -303,6 +314,10 @@ void CN_CONNECTIVITY_ALGO::searchConnections()
             }
         }
 
+        // Apply deferred net code changes now that parallel search is complete
+        for( const auto& [item, netCode] : deferredNetCodes )
+            item->SetNetCode( netCode );
+
         if( m_progressReporter )
             m_progressReporter->KeepRefreshing();
     }
@@ -317,27 +332,12 @@ void CN_CONNECTIVITY_ALGO::searchConnections()
 
 const CN_CONNECTIVITY_ALGO::CLUSTERS CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode )
 {
-    static const std::vector<KICAD_T> withoutZones = { PCB_TRACE_T,
-                                                       PCB_ARC_T,
-                                                       PCB_PAD_T,
-                                                       PCB_VIA_T,
-                                                       PCB_FOOTPRINT_T,
-                                                       PCB_SHAPE_T };
-    static const std::vector<KICAD_T> withZones = { PCB_TRACE_T,
-                                                    PCB_ARC_T,
-                                                    PCB_PAD_T,
-                                                    PCB_VIA_T,
-                                                    PCB_ZONE_T,
-                                                    PCB_FOOTPRINT_T,
-                                                    PCB_SHAPE_T };
-
-    return SearchClusters( aMode, aMode == CSM_PROPAGATE ? withoutZones : withZones, -1 );
+    return SearchClusters( aMode, ( aMode == CSM_PROPAGATE ), -1 );
 }
 
 
 const CN_CONNECTIVITY_ALGO::CLUSTERS
-CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode, const std::vector<KICAD_T>& aTypes,
-                                      int aSingleNet, CN_ITEM* rootItem )
+CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode, bool aExcludeZones, int aSingleNet )
 {
     bool withinAnyNet = ( aMode != CSM_PROPAGATE );
 
@@ -352,7 +352,7 @@ CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode, const std::vect
     std::set<CN_ITEM*> visited;
 
     auto addToSearchList =
-            [&item_set, withinAnyNet, aSingleNet, &aTypes, rootItem]( CN_ITEM *aItem )
+            [&item_set, withinAnyNet, aSingleNet, &aExcludeZones]( CN_ITEM *aItem )
             {
                 if( withinAnyNet && aItem->Net() <= 0 )
                     return;
@@ -363,18 +363,7 @@ CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode, const std::vect
                 if( aSingleNet >=0 && aItem->Net() != aSingleNet )
                     return;
 
-                bool found = false;
-
-                for( KICAD_T type : aTypes )
-                {
-                    if( aItem->Parent()->Type() == type )
-                    {
-                        found = true;
-                        break;
-                    }
-                }
-
-                if( !found && aItem != rootItem )
+                if( aExcludeZones && aItem->Parent()->Type() == PCB_ZONE_T )
                     return;
 
                 item_set.insert( aItem );
@@ -384,10 +373,6 @@ CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode, const std::vect
 
     if( m_progressReporter && m_progressReporter->IsCancelled() )
         return CLUSTERS();
-
-    std::set<KICAD_T> typesToInclude;
-    std::copy( aTypes.begin(), aTypes.end(),
-               std::inserter( typesToInclude, typesToInclude.begin() ) );
 
     while( !item_set.empty() )
     {
@@ -419,7 +404,7 @@ CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode, const std::vect
                 if( withinAnyNet && n->Net() != root->Net() )
                     continue;
 
-                if( !typesToInclude.contains( n->Parent()->Type() ) )
+                if( aExcludeZones && n->Parent()->Type() == PCB_ZONE_T )
                     continue;
 
                 if( !visited.contains( n ) && n->Valid() )
@@ -430,7 +415,7 @@ CN_CONNECTIVITY_ALGO::SearchClusters( CLUSTER_SEARCH_MODE aMode, const std::vect
             }
         }
 
-        clusters.push_back( cluster );
+        clusters.push_back( std::move( cluster ) );
     }
 
     if( m_progressReporter && m_progressReporter->IsCancelled() )
@@ -520,7 +505,11 @@ void CN_CONNECTIVITY_ALGO::Build( BOARD* aBoard, PROGRESS_REPORTER* aReporter )
             };
 
     for( size_t ii = 0; ii < zitems.size(); ++ii )
-        returns[ii] = tp.submit( cache_zones, zitems[ii] );
+    {
+        CN_ZONE_LAYER* ptr = zitems[ii];
+        returns[ii] = tp.submit_task(
+            [cache_zones, ptr] { return cache_zones( ptr ); } );
+    }
 
     for( const std::future<size_t>& ret : returns )
     {
@@ -581,7 +570,7 @@ void CN_CONNECTIVITY_ALGO::Build( BOARD* aBoard, PROGRESS_REPORTER* aReporter )
 }
 
 
-void CN_CONNECTIVITY_ALGO::LocalBuild( std::shared_ptr<CONNECTIVITY_DATA> aGlobalConnectivity,
+void CN_CONNECTIVITY_ALGO::LocalBuild( const std::shared_ptr<CONNECTIVITY_DATA>& aGlobalConnectivity,
                                        const std::vector<BOARD_ITEM*>& aLocalItems )
 {
     m_isLocal = true;
@@ -664,14 +653,14 @@ void CN_CONNECTIVITY_ALGO::propagateConnections( BOARD_COMMIT* aCommit )
 
 void CN_CONNECTIVITY_ALGO::PropagateNets( BOARD_COMMIT* aCommit )
 {
+    updateJumperPads();
     m_connClusters = SearchClusters( CSM_PROPAGATE );
     propagateConnections( aCommit );
 }
 
 
-void CN_CONNECTIVITY_ALGO::FillIsolatedIslandsMap(
-                                std::map<ZONE*, std::map<PCB_LAYER_ID, ISOLATED_ISLANDS>>& aMap,
-                                bool aConnectivityAlreadyRebuilt )
+void CN_CONNECTIVITY_ALGO::FillIsolatedIslandsMap( std::map<ZONE*, std::map<PCB_LAYER_ID, ISOLATED_ISLANDS>>& aMap,
+                                                   bool aConnectivityAlreadyRebuilt )
 {
     int progressDelta = 50;
     int ii = 0;
@@ -706,6 +695,8 @@ void CN_CONNECTIVITY_ALGO::FillIsolatedIslandsMap(
             if( zone->GetFilledPolysList( layer )->IsEmpty() )
                 continue;
 
+            bool notInConnectivity = true;
+
             for( const std::shared_ptr<CN_CLUSTER>& cluster : m_connClusters )
             {
                 for( CN_ITEM* item : *cluster )
@@ -713,6 +704,7 @@ void CN_CONNECTIVITY_ALGO::FillIsolatedIslandsMap(
                     if( item->Parent() == zone && item->GetBoardLayer() == layer )
                     {
                         CN_ZONE_LAYER* z = static_cast<CN_ZONE_LAYER*>( item );
+                        notInConnectivity = false;
 
                         if( cluster->IsOrphaned() )
                             layerIslands.m_IsolatedOutlines.push_back( z->SubpolyIndex() );
@@ -721,6 +713,9 @@ void CN_CONNECTIVITY_ALGO::FillIsolatedIslandsMap(
                     }
                 }
             }
+
+            if( notInConnectivity )
+                layerIslands.m_IsolatedOutlines.push_back( 0 );
         }
     }
 }
@@ -766,6 +761,14 @@ void CN_VISITOR::checkZoneItemConnection( CN_ZONE_LAYER* aZoneLayer, CN_ITEM* aI
     auto connect =
             [&]()
             {
+                // We don't propagate nets from zones, so any free-via net changes need to happen now.
+                // Defer the SetNetCode call to avoid data races during parallel connectivity search.
+                if( aItem->Parent()->Type() == PCB_VIA_T && aItem->CanChangeNet() )
+                {
+                    std::lock_guard<std::mutex> lock( *m_deferredNetCodesMutex );
+                    m_deferredNetCodes->emplace_back( aItem->Parent(), aZoneLayer->Net() );
+                }
+
                 aZoneLayer->Connect( aItem );
                 aItem->Connect( aZoneLayer );
             };
@@ -780,6 +783,10 @@ void CN_VISITOR::checkZoneItemConnection( CN_ZONE_LAYER* aZoneLayer, CN_ITEM* aI
         {
             return;
         }
+
+        // Don't connect zones to pads on backdrilled or post-machined layers
+        if( pad->IsBackdrilledOrPostMachined( layer ) )
+            return;
     }
     else if( item->Type() == PCB_VIA_T )
     {
@@ -790,6 +797,10 @@ void CN_VISITOR::checkZoneItemConnection( CN_ZONE_LAYER* aZoneLayer, CN_ITEM* aI
         {
             return;
         }
+
+        // Don't connect zones to vias on backdrilled or post-machined layers
+        if( via->IsBackdrilledOrPostMachined( layer ) )
+            return;
     }
 
     for( int i = 0; i < aItem->AnchorCount(); ++i )
@@ -817,8 +828,9 @@ void CN_VISITOR::checkZoneItemConnection( CN_ZONE_LAYER* aZoneLayer, CN_ITEM* aI
 
 void CN_VISITOR::checkZoneZoneConnection( CN_ZONE_LAYER* aZoneLayerA, CN_ZONE_LAYER* aZoneLayerB )
 {
-    const ZONE* zoneA = static_cast<const ZONE*>( aZoneLayerA->Parent() );
-    const ZONE* zoneB = static_cast<const ZONE*>( aZoneLayerB->Parent() );
+    // CN_ZONE_LAYER now caches its own copy of the outline, so we just check if it's non-empty.
+    if( !aZoneLayerA->HasValidOutline() || !aZoneLayerB->HasValidOutline() )
+        return;
 
     const BOX2I& boxA = aZoneLayerA->BBox();
     const BOX2I& boxB = aZoneLayerB->BBox();
@@ -831,15 +843,16 @@ void CN_VISITOR::checkZoneZoneConnection( CN_ZONE_LAYER* aZoneLayerA, CN_ZONE_LA
     if( !boxA.Intersects( boxB ) )
         return;
 
-    const SHAPE_LINE_CHAIN& outline =
-            zoneA->GetFilledPolysList( layer )->COutline( aZoneLayerA->SubpolyIndex() );
+    const SHAPE_LINE_CHAIN& outlineA = aZoneLayerA->GetOutline();
 
-    for( int i = 0; i < outline.PointCount(); i++ )
+    for( int i = 0; i < outlineA.PointCount(); i++ )
     {
-        if( !boxB.Contains( outline.CPoint( i ) ) )
+        const VECTOR2I& pt = outlineA.CPoint( i );
+
+        if( !boxB.Contains( pt ) )
             continue;
 
-        if( aZoneLayerB->ContainsPoint( outline.CPoint( i ) ) )
+        if( aZoneLayerB->ContainsPoint( pt ) )
         {
             aZoneLayerA->Connect( aZoneLayerB );
             aZoneLayerB->Connect( aZoneLayerA );
@@ -847,15 +860,16 @@ void CN_VISITOR::checkZoneZoneConnection( CN_ZONE_LAYER* aZoneLayerA, CN_ZONE_LA
         }
     }
 
-    const SHAPE_LINE_CHAIN& outline2 =
-            zoneB->GetFilledPolysList( layer )->COutline( aZoneLayerB->SubpolyIndex() );
+    const SHAPE_LINE_CHAIN& outlineB = aZoneLayerB->GetOutline();
 
-    for( int i = 0; i < outline2.PointCount(); i++ )
+    for( int i = 0; i < outlineB.PointCount(); i++ )
     {
-        if( !boxA.Contains( outline2.CPoint( i ) ) )
+        const VECTOR2I& pt = outlineB.CPoint( i );
+
+        if( !boxA.Contains( pt ) )
             continue;
 
-        if( aZoneLayerA->ContainsPoint( outline2.CPoint( i ) ) )
+        if( aZoneLayerA->ContainsPoint( pt ) )
         {
             aZoneLayerA->Connect( aZoneLayerB );
             aZoneLayerB->Connect( aZoneLayerA );
@@ -908,43 +922,42 @@ bool CN_VISITOR::operator()( CN_ITEM* aCandidate )
 
     LSET commonLayers = parentA->GetLayerSet() & parentB->GetLayerSet();
 
-    for( size_t ii = 0; ii < commonLayers.size(); ++ii )
+    if( const BOARD* board = parentA->GetBoard() )
+        commonLayers &= board->GetEnabledLayers();
+
+    for( PCB_LAYER_ID layer : commonLayers )
     {
-        if( commonLayers.test( ii ) )
+        FLASHING flashingA = FLASHING::NEVER_FLASHED;
+        FLASHING flashingB = FLASHING::NEVER_FLASHED;
+
+        if( parentA->Type() == PCB_PAD_T )
         {
-            PCB_LAYER_ID layer = PCB_LAYER_ID( ii );
-            FLASHING     flashingA = FLASHING::NEVER_FLASHED;
-            FLASHING     flashingB = FLASHING::NEVER_FLASHED;
+            if( !static_cast<const PAD*>( parentA )->ConditionallyFlashed( layer ) )
+                flashingA = FLASHING::ALWAYS_FLASHED;
+        }
+        else if( parentA->Type() == PCB_VIA_T )
+        {
+            if( !static_cast<const PCB_VIA*>( parentA )->ConditionallyFlashed( layer ) )
+                flashingA = FLASHING::ALWAYS_FLASHED;
+        }
 
-            if( parentA->Type() == PCB_PAD_T )
-            {
-                if( !static_cast<const PAD*>( parentA )->ConditionallyFlashed( layer ) )
-                    flashingA = FLASHING::ALWAYS_FLASHED;
-            }
-            else if( parentA->Type() == PCB_VIA_T )
-            {
-                if( !static_cast<const PCB_VIA*>( parentA )->ConditionallyFlashed( layer ) )
-                    flashingA = FLASHING::ALWAYS_FLASHED;
-            }
+        if( parentB->Type() == PCB_PAD_T )
+        {
+            if( !static_cast<const PAD*>( parentB )->ConditionallyFlashed( layer ) )
+                flashingB = FLASHING::ALWAYS_FLASHED;
+        }
+        else if( parentB->Type() == PCB_VIA_T )
+        {
+            if( !static_cast<const PCB_VIA*>( parentB )->ConditionallyFlashed( layer ) )
+                flashingB = FLASHING::ALWAYS_FLASHED;
+        }
 
-            if( parentB->Type() == PCB_PAD_T )
-            {
-                if( !static_cast<const PAD*>( parentB )->ConditionallyFlashed( layer ) )
-                    flashingB = FLASHING::ALWAYS_FLASHED;
-            }
-            else if( parentB->Type() == PCB_VIA_T )
-            {
-                if( !static_cast<const PCB_VIA*>( parentB )->ConditionallyFlashed( layer ) )
-                    flashingB = FLASHING::ALWAYS_FLASHED;
-            }
-
-            if( parentA->GetEffectiveShape( layer, flashingA )->Collide(
+        if( parentA->GetEffectiveShape( layer, flashingA )->Collide(
                     parentB->GetEffectiveShape( layer, flashingB ).get() ) )
-            {
-                m_item->Connect( aCandidate );
-                aCandidate->Connect( m_item );
-                return true;
-            }
+        {
+            m_item->Connect( aCandidate );
+            aCandidate->Connect( m_item );
+            return true;
         }
     }
 
@@ -964,4 +977,58 @@ void CN_CONNECTIVITY_ALGO::Clear()
 void CN_CONNECTIVITY_ALGO::SetProgressReporter( PROGRESS_REPORTER* aReporter )
 {
     m_progressReporter = aReporter;
+}
+
+
+void CN_CONNECTIVITY_ALGO::updateJumperPads()
+{
+    // Map of footprint -> map of pad number -> list of CN_ITEMs for pads with that number
+    std::map<FOOTPRINT*, std::map<wxString, std::vector<CN_ITEM*>>> padsByFootprint;
+
+    for( CN_ITEM* item : m_itemList )
+    {
+        if( !item->Valid() || item->Parent()->Type() != PCB_PAD_T )
+            continue;
+
+        auto pad = static_cast<const PAD*>( item->Parent() );
+
+        FOOTPRINT* fp = pad->GetParentFootprint();
+
+        padsByFootprint[fp][ pad->GetNumber() ].emplace_back( item );
+    }
+
+    for( auto& [footprint, padsMap] : padsByFootprint )
+    {
+        if( footprint->GetDuplicatePadNumbersAreJumpers() )
+        {
+            for( const std::vector<CN_ITEM*>& padsList : padsMap | std::views::values )
+            {
+                for( size_t i = 0; i < padsList.size(); ++i )
+                {
+                    for( size_t j = 1; j < padsList.size(); ++j )
+                    {
+                        padsList[i]->Connect( padsList[j] );
+                        padsList[j]->Connect( padsList[i] );
+                    }
+                }
+            }
+        }
+
+        for( const std::set<wxString>& group : footprint->JumperPadGroups() )
+        {
+            std::vector<CN_ITEM*> toConnect;
+
+            for( const wxString& padNumber : group )
+                std::ranges::copy( padsMap[padNumber], std::back_inserter( toConnect ) );
+
+            for( size_t i = 0; i < toConnect.size(); ++i )
+            {
+                for( size_t j = 1; j < toConnect.size(); ++j )
+                {
+                    toConnect[i]->Connect( toConnect[j] );
+                    toConnect[j]->Connect( toConnect[i] );
+                }
+            }
+        }
+    }
 }

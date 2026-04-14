@@ -34,6 +34,7 @@
 #include <3d_canvas/board_adapter.h>
 #include <3d_rendering/track_ball.h>
 
+class EDA_3D_CANVAS;
 class PANEL_FOOTPRINT_CHOOSER;
 class wxCheckBox;
 class BITMAP_BUTTON;
@@ -57,7 +58,7 @@ public:
      */
     bool ShowModal( wxString* aFootprint, wxWindow* aParent ) override;
 
-    void KiwayMailIn( KIWAY_EXPRESS& mail ) override;
+    void KiwayMailIn( KIWAY_MAIL_EVENT& mail ) override;
 
     /**
      * Force the position of the dialog to a new position.  This mimics the DIALOG_SHIM
@@ -95,6 +96,7 @@ private:
     WINDOW_SETTINGS* GetWindowSettings( APP_SETTINGS_BASE* aCfg ) override;
     COLOR_SETTINGS* GetColorSettings( bool aForceRefresh ) const override;
 
+    void toggleBottomSplit( wxCommandEvent& event );
     void on3DviewReq( wxCommandEvent& event );
     void onFpViewReq( wxCommandEvent& event );
     void onExternalViewer3DEnable( wxCommandEvent& aEvent );
@@ -121,8 +123,10 @@ private:
 
 private:
     PANEL_FOOTPRINT_CHOOSER* m_chooserPanel;
-    bool                     m_showFpMode; // True to show the footprint
-    bool                     m_show3DMode; // True to show the 3D model
+    wxPanel*                 m_bottomPanel;
+    inline static bool       m_showDescription = true; // Init true to show the m_details panel
+    inline static bool       m_showFpMode = true;  // Init true to show the footprint
+    inline static bool       m_show3DMode = false; // Init false to hide the 3D model
     wxCheckBox*              m_filterByPinCount;
     wxCheckBox*              m_filterByFPFilters;
     wxCheckBox*              m_show3DViewer;
@@ -131,6 +135,7 @@ private:
     EDA_3D_CANVAS*           m_preview3DCanvas;
     CAMERA&                  m_currentCamera;
     TRACK_BALL               m_trackBallCamera;
+    BITMAP_BUTTON*           m_toggleDescription;
     BITMAP_BUTTON*           m_grButtonFpView;
     BITMAP_BUTTON*           m_grButton3DView;
 

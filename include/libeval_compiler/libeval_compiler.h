@@ -18,8 +18,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __LIBEVAL_COMPILER_H
-#define __LIBEVAL_COMPILER_H
+#pragma once
 
 #include <cstddef>
 #include <functional>
@@ -144,7 +143,7 @@ public:
     bool       isVisited;
     int        srcPos;
 
-    void SetUop( int aOp, double aValue );
+    void SetUop( int aOp, double aValue, EDA_UNITS aUnits );
     void SetUop( int aOp, const wxString& aValue, bool aStringIsWildcard );
     void SetUop( int aOp, std::unique_ptr<VAR_REF> aRef = nullptr );
     void SetUop( int aOp, FUNC_CALL_REF aFunc, std::unique_ptr<VAR_REF> aRef = nullptr );
@@ -172,6 +171,14 @@ public:
         return nullUnits;
     }
 
+
+    virtual const std::vector<EDA_UNITS>& GetSupportedUnitsTypes() const
+    {
+        static const std::vector<EDA_UNITS> nullUnits;
+
+        return nullUnits;
+    }
+
     virtual wxString GetSupportedUnitsMessage() const
     {
         return wxEmptyString;
@@ -180,7 +187,7 @@ public:
     virtual double Convert( const wxString& aString, int unitType ) const
     {
         return 0.0;
-    };
+    }
 };
 
 
@@ -188,29 +195,32 @@ class KICOMMON_API VALUE
 {
 public:
     VALUE() :
-        m_type( VT_UNDEFINED ),
-        m_valueDbl( 0 ),
-        m_stringIsWildcard( false ),
-        m_isDeferredDbl( false ),
-        m_isDeferredStr( false )
-    {};
+            m_type( VT_UNDEFINED ),
+            m_valueDbl( 0 ),
+            m_stringIsWildcard( false ),
+            m_isDeferredDbl( false ),
+            m_isDeferredStr( false ),
+            m_units( EDA_UNITS::UNSCALED )
+    {}
 
     VALUE( const wxString& aStr, bool aIsWildcard = false ) :
-        m_type( VT_STRING ),
-        m_valueDbl( 0 ),
-        m_valueStr( aStr ),
-        m_stringIsWildcard( aIsWildcard ),
-        m_isDeferredDbl( false ),
-        m_isDeferredStr( false )
-    {};
+            m_type( VT_STRING ),
+            m_valueDbl( 0 ),
+            m_valueStr( aStr ),
+            m_stringIsWildcard( aIsWildcard ),
+            m_isDeferredDbl( false ),
+            m_isDeferredStr( false ),
+            m_units( EDA_UNITS::UNSCALED )
+    {}
 
     VALUE( const double aVal ) :
-        m_type( VT_NUMERIC ),
-        m_valueDbl( aVal ),
-        m_stringIsWildcard( false ),
-        m_isDeferredDbl( false ),
-        m_isDeferredStr( false )
-    {};
+            m_type( VT_NUMERIC ),
+            m_valueDbl( aVal ),
+            m_stringIsWildcard( false ),
+            m_isDeferredDbl( false ),
+            m_isDeferredStr( false ),
+            m_units( EDA_UNITS::UNSCALED )
+    {}
 
     static VALUE* MakeNullValue()
     {
@@ -219,8 +229,7 @@ public:
         return v;
     }
 
-    virtual ~VALUE()
-    {};
+    virtual ~VALUE() = default;
 
     virtual double AsDouble() const
     {
@@ -260,14 +269,14 @@ public:
     void SetDeferredEval( std::function<double()> aLambda )
     {
         m_type = VT_NUMERIC;
-        m_lambdaDbl = aLambda;
+        m_lambdaDbl = std::move( aLambda );
         m_isDeferredDbl = true;
     }
 
     void SetDeferredEval( std::function<wxString()> aLambda )
     {
         m_type = VT_STRING;
-        m_lambdaStr = aLambda;
+        m_lambdaStr = std::move( aLambda );
         m_isDeferredStr = true;
     }
 
@@ -286,6 +295,12 @@ public:
             m_valueStr = val.m_valueStr;
     }
 
+    void SetUnits( const EDA_UNITS aUnits ) { m_units = aUnits; }
+
+    EDA_UNITS GetUnits() const { return m_units; }
+
+    bool StringIsWildcard() const { return m_stringIsWildcard; }
+
 private:
     VAR_TYPE_T                m_type;
     mutable double            m_valueDbl;               // mutable to support deferred evaluation
@@ -297,13 +312,17 @@ private:
 
     mutable bool              m_isDeferredStr;
     std::function<wxString()> m_lambdaStr;
+
+    EDA_UNITS                 m_units;
 };
 
 class KICOMMON_API VAR_REF
 {
 public:
-    VAR_REF() {};
-    virtual ~VAR_REF() {};
+    VAR_REF()
+    {}
+
+    virtual ~VAR_REF() = default;
 
     virtual VAR_TYPE_T GetType() const = 0;
     virtual VALUE* GetValue( CONTEXT* aCtx ) = 0;
@@ -314,8 +333,8 @@ class KICOMMON_API CONTEXT
 {
 public:
     CONTEXT() :
-        m_stack(),
-        m_stackPtr( 0 )
+            m_stack(),
+            m_stackPtr( 0 )
     {
         m_ownedValues.reserve( 20 );
     }
@@ -323,10 +342,13 @@ public:
     virtual ~CONTEXT()
     {
         for( VALUE* v : m_ownedValues )
-        {
             delete v;
-        }
     }
+
+    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
+    // will only land us in trouble.
+    CONTEXT( const CONTEXT& ) = delete;
+    CONTEXT& operator=( const CONTEXT& ) = delete;
 
     VALUE* AllocValue()
     {
@@ -382,7 +404,15 @@ private:
 class KICOMMON_API UCODE
 {
 public:
+    UCODE()
+    {}
+
     virtual ~UCODE();
+
+    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
+    // will only land us in trouble.
+    UCODE( const UCODE& ) = delete;
+    UCODE& operator=( const UCODE& ) = delete;
 
     void AddOp( UOP* uop )
     {
@@ -395,15 +425,14 @@ public:
     virtual std::unique_ptr<VAR_REF> CreateVarRef( const wxString& var, const wxString& field )
     {
         return nullptr;
-    };
+    }
 
     virtual FUNC_CALL_REF CreateFuncCall( const wxString& name )
     {
         return nullptr;
-    };
+    }
 
 protected:
-
     std::vector<UOP*> m_ucode;
 };
 
@@ -415,24 +444,22 @@ public:
         m_op( op ),
         m_ref(nullptr),
         m_value( std::move( value ) )
-    {};
+    {}
 
     UOP( int op, std::unique_ptr<VAR_REF> vref ) :
         m_op( op ),
         m_ref( std::move( vref ) ),
         m_value(nullptr)
-    {};
+    {}
 
     UOP( int op, FUNC_CALL_REF func, std::unique_ptr<VAR_REF> vref = nullptr ) :
         m_op( op ),
         m_func( std::move( func ) ),
         m_ref( std::move( vref ) ),
         m_value(nullptr)
-    {};
+    {}
 
-    ~UOP()
-    {
-    }
+    virtual ~UOP() = default;
 
     void Exec( CONTEXT* ctx );
 
@@ -502,6 +529,11 @@ class KICOMMON_API COMPILER
 public:
     COMPILER();
     virtual ~COMPILER();
+
+    // We own at least one list of raw pointers.  Don't let the compiler fill in copy c'tors that
+    // will only land us in trouble.
+    COMPILER( const COMPILER& ) = delete;
+    COMPILER& operator=( const COMPILER& ) = delete;
 
     /*
      * clear() should be invoked by the client if a new input string is to be processed. It
@@ -577,4 +609,3 @@ protected:
 
 } // namespace LIBEVAL
 
-#endif /* LIBEVAL_COMPILER_H_ */

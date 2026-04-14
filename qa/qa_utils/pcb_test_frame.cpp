@@ -118,7 +118,7 @@ void PCB_TEST_FRAME_BASE::SetBoard( std::shared_ptr<BOARD> b )
     m_galPanel->SetEventDispatcher( m_toolDispatcher );
 
     m_toolManager->ResetTools( TOOL_BASE::MODEL_RELOAD );
-    m_toolManager->InvokeTool( "pcbnew.InteractiveSelection" );
+    m_toolManager->InvokeTool( "common.InteractiveSelection" );
 #endif
 }
 
@@ -153,7 +153,7 @@ void PCB_TEST_FRAME_BASE::SetSelectableItemTypes( const std::vector<KICAD_T> aTy
 void PCB_TEST_FRAME_BASE::createView( wxWindow *aParent, PCB_DRAW_PANEL_GAL::GAL_TYPE aGalType )
 {
     // SUPERSAMPLING_X4;
-    m_displayOptions.gl_antialiasing_mode = KIGFX::OPENGL_ANTIALIASING_MODE::NONE;
+    m_displayOptions.antialiasing_mode = KIGFX::GAL_ANTIALIASING_MODE::AA_NONE;
 
     DPI_SCALING_COMMON dpi( Pgm().GetCommonSettings(), aParent );
     m_displayOptions.m_scaleFactor = dpi.GetScaleFactor();
@@ -203,12 +203,12 @@ void PCB_TEST_FRAME_BASE::LoadSettings()
 
     mgr.RegisterSettings( new PCBNEW_SETTINGS );
     mgr.RegisterSettings( new CVPCB_SETTINGS );
-    mgr.GetColorSettings()->Load();
+    mgr.GetColorSettings( DEFAULT_THEME )->Load();
 }
 
 void PCB_TEST_FRAME_BASE::SetSelectionHook( std::function<void(PCB_TEST_FRAME_BASE*, PCB_SELECTION*)> aHook )
 {
-    auto tool = m_toolManager->FindTool("pcbnew.InteractiveSelection");
+    auto tool = m_toolManager->FindTool( "common.InteractiveSelection" );
     if (!tool)
         return;
 

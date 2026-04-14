@@ -71,7 +71,7 @@ public:
     {
     }
 
-    ~TEST_NETLIST_EXPORTER_SPICE_FIXTURE()
+    virtual ~TEST_NETLIST_EXPORTER_SPICE_FIXTURE()
     {
         using namespace boost::unit_test;
 
@@ -79,10 +79,14 @@ public:
         test_results    results = results_collector.results( id );
 
         // Output a log if the test has failed.
-        BOOST_CHECK_MESSAGE( results.passed(), "\nNGSPICE LOG\n===========\n" << *m_log );
+        // Don't use BOOST_CHECK_MESSAGE because it triggers a checkpoint which affects debugging
+        if( !results.passed() )
+        {
+            BOOST_TEST_MESSAGE( "\nNGSPICE LOG\n===========\n" << *m_log );
+        }
     }
 
-    wxFileName GetSchematicPath( const wxString& aBaseName ) override
+    wxFileName SchematicQAPath( const wxString& aBaseName ) override
     {
         wxFileName fn( KI_TEST::GetEeschemaTestDataDir() );
         fn.AppendDir( "spice_netlists" );
@@ -95,7 +99,7 @@ public:
 
     wxString GetNetlistPath( bool aTest = false ) override
     {
-        wxFileName netFile = m_schematic.Prj().GetProjectFullName();
+        wxFileName netFile = m_schematic->Project().GetProjectFullName();
 
         if( aTest )
             netFile.SetName( netFile.GetName() + "_test" );
@@ -106,6 +110,9 @@ public:
 
     void CompareNetlists() override
     {
+        wxString netlistPath = GetNetlistPath( true );
+        BOOST_TEST_CHECKPOINT( "Comparing netlist " << netlistPath );
+
         m_abort = false;
 
         // Our simulator is actually Ngspice.
@@ -114,9 +121,10 @@ public:
 
         ngspice->SetReporter( m_reporter.get() );
 
-        wxFFile file( GetNetlistPath( true ), "rt" );
+        wxFFile  file( netlistPath, "rt" );
         wxString netlist;
 
+        BOOST_REQUIRE( file.IsOpened() );
         file.ReadAll( &netlist );
 
         //ngspice->Init();

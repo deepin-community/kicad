@@ -60,6 +60,7 @@ enum class ODB_SUBTYPE
     PSA,
     SILVER_MASK,
     CARBON_MASK,
+    BACKDRILL,
 };
 
 enum class ODB_FID_TYPE
@@ -69,12 +70,23 @@ enum class ODB_FID_TYPE
     HOLE
 };
 
+enum class ODB_AUX_LAYER_TYPE
+{
+    COVERING,
+    PLUGGING,
+    TENTING,
+    FILLING,
+    CAPPING,
+};
+
 
 namespace ODB
 {
 wxString GenODBString( const wxString& aStr );
 
 wxString GenLegalNetName( const wxString& aStr );
+
+wxString GenLegalComponentName( const wxString& aStr );
 
 wxString GenLegalEntityName( const wxString& aStr );
 
@@ -147,6 +159,7 @@ public:
                 result[ODB_SUBTYPE::PSA] = "PSA";
                 result[ODB_SUBTYPE::SILVER_MASK] = "SILVER_MASK";
                 result[ODB_SUBTYPE::CARBON_MASK] = "CARBON_MASK";
+                result[ODB_SUBTYPE::BACKDRILL] = "BACKDRILL";
             }
 
             if constexpr( std::is_same_v<T, ODB_DIELECTRIC_TYPE> )
@@ -335,11 +348,13 @@ public:
     ODB_DRILL_TOOLS( const wxString& aUnits, const wxString& aThickness = "0",
                      const wxString& aUserParams = wxEmptyString );
 
-    void AddDrillTools( const wxString& aType, const wxString& aFinishSize )
+    void AddDrillTools( const wxString& aType, const wxString& aFinishSize,
+                        const wxString& aType2 = wxT( "STANDARD" ) )
     {
         TOOLS tool;
         tool.m_num = m_tools.size() + 1;
         tool.m_type = aType;
+        tool.m_type2 = aType2;
         tool.m_finishSize = aFinishSize;
         tool.m_drillSize = aFinishSize;
 

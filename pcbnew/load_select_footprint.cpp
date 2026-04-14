@@ -34,7 +34,7 @@ using namespace std::placeholders;
 #include <footprint_edit_frame.h>
 #include <footprint_chooser_frame.h>
 #include <footprint_viewer_frame.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
 #include <pcb_io/pcb_io_mgr.h>
 #include <string_utils.h>
 #include <kiway.h>
@@ -49,6 +49,7 @@ using namespace std::placeholders;
 #include <widgets/wx_progress_reporters.h>
 #include <dialog_pad_properties.h>
 #include <project_pcb.h>
+#include <locale_io.h>
 
 
 static wxArrayString s_FootprintHistoryList;
@@ -121,9 +122,12 @@ bool FOOTPRINT_EDIT_FRAME::LoadFootprintFromBoard( FOOTPRINT* aFootprint )
     newFootprint->SetParentGroup( nullptr );
     newFootprint->SetLink( aFootprint->m_Uuid );
 
+    // Clear flags not used in Fp editor
     newFootprint->ClearFlags();
+    newFootprint->SetLocked( false );
+
     recordAndUpdateUuid( newFootprint );
-    newFootprint->RunOnDescendants(
+    newFootprint->RunOnChildren(
             [&]( BOARD_ITEM* aItem )
             {
                 if( aItem->Type() == PCB_PAD_T )
@@ -131,7 +135,8 @@ bool FOOTPRINT_EDIT_FRAME::LoadFootprintFromBoard( FOOTPRINT* aFootprint )
 
                 aItem->ClearFlags();
                 recordAndUpdateUuid( aItem );
-            } );
+            },
+            RECURSE_MODE::RECURSE );
 
     AddFootprintToBoard( newFootprint );
 
@@ -238,10 +243,7 @@ FOOTPRINT* PCB_BASE_FRAME::LoadFootprint( const LIB_ID& aFootprintId )
 
 FOOTPRINT* PCB_BASE_FRAME::loadFootprint( const LIB_ID& aFootprintId )
 {
-    FP_LIB_TABLE*   fptbl = PROJECT_PCB::PcbFootprintLibs( &Prj() );
-
-    wxCHECK_MSG( fptbl, nullptr, wxT( "Cannot look up LIB_ID in NULL FP_LIB_TABLE." ) );
-
+    FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( &Prj() );
     FOOTPRINT *footprint = nullptr;
 
     // When loading a footprint from a library in the footprint editor
@@ -250,7 +252,7 @@ FOOTPRINT* PCB_BASE_FRAME::loadFootprint( const LIB_ID& aFootprintId )
 
     try
     {
-        footprint = fptbl->FootprintLoadWithOptionalNickname( aFootprintId, keepUUID );
+        footprint = adapter->LoadFootprintWithOptionalNickname( aFootprintId, keepUUID );
     }
     catch( const IO_ERROR& )
     {
@@ -267,7 +269,8 @@ FOOTPRINT* PCB_BASE_FRAME::loadFootprint( const LIB_ID& aFootprintId )
             BOARD_DESIGN_SETTINGS& bds = m_pcb->GetDesignSettings();
 
             footprint->ApplyDefaultSettings( *m_pcb, bds.m_StyleFPFields, bds.m_StyleFPText,
-                                             bds.m_StyleFPShapes );
+                                             bds.m_StyleFPShapes, bds.m_StyleFPDimensions,
+                                             bds.m_StyleFPBarcodes );
         }
     }
 
@@ -325,7 +328,7 @@ FOOTPRINT* FOOTPRINT_EDIT_FRAME::SelectFootprintFromBoard( BOARD* aPcb )
 bool FOOTPRINT_EDIT_FRAME::SaveLibraryAs( const wxString& aLibraryPath )
 {
     const wxString& curLibPath = aLibraryPath;
-    wxString        dstLibPath = CreateNewLibrary( wxEmptyString, aLibraryPath );
+    wxString        dstLibPath = CreateNewLibrary( _( "Save Footprint Library As" ), aLibraryPath );
 
     if( !dstLibPath )
         return false;             // user aborted in CreateNewLibrary()
@@ -333,6 +336,7 @@ bool FOOTPRINT_EDIT_FRAME::SaveLibraryAs( const wxString& aLibraryPath )
     wxBusyCursor dummy;
     wxString msg;
 
+    LOCALE_IO              toggle_locale;
     PCB_IO_MGR::PCB_FILE_T dstType = PCB_IO_MGR::GuessPluginTypeFromLibPath( dstLibPath );
     PCB_IO_MGR::PCB_FILE_T curType = PCB_IO_MGR::GuessPluginTypeFromLibPath( curLibPath );
 
@@ -341,8 +345,8 @@ bool FOOTPRINT_EDIT_FRAME::SaveLibraryAs( const wxString& aLibraryPath )
 
     try
     {
-        IO_RELEASER<PCB_IO> cur( PCB_IO_MGR::PluginFind( curType ) );
-        IO_RELEASER<PCB_IO> dst( PCB_IO_MGR::PluginFind( dstType ) );
+        IO_RELEASER<PCB_IO> cur( PCB_IO_MGR::FindPlugin( curType ) );
+        IO_RELEASER<PCB_IO> dst( PCB_IO_MGR::FindPlugin( dstType ) );
 
         if( !cur )
         {
@@ -362,12 +366,12 @@ bool FOOTPRINT_EDIT_FRAME::SaveLibraryAs( const wxString& aLibraryPath )
 
         cur->FootprintEnumerate( footprints, curLibPath, false );
 
-        for( unsigned i = 0;  i < footprints.size();  ++i )
+        for( const wxString& fp : footprints )
         {
-            const FOOTPRINT* footprint = cur->GetEnumeratedFootprint( curLibPath, footprints[i] );
+            const FOOTPRINT* footprint = cur->GetEnumeratedFootprint( curLibPath, fp );
             dst->FootprintSave( dstLibPath, footprint );
 
-            msg = wxString::Format( _( "Footprint '%s' saved." ), footprints[i] );
+            msg = wxString::Format( _( "Footprint '%s' saved." ), fp );
             SetStatusText( msg );
         }
     }
@@ -393,7 +397,7 @@ static FOOTPRINT* s_FootprintInitialCopy = nullptr;    // Copy of footprint for 
 static PICKED_ITEMS_LIST s_PickedList;              // A pick-list to save initial footprint
                                                     //   and dragged tracks
 
-void PCB_BASE_FRAME::PlaceFootprint( FOOTPRINT* aFootprint, bool aRecreateRatsnest )
+void PCB_BASE_FRAME::PlaceFootprint( FOOTPRINT* aFootprint, bool aRecreateRatsnest, std::optional<VECTOR2I> aPosition )
 {
     if( aFootprint == nullptr )
         return;
@@ -421,7 +425,11 @@ void PCB_BASE_FRAME::PlaceFootprint( FOOTPRINT* aFootprint, bool aRecreateRatsne
         s_PickedList.ClearItemsList();
     }
 
-    aFootprint->SetPosition( GetCanvas()->GetViewControls()->GetCursorPosition() );
+    if( aPosition.has_value() )
+        aFootprint->SetPosition( aPosition.value() );
+    else
+        aFootprint->SetPosition( GetCanvas()->GetViewControls()->GetCursorPosition() );
+
     aFootprint->ClearFlags();
 
     delete s_FootprintInitialCopy;

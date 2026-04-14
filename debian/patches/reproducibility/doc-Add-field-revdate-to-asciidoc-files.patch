@@ -36,7 +36,7 @@ index c852dc7..7bbad39 100644
  :ascii-ids:
  
 diff --git a/doc/src/eeschema/eeschema.adoc b/doc/src/eeschema/eeschema.adoc
-index a126c0f..a5ec506 100644
+index 98440eb..27bde79 100644
 --- a/doc/src/eeschema/eeschema.adoc
 +++ b/doc/src/eeschema/eeschema.adoc
 @@ -1,5 +1,6 @@
@@ -47,7 +47,7 @@ index a126c0f..a5ec506 100644
  :ascii-ids:
  :experimental:
 diff --git a/doc/src/gerbview/gerbview.adoc b/doc/src/gerbview/gerbview.adoc
-index 255dc15..457fb9f 100644
+index 5197a5c..11ad49c 100644
 --- a/doc/src/gerbview/gerbview.adoc
 +++ b/doc/src/gerbview/gerbview.adoc
 @@ -1,5 +1,6 @@
@@ -58,7 +58,7 @@ index 255dc15..457fb9f 100644
  :ascii-ids:
  
 diff --git a/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc b/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc
-index 14fa227..1895c6c 100644
+index 9a548bc..0ef2e11 100644
 --- a/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc
 +++ b/doc/src/getting_started_in_kicad/getting_started_in_kicad.adoc
 @@ -1,5 +1,6 @@
@@ -69,7 +69,7 @@ index 14fa227..1895c6c 100644
  :ascii-ids:
  :experimental:
 diff --git a/doc/src/kicad/kicad.adoc b/doc/src/kicad/kicad.adoc
-index b0abb0c..e8d5486 100644
+index 37b3b30..e91ab13 100644
 --- a/doc/src/kicad/kicad.adoc
 +++ b/doc/src/kicad/kicad.adoc
 @@ -1,5 +1,6 @@
@@ -80,7 +80,7 @@ index b0abb0c..e8d5486 100644
  :ascii-ids:
  :experimental:
 diff --git a/doc/src/pcbnew/pcbnew.adoc b/doc/src/pcbnew/pcbnew.adoc
-index 684c649..6ae6d49 100644
+index 137ce77..6969dd7 100644
 --- a/doc/src/pcbnew/pcbnew.adoc
 +++ b/doc/src/pcbnew/pcbnew.adoc
 @@ -1,5 +1,6 @@
@@ -91,7 +91,7 @@ index 684c649..6ae6d49 100644
  :ascii-ids:
  :figure-caption!:
 diff --git a/doc/src/pl_editor/pl_editor.adoc b/doc/src/pl_editor/pl_editor.adoc
-index e991f4b..5cd7685 100644
+index 9a85ec1..7fcc236 100644
 --- a/doc/src/pl_editor/pl_editor.adoc
 +++ b/doc/src/pl_editor/pl_editor.adoc
 @@ -1,5 +1,6 @@

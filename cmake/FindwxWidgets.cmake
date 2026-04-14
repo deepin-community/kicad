@@ -520,6 +520,15 @@ if(wxWidgets_FIND_STYLE STREQUAL "win32")
       set(WX_LIB_DIR_PREFIX vc)
     endif()
 
+    set( EXTRA_LIB_PATH "" )
+    if(VCPKG_TOOLCHAIN)
+        if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+            set( EXTRA_LIB_PATH "${WX_ROOT_DIR}/debug/lib" )
+        else()
+            set( EXTRA_LIB_PATH "${WX_ROOT_DIR}/lib" )
+        endif()
+    endif()
+
     if(BUILD_SHARED_LIBS)
       find_path(wxWidgets_LIB_DIR
       NAMES
@@ -536,6 +545,7 @@ if(wxWidgets_FIND_STYLE STREQUAL "win32")
       PATHS
       ${WX_ROOT_DIR}/lib/${WX_LIB_DIR_PREFIX}_dll   # prefer shared
       ${WX_ROOT_DIR}/lib/${WX_LIB_DIR_PREFIX}_lib
+      ${EXTRA_LIB_PATH}
       DOC "Path to wxWidgets libraries"
       NO_DEFAULT_PATH
       )
@@ -555,6 +565,7 @@ if(wxWidgets_FIND_STYLE STREQUAL "win32")
       PATHS
       ${WX_ROOT_DIR}/lib/${WX_LIB_DIR_PREFIX}_lib   # prefer static
       ${WX_ROOT_DIR}/lib/${WX_LIB_DIR_PREFIX}_dll
+      ${EXTRA_LIB_PATH}
       DOC "Path to wxWidgets libraries"
       NO_DEFAULT_PATH
       )
@@ -611,6 +622,10 @@ if(wxWidgets_FIND_STYLE STREQUAL "win32")
             set(wxWidgets_USE_REL_AND_DBG FALSE CACHE BOOL
               "No ${wxWidgets_CONFIGURATION}d found." FORCE)
           endif()
+          set(WX_USE_REL_AND_DBG FALSE)
+        endif()
+
+        if( VCPKG_TOOLCHAIN )
           set(WX_USE_REL_AND_DBG FALSE)
         endif()
 
@@ -783,6 +798,32 @@ else()
         separate_arguments(wxWidgets_CXX_FLAGS)
 
         DBG_MSG_V("wxWidgets_CXX_FLAGS=${wxWidgets_CXX_FLAGS}")
+
+        # wx 3.2 switches GLX/EGL at compile time.
+        execute_process(
+          COMMAND sh -c "echo '#include <wx/platform.h>' ; echo CMAKE_WXTEST_RESULT wxUSE_GLCANVAS_EGL"
+          COMMAND ${CMAKE_CXX_COMPILER} ${wxWidgets_CXX_FLAGS} -E -
+          COMMAND grep CMAKE_WXTEST_RESULT
+          COMMAND cut "-d " -f2
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+          OUTPUT_VARIABLE   wxWidgets_GLCANVAS_EGL )
+
+        # wx 3.3+ can switch GLX/EGL at runtime.
+        execute_process(
+          COMMAND sh -c "echo '#include <wx/platform.h>' ; echo CMAKE_WXTEST_RESULT wxHAS_EGL"
+          COMMAND ${CMAKE_CXX_COMPILER} ${wxWidgets_CXX_FLAGS} -E -
+          COMMAND grep CMAKE_WXTEST_RESULT
+          COMMAND cut "-d " -f2
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+          OUTPUT_VARIABLE   wxWidgets_HAS_EGL )
+
+        execute_process(
+          COMMAND sh -c "echo '#include <wx/platform.h>' ; echo CMAKE_WXTEST_RESULT wxHAS_GLX"
+          COMMAND ${CMAKE_CXX_COMPILER} ${wxWidgets_CXX_FLAGS} -E -
+          COMMAND grep CMAKE_WXTEST_RESULT
+          COMMAND cut "-d " -f2
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+          OUTPUT_VARIABLE   wxWidgets_HAS_GLX )
 
         # parse definitions from cxxflags;
         #   drop -D* from CXXFLAGS and the -D prefix

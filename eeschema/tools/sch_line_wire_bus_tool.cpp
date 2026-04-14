@@ -50,13 +50,17 @@
 #include <sch_bus_entry.h>
 #include <sch_connection.h>
 #include <sch_edit_frame.h>
+#include <widgets/wx_infobar.h>
+#include <sch_junction.h>
 #include <sch_line.h>
 #include <sch_screen.h>
 #include <sch_sheet.h>
+#include <sch_group.h>
 #include <sch_sheet_pin.h>
 #include <schematic.h>
 #include <sch_commit.h>
 #include <sch_actions.h>
+#include <junction_helpers.h>
 #include <ee_grid_helper.h>
 #include <sch_selection.h>
 #include <sch_selection_tool.h>
@@ -125,6 +129,8 @@ private:
             Enable( ID_POPUP_SCH_UNFOLD_BUS, false );
         }
 
+        std::unordered_map<wxString, ACTION_MENU*> diff_busses{};
+
         for( const std::shared_ptr<SCH_CONNECTION>& member : connection->Members() )
         {
             int id = ID_POPUP_SCH_UNFOLD_BUS + ( idx++ );
@@ -132,19 +138,66 @@ private:
 
             if( member->Type() == CONNECTION_TYPE::BUS )
             {
-                ACTION_MENU* submenu = new ACTION_MENU( true, m_tool );
-                AppendSubMenu( submenu, SCH_CONNECTION::PrintBusForUI( name ), name );
+                ACTION_MENU* submenu = nullptr;
+                // If we are building the menu for suffixed bus vectors, we need to do some more massaging
+                if( ( name.ends_with( '+' ) || name.ends_with( '-' ) || name.ends_with( 'P' ) || name.ends_with( 'N' ) )
+                    && member->Members().size() > 0 )
+                {
+                    wxString submenu_name = name.substr( 0, name.length() - 1 );
+                    auto     bus_submenu = diff_busses.find( submenu_name );
+
+                    if( bus_submenu == diff_busses.end() )
+                    {
+                        submenu = new ACTION_MENU( true, m_tool );
+                        diff_busses.emplace( submenu_name, submenu );
+                        AppendSubMenu( submenu, SCH_CONNECTION::PrintBusForUI( submenu_name ), submenu_name );
+                    }
+                    else
+                    {
+                        submenu = bus_submenu->second;
+                    }
+                }
+                else
+                {
+                    // Otherwise we can set the submenu up like normal
+                    submenu = new ACTION_MENU( true, m_tool );
+                    AppendSubMenu( submenu, SCH_CONNECTION::PrintBusForUI( name ), name );
+                }
 
                 for( const std::shared_ptr<SCH_CONNECTION>& sub_member : member->Members() )
                 {
                     id = ID_POPUP_SCH_UNFOLD_BUS + ( idx++ );
                     name = sub_member->FullLocalName();
-                    submenu->Append( id, SCH_CONNECTION::PrintBusForUI( name ), name );
+
+                    if( ( name.ends_with( '+' ) || name.ends_with( '-' ) || name.ends_with( 'P' )
+                          || name.ends_with( 'N' ) ) )
+                    {
+                        wxString submenu_name = name.substr( 0, name.length() - 1 );
+                        auto     bus_submenu = diff_busses.find( submenu_name );
+
+                        ACTION_MENU* diff_submenu = nullptr;
+                        if( bus_submenu == diff_busses.end() )
+                        {
+                            diff_submenu = new ACTION_MENU( true, m_tool );
+                            diff_busses.emplace( submenu_name, diff_submenu );
+                            submenu->AppendSubMenu( diff_submenu, SCH_CONNECTION::PrintBusForUI( submenu_name ),
+                                                    submenu_name );
+                        }
+                        else
+                        {
+                            diff_submenu = bus_submenu->second;
+                        }
+                        diff_submenu->Append( id, SCH_CONNECTION::PrintBusForUI( name ), name );
+                    }
+                    else
+                    {
+                        submenu->Append( id, SCH_CONNECTION::PrintBusForUI( name ), name );
+                    }
                 }
             }
             else
             {
-                Append( id, name, wxEmptyString );
+                Append( id, SCH_CONNECTION::PrintBusForUI( name ), name );
             }
         }
     }
@@ -186,10 +239,11 @@ bool SCH_LINE_WIRE_BUS_TOOL::Init()
 {
     SCH_TOOL_BASE::Init();
 
-    const auto busGetter = [this]()
-    {
-        return getBusForUnfolding();
-    };
+    const auto busGetter =
+            [this]()
+            {
+                return getBusForUnfolding();
+            };
 
     std::shared_ptr<BUS_UNFOLD_MENU>
             busUnfoldMenu = std::make_shared<BUS_UNFOLD_MENU>( busGetter );
@@ -214,7 +268,7 @@ bool SCH_LINE_WIRE_BUS_TOOL::Init()
             };
 
     auto belowRootSheetCondition =
-            [&]( const SELECTION& aSel )
+            [this]( const SELECTION& aSel )
             {
                 return m_frame->GetCurrentSheet().Last() != &m_frame->Schematic().Root();
             };
@@ -223,7 +277,7 @@ bool SCH_LINE_WIRE_BUS_TOOL::Init()
                         && SCH_CONDITIONS::OnlyTypes( { SCH_ITEM_LOCATE_BUS_T } );
 
     auto haveHighlight =
-            [&]( const SELECTION& sel )
+            [this]( const SELECTION& sel )
             {
                 SCH_EDIT_FRAME* editFrame = dynamic_cast<SCH_EDIT_FRAME*>( m_frame );
 
@@ -290,9 +344,10 @@ int SCH_LINE_WIRE_BUS_TOOL::DrawSegments( const TOOL_EVENT& aEvent )
     REENTRANCY_GUARD guard( &m_inDrawingTool );
 
     const DRAW_SEGMENT_EVENT_PARAMS* params = aEvent.Parameter<const DRAW_SEGMENT_EVENT_PARAMS*>();
+    SCH_COMMIT                       commit( m_toolMgr );
 
     m_frame->PushTool( aEvent );
-    m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
+    m_toolMgr->RunAction( ACTIONS::selectionClear );
 
     if( aEvent.HasPosition() )
     {
@@ -303,10 +358,10 @@ int SCH_LINE_WIRE_BUS_TOOL::DrawSegments( const TOOL_EVENT& aEvent )
         grid.SetUseGrid( getView()->GetGAL()->GetGridSnapping() && !aEvent.DisableGridSnapping() );
 
         VECTOR2D cursorPos = grid.BestSnapAnchor( aEvent.Position(), gridType, nullptr );
-        startSegments( params->layer, cursorPos, params->sourceSegment );
+        startSegments( commit, params->layer, cursorPos, params->sourceSegment );
     }
 
-    return doDrawSegments( aEvent, params->layer, params->quitOnDraw );
+    return doDrawSegments( aEvent, commit, params->layer, params->quitOnDraw );
 }
 
 
@@ -317,9 +372,10 @@ int SCH_LINE_WIRE_BUS_TOOL::UnfoldBus( const TOOL_EVENT& aEvent )
 
     REENTRANCY_GUARD guard( &m_inDrawingTool );
 
-    wxString* netPtr = aEvent.Parameter<wxString*>();
-    wxString  net;
-    SCH_LINE* segment = nullptr;
+    SCH_COMMIT commit( m_toolMgr );
+    wxString*  netPtr = aEvent.Parameter<wxString*>();
+    wxString   net;
+    SCH_LINE*  segment = nullptr;
 
     m_frame->PushTool( aEvent );
     Activate();
@@ -365,12 +421,12 @@ int SCH_LINE_WIRE_BUS_TOOL::UnfoldBus( const TOOL_EVENT& aEvent )
 
     // Break a wire for the given net out of the bus
     if( !net.IsEmpty() )
-        segment = doUnfoldBus( net );
+        segment = doUnfoldBus( commit, net );
 
     // If we have an unfolded wire to draw, then draw it
     if( segment )
     {
-        return doDrawSegments( aEvent, LAYER_WIRE, false );
+        return doDrawSegments( aEvent, commit, LAYER_WIRE, false );
     }
     else
     {
@@ -387,7 +443,7 @@ SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::getBusForUnfolding()
 }
 
 
-SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::doUnfoldBus( const wxString&                aNet,
+SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::doUnfoldBus( SCH_COMMIT& aCommit, const wxString& aNet,
                                                const std::optional<VECTOR2I>& aPos )
 {
     SCHEMATIC_SETTINGS& cfg = getModel<SCHEMATIC>()->Settings();
@@ -397,9 +453,8 @@ SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::doUnfoldBus( const wxString&                aN
 
     if ( bus == nullptr )
     {
-        wxASSERT_MSG( false,
-                      wxString::Format( "Couldn't find the originating bus line (but had a net: %s )",
-                                        aNet ) );
+        wxASSERT_MSG( false, wxString::Format( "Couldn't find the originating bus line (but had a net: %s )",
+                                               aNet ) );
         return nullptr;
     }
 
@@ -411,7 +466,7 @@ SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::doUnfoldBus( const wxString&                aN
     // it might not be, but it won't be a broken connection (and the user asked for it!)
     pos = bus->GetSeg().NearestPoint( pos );
 
-    m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
+    m_toolMgr->RunAction( ACTIONS::selectionClear );
 
     m_busUnfold.entry = new SCH_BUS_WIRE_ENTRY( pos );
     m_busUnfold.entry->SetParent( screen );
@@ -440,7 +495,7 @@ SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::doUnfoldBus( const wxString&                aN
     m_busUnfold.entry->SetEndDangling( false );
     m_busUnfold.label->SetIsDangling( false );
 
-    return startSegments( LAYER_WIRE, m_busUnfold.entry->GetEnd() );
+    return startSegments( aCommit, LAYER_WIRE, m_busUnfold.entry->GetEnd() );
 }
 
 
@@ -600,7 +655,8 @@ void SCH_LINE_WIRE_BUS_TOOL::computeBreakPoint( const std::pair<SCH_LINE*, SCH_L
 }
 
 
-int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, bool aQuitOnDraw )
+int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, SCH_COMMIT& aCommit,
+                                            int aType, bool aQuitOnDraw )
 {
     SCH_SCREEN*           screen = m_frame->GetScreen();
     SCH_LINE*             segment = nullptr;
@@ -626,7 +682,7 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
     auto cleanup =
             [&] ()
             {
-                m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
+                m_toolMgr->RunAction( ACTIONS::selectionClear );
 
                 for( SCH_LINE* wire : m_wires )
                     delete wire;
@@ -716,7 +772,7 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
                 segment->SetEndPoint( cursorPos );
 
                 // Create a new segment, and chain it after the current segment.
-                segment = static_cast<SCH_LINE*>( segment->Duplicate() );
+                segment = static_cast<SCH_LINE*>( segment->Duplicate( true, &aCommit ) );
                 segment->SetFlags( IS_NEW | IS_MOVING );
                 segment->SetStartPoint( cursorPos );
                 m_wires.push_back( segment );
@@ -777,8 +833,10 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
         {
             if( segment || m_busUnfold.in_progress )
             {
-                finishSegments();
+                finishSegments( aCommit );
                 segment = nullptr;
+
+                aCommit.Push( _( "Draw Wires" ) );
 
                 if( aQuitOnDraw )
                 {
@@ -806,7 +864,7 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
 
             if( !segment )
             {
-                segment = startSegments( aType, VECTOR2D( cursorPos ) );
+                segment = startSegments( aCommit, aType, VECTOR2D( cursorPos ) );
             }
             // Create a new segment if we're out of previously-created ones
             else if( !segment->IsNull()
@@ -816,8 +874,10 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
                 // wire or bus.
                 if( screen->IsTerminalPoint( cursorPos, segment->GetLayer() ) )
                 {
-                    finishSegments();
+                    finishSegments( aCommit );
                     segment = nullptr;
+
+                    aCommit.Push( _( "Draw Wires" ) );
 
                     if( aQuitOnDraw )
                     {
@@ -840,7 +900,7 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
                     for( int i = 0; i < placedSegments; i++ )
                     {
                         // Create a new segment, and chain it after the current segment.
-                        segment = static_cast<SCH_LINE*>( segment->Duplicate() );
+                        segment = static_cast<SCH_LINE*>( segment->Duplicate( true, &aCommit ) );
                         segment->SetFlags( IS_NEW | IS_MOVING );
                         segment->SetStartPoint( cursorPos );
                         m_wires.push_back( segment );
@@ -858,8 +918,10 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
                                        currentMode, posture );
                 }
 
-                finishSegments();
+                finishSegments( aCommit );
                 segment = nullptr;
+
+                aCommit.Push( _( "Draw Wires" ) );
 
                 if( aQuitOnDraw )
                 {
@@ -929,6 +991,23 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
             {
                 if( !wire->IsNull() )
                     m_view->AddToPreview( wire->Clone() );
+            }
+
+            std::vector<SCH_ITEM*> previewItems;
+
+            for( SCH_LINE* wire : m_wires )
+            {
+                if( !wire->IsNull() )
+                    previewItems.push_back( wire );
+            }
+
+            if( m_busUnfold.entry )
+                previewItems.push_back( m_busUnfold.entry );
+
+            for( SCH_JUNCTION* jct : JUNCTION_HELPERS::PreviewJunctions( m_frame->GetScreen(),
+                                                                          previewItems ) )
+            {
+                m_view->AddToPreview( jct, true );
             }
         }
         else if( evt->IsAction( &SCH_ACTIONS::undoLastSegment )
@@ -1030,7 +1109,7 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
 
                 aType = LAYER_WIRE;
                 wxString net = *evt->Parameter<wxString*>();
-                segment = doUnfoldBus( net, contextMenuPos );
+                segment = doUnfoldBus( aCommit, net, contextMenuPos );
             }
         }
         //------------------------------------------------------------------------
@@ -1072,7 +1151,7 @@ int SCH_LINE_WIRE_BUS_TOOL::doDrawSegments( const TOOL_EVENT& aTool, int aType, 
 }
 
 
-SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::startSegments( int aType, const VECTOR2D& aPos,
+SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::startSegments( SCH_COMMIT& aCommit, int aType, const VECTOR2D& aPos,
                                                  SCH_LINE* aSegment )
 {
     if( !aSegment )
@@ -1092,7 +1171,7 @@ SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::startSegments( int aType, const VECTOR2D& aPos
     }
     else
     {
-        aSegment = static_cast<SCH_LINE*>( aSegment->Duplicate() );
+        aSegment = static_cast<SCH_LINE*>( aSegment->Duplicate( true, &aCommit ) );
         aSegment->SetStartPoint( aPos );
     }
 
@@ -1106,7 +1185,7 @@ SCH_LINE* SCH_LINE_WIRE_BUS_TOOL::startSegments( int aType, const VECTOR2D& aPos
     // horizontal and vertical lines only switch is on.
     if( m_frame->eeconfig()->m_Drawing.line_mode )
     {
-        aSegment = static_cast<SCH_LINE*>( aSegment->Duplicate() );
+        aSegment = static_cast<SCH_LINE*>( aSegment->Duplicate( true, &aCommit ) );
         aSegment->SetFlags( IS_NEW | IS_MOVING );
         m_wires.push_back( aSegment );
 
@@ -1164,15 +1243,14 @@ void SCH_LINE_WIRE_BUS_TOOL::simplifyWireList()
 }
 
 
-void SCH_LINE_WIRE_BUS_TOOL::finishSegments()
+void SCH_LINE_WIRE_BUS_TOOL::finishSegments( SCH_COMMIT& aCommit )
 {
     // Clear selection when done so that a new wire can be started.
     // NOTE: this must be done before simplifyWireList is called or we might end up with
     // freed selected items.
-    m_toolMgr->RunAction( SCH_ACTIONS::clearSelection );
+    m_toolMgr->RunAction( ACTIONS::selectionClear );
 
     SCH_SCREEN* screen = m_frame->GetScreen();
-    SCH_COMMIT  commit( m_toolMgr );
 
     // Remove segments backtracking over others
     simplifyWireList();
@@ -1197,19 +1275,22 @@ void SCH_LINE_WIRE_BUS_TOOL::finishSegments()
                 new_ends.push_back( pt );
         }
 
-        commit.Added( wire, screen );
+        aCommit.Added( wire, screen );
     }
 
     if( m_busUnfold.in_progress && m_busUnfold.label_placed )
     {
         wxASSERT( m_busUnfold.entry && m_busUnfold.label );
 
-        commit.Added( m_busUnfold.entry, screen );
+        aCommit.Added( m_busUnfold.entry, screen );
         m_frame->SaveCopyForRepeatItem( m_busUnfold.entry );
 
-        commit.Added( m_busUnfold.label, screen );
+        aCommit.Added( m_busUnfold.label, screen );
         m_frame->AddCopyForRepeatItem( m_busUnfold.label );
         m_busUnfold.label->ClearEditFlags();
+
+        if( !m_wires.empty() )
+            m_frame->AddCopyForRepeatItem( m_wires[0] );
     }
     else if( !m_wires.empty() )
     {
@@ -1218,10 +1299,6 @@ void SCH_LINE_WIRE_BUS_TOOL::finishSegments()
 
     for( size_t ii = 1; ii < m_wires.size(); ++ii )
         m_frame->AddCopyForRepeatItem( m_wires[ii] );
-
-    // Get the last non-null wire (this is the last created segment).
-    if( !m_wires.empty() )
-        m_frame->AddCopyForRepeatItem( m_wires.back() );
 
     // Add the new wires
     for( SCH_LINE* wire : m_wires )
@@ -1238,7 +1315,7 @@ void SCH_LINE_WIRE_BUS_TOOL::finishSegments()
     getViewControls()->SetAutoPan( false );
 
     // Correct and remove segments that need to be merged.
-    m_frame->SchematicCleanUp( &commit );
+    m_frame->Schematic().CleanUp( &aCommit );
 
     std::vector<SCH_ITEM*> symbols;
 
@@ -1255,14 +1332,14 @@ void SCH_LINE_WIRE_BUS_TOOL::finishSegments()
         for( auto pt = pts.begin(); pt != pts.end(); pt++ )
         {
             for( auto secondPt = pt + 1; secondPt != pts.end(); secondPt++ )
-                m_frame->TrimWire( &commit, *pt, *secondPt );
+                m_frame->TrimWire( &aCommit, *pt, *secondPt );
         }
     }
 
     for( const VECTOR2I& pt : new_ends )
     {
         if( m_frame->GetScreen()->IsExplicitJunctionNeeded( pt ) )
-            m_frame->AddJunction( &commit, m_frame->GetScreen(), pt );
+            AddJunction( &aCommit, m_frame->GetScreen(), pt );
     }
 
     if( m_busUnfold.in_progress )
@@ -1270,8 +1347,6 @@ void SCH_LINE_WIRE_BUS_TOOL::finishSegments()
 
     for( SCH_ITEM* item : m_frame->GetScreen()->Items() )
         item->ClearEditFlags();
-
-    commit.Push( _( "Draw Wires" ) );
 }
 
 
@@ -1321,12 +1396,106 @@ int SCH_LINE_WIRE_BUS_TOOL::TrimOverLappingWires( SCH_COMMIT* aCommit, SCH_SELEC
 
 int SCH_LINE_WIRE_BUS_TOOL::AddJunctionsIfNeeded( SCH_COMMIT* aCommit, SCH_SELECTION* aSelection )
 {
-    SCH_SCREEN* screen = m_frame->GetScreen();
+    SCH_SCREEN*           screen = m_frame->GetScreen();
+    std::deque<EDA_ITEM*> allItems;
 
-    for( const VECTOR2I& point : screen->GetNeededJunctions( aSelection->Items() ) )
-        m_frame->AddJunction( aCommit, m_frame->GetScreen(), point );
+    for( EDA_ITEM* item : aSelection->Items() )
+    {
+        allItems.push_back( item );
+
+        if( item->Type() == SCH_GROUP_T )
+        {
+            static_cast<SCH_GROUP*>( item )->RunOnChildren(
+                    [&]( SCH_ITEM* child )
+                    {
+                        allItems.push_back( child );
+                    }, RECURSE_MODE::RECURSE );
+        }
+    }
+
+    for( const VECTOR2I& point : screen->GetNeededJunctions( allItems ) )
+    {
+        wxLogTrace( "KICAD_SCH_MOVE", "AddJunctionsIfNeeded: adding junction at %s", point.Format().c_str() );
+        AddJunction( aCommit, m_frame->GetScreen(), point );
+    }
 
     return 0;
+}
+
+
+void SCH_LINE_WIRE_BUS_TOOL::BreakSegment( SCH_COMMIT* aCommit, SCH_LINE* aSegment, const VECTOR2I& aPoint,
+                              SCH_LINE** aNewSegment, SCH_SCREEN* aScreen )
+{
+    // Save the copy of aSegment before breaking it
+    aCommit->Modify( aSegment, aScreen );
+
+    SCH_LINE* newSegment = aSegment->BreakAt( aCommit, aPoint );
+
+    aSegment->SetFlags( IS_CHANGED | IS_BROKEN );
+    newSegment->SetFlags( IS_NEW | IS_BROKEN );
+    m_frame->AddToScreen( newSegment, aScreen );
+
+    aCommit->Added( newSegment, aScreen );
+
+    *aNewSegment = newSegment;
+}
+
+
+bool SCH_LINE_WIRE_BUS_TOOL::BreakSegments( SCH_COMMIT* aCommit, const VECTOR2I& aPos, SCH_SCREEN* aScreen )
+{
+    bool      brokenSegments = false;
+    SCH_LINE* new_line;
+
+    for( SCH_LINE* wire : aScreen->GetBusesAndWires( aPos, true ) )
+    {
+        BreakSegment( aCommit, wire, aPos, &new_line, aScreen );
+        brokenSegments = true;
+    }
+
+    return brokenSegments;
+}
+
+
+bool SCH_LINE_WIRE_BUS_TOOL::BreakSegmentsOnJunctions( SCH_COMMIT* aCommit, SCH_SCREEN* aScreen )
+{
+    bool brokenSegments = false;
+
+    std::set<VECTOR2I> point_set;
+
+    for( SCH_ITEM* item : aScreen->Items().OfType( SCH_JUNCTION_T ) )
+        point_set.insert( item->GetPosition() );
+
+    for( SCH_ITEM* item : aScreen->Items().OfType( SCH_BUS_WIRE_ENTRY_T ) )
+    {
+        SCH_BUS_WIRE_ENTRY* entry = static_cast<SCH_BUS_WIRE_ENTRY*>( item );
+        point_set.insert( entry->GetPosition() );
+        point_set.insert( entry->GetEnd() );
+    }
+
+    for( const VECTOR2I& pt : point_set )
+    {
+        BreakSegments( aCommit, pt, aScreen );
+        brokenSegments = true;
+    }
+
+    return brokenSegments;
+}
+
+
+SCH_JUNCTION* SCH_LINE_WIRE_BUS_TOOL::AddJunction( SCH_COMMIT* aCommit, SCH_SCREEN* aScreen,
+                                           const VECTOR2I& aPos )
+{
+    SCH_JUNCTION* junction = new SCH_JUNCTION( aPos );
+
+    if( aScreen->GetBus( aPos ) )
+        junction->SetLayer( LAYER_BUS_JUNCTION );
+
+    m_frame->AddToScreen( junction, aScreen );
+    aCommit->Added( junction, aScreen );
+
+    BreakSegments( aCommit, aPos, aScreen );
+
+    return junction;
 }
 
 

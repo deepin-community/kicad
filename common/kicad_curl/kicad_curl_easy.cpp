@@ -84,6 +84,7 @@ static size_t stream_write_callback( void* aContents, size_t aSize, size_t aNmem
     return realsize;
 }
 
+
 #if LIBCURL_VERSION_NUM >= 0x072000 // 7.32.0
 
 static int xferinfo( void* aProgress, curl_off_t aDLtotal, curl_off_t aDLnow, curl_off_t aULtotal,
@@ -138,6 +139,12 @@ KICAD_CURL_EASY::KICAD_CURL_EASY() :
     curl_easy_setopt( m_CURL, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS );
 #endif
 
+    // Set connection timeout to prevent long freezes when network is unreachable.
+    // Without this, CURL can wait up to 5 minutes for DNS resolution or connection
+    // establishment, which causes the UI to freeze on macOS when behind a proxy with
+    // restricted internet access.
+    curl_easy_setopt( m_CURL, CURLOPT_CONNECTTIMEOUT, 30L );
+
 #ifdef _WIN32
     long sslOpts = CURLSSLOPT_NATIVE_CA;
 
@@ -163,11 +170,9 @@ KICAD_CURL_EASY::KICAD_CURL_EASY() :
         curl_easy_setopt( m_CURL, CURLOPT_VERBOSE, 1L );
     }
 
-    wxPlatformInfo platformInfo;
     wxString application( wxS( "KiCad" ) );
     wxString version( GetBuildVersion() );
-    wxString platform = wxS( "(" ) + wxGetOsDescription() + wxS( ";" ) +
-                        GetPlatformGetBitnessName();
+    wxString platform = wxS( "(" ) + wxGetOsDescription() + wxS( ";" ) + GetPlatformGetBitnessName();
 
 #if defined( KICAD_BUILD_ARCH_X64 )
     platform << wxS( ";64-bit" );
@@ -181,8 +186,7 @@ KICAD_CURL_EASY::KICAD_CURL_EASY() :
 
     platform << wxS( ")" );
 
-    wxString user_agent = wxS( "KiCad/" ) + version + wxS( " " ) + platform + wxS( " " ) +
-                          application;
+    wxString user_agent = wxS( "KiCad/" ) + version + wxS( " " ) + platform + wxS( " " ) + application;
 
     user_agent << wxS( "/" ) << GetBuildDate();
     setOption<const char*>( CURLOPT_USERAGENT, user_agent.ToStdString().c_str() );
@@ -240,8 +244,7 @@ bool KICAD_CURL_EASY::SetUserAgent( const std::string& aAgent )
 }
 
 
-bool KICAD_CURL_EASY::SetPostFields(
-        const std::vector<std::pair<std::string, std::string>>& aFields )
+bool KICAD_CURL_EASY::SetPostFields( const std::vector<std::pair<std::string, std::string>>& aFields )
 {
     std::string postfields;
 
@@ -325,8 +328,8 @@ std::string KICAD_CURL_EASY::Escape( const std::string& aUrl )
 
 bool KICAD_CURL_EASY::SetTransferCallback( const TRANSFER_CALLBACK& aCallback, size_t aInterval )
 {
-    progress = std::make_unique<CURL_PROGRESS>( this, aCallback,
-                                                static_cast<curl_off_t>( aInterval ) );
+    progress = std::make_unique<CURL_PROGRESS>( this, aCallback, static_cast<curl_off_t>( aInterval ) );
+
 #if LIBCURL_VERSION_NUM >= 0x072000 // 7.32.0
     setOption( CURLOPT_XFERINFOFUNCTION, xferinfo );
     setOption( CURLOPT_XFERINFODATA, progress.get() );
@@ -345,6 +348,12 @@ bool KICAD_CURL_EASY::SetOutputStream( const std::ostream* aOutput )
     curl_easy_setopt( m_CURL, CURLOPT_WRITEFUNCTION, stream_write_callback );
     curl_easy_setopt( m_CURL, CURLOPT_WRITEDATA, reinterpret_cast<const void*>( aOutput ) );
     return true;
+}
+
+
+bool KICAD_CURL_EASY::SetConnectTimeout( long aTimeoutSecs )
+{
+    return setOption( CURLOPT_CONNECTTIMEOUT, aTimeoutSecs ) == CURLE_OK;
 }
 
 

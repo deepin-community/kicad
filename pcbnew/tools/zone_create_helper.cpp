@@ -95,7 +95,8 @@ std::unique_ptr<ZONE> ZONE_CREATE_HELPER::createNewZone( bool aKeepout )
     // Get the current default settings for zones
     ZONE_SETTINGS         zoneInfo = board->GetDesignSettings().GetDefaultZoneSettings();
     zoneInfo.m_Layers.reset().set( m_params.m_layer );  // TODO(JE) multilayer defaults?
-    zoneInfo.m_NetcodeSelection = highlightedNets.empty() ? -1 : *highlightedNets.begin();
+    zoneInfo.m_LayerProperties.clear();                 // Do not copy over layer properties
+    zoneInfo.m_Netcode = highlightedNets.empty() ? -1 : *highlightedNets.begin();
     zoneInfo.SetIsRuleArea( m_params.m_keepout );
 
     if( m_params.m_mode != ZONE_MODE::GRAPHIC_POLYGON
@@ -107,13 +108,12 @@ std::unique_ptr<ZONE> ZONE_CREATE_HELPER::createNewZone( bool aKeepout )
     // If we don't have a net from highlighting, maybe we can get one from the selection
     PCB_SELECTION_TOOL* selectionTool = m_tool.GetManager()->GetTool<PCB_SELECTION_TOOL>();
 
-    if( selectionTool && !selectionTool->GetSelection().Empty()
-            && zoneInfo.m_NetcodeSelection == -1 )
+    if( selectionTool && !selectionTool->GetSelection().Empty() && zoneInfo.m_Netcode == -1 )
     {
         EDA_ITEM* item = *selectionTool->GetSelection().GetItems().begin();
 
         if( BOARD_CONNECTED_ITEM* bci = dynamic_cast<BOARD_CONNECTED_ITEM*>( item ) )
-            zoneInfo.m_NetcodeSelection = bci->GetNetCode();
+            zoneInfo.m_Netcode = bci->GetNetCode();
     }
 
     if( m_params.m_mode != ZONE_MODE::GRAPHIC_POLYGON )
@@ -124,7 +124,7 @@ std::unique_ptr<ZONE> ZONE_CREATE_HELPER::createNewZone( bool aKeepout )
         if( m_params.m_keepout )
             dialogResult = InvokeRuleAreaEditor( frame, &zoneInfo, m_tool.board() );
         else if( ( zoneInfo.m_Layers & LSET::AllCuMask() ).any() )
-            dialogResult = InvokeCopperZonesEditor( frame, &zoneInfo );
+            dialogResult = InvokeCopperZonesEditor( frame, nullptr, &zoneInfo );
         else
             dialogResult = InvokeNonCopperZonesEditor( frame, &zoneInfo );
 
@@ -167,8 +167,8 @@ void ZONE_CREATE_HELPER::performZoneCutout( ZONE& aZone, const ZONE& aCutout )
     std::vector<ZONE*> newZones;
 
     // Clear the selection before removing the old zone
-    auto toolMgr = m_tool.GetManager();
-    toolMgr->RunAction( PCB_ACTIONS::selectionClear );
+    TOOL_MANAGER* toolMgr = m_tool.GetManager();
+    toolMgr->RunAction( ACTIONS::selectionClear );
 
     SHAPE_POLY_SET originalOutline( *aZone.Outline() );
     originalOutline.BooleanSubtract( *aCutout.Outline() );
@@ -178,15 +178,15 @@ void ZONE_CREATE_HELPER::performZoneCutout( ZONE& aZone, const ZONE& aCutout )
     // contains main outlines:
     for( int outline = 0; outline < originalOutline.OutlineCount(); outline++ )
     {
-        auto newZoneOutline = new SHAPE_POLY_SET;
+        SHAPE_POLY_SET* newZoneOutline = new SHAPE_POLY_SET;
         newZoneOutline->AddOutline( originalOutline.Outline( outline ) );
 
         // Add holes (if any) to the new zone outline:
         for (int hole = 0; hole < originalOutline.HoleCount( outline ) ; hole++ )
             newZoneOutline->AddHole( originalOutline.CHole( outline, hole ) );
 
-        auto newZone = new ZONE( aZone );
-        newZone->SetOutline( newZoneOutline );
+        ZONE* newZone = new ZONE( aZone );
+        newZone->SetOutline( newZoneOutline );  // zone takes ownership
         newZone->SetLocalFlags( 1 );
         newZone->HatchBorder();
         newZone->UnFill();
@@ -205,7 +205,7 @@ void ZONE_CREATE_HELPER::performZoneCutout( ZONE& aZone, const ZONE& aCutout )
     else
     {
         m_params.m_sourceZone = newZones[0];
-        toolMgr->RunAction<EDA_ITEM*>( PCB_ACTIONS::selectItem, newZones[0] );
+        toolMgr->RunAction<EDA_ITEM*>( ACTIONS::selectItem, newZones[0] );
     }
 }
 
@@ -229,7 +229,7 @@ void ZONE_CREATE_HELPER::commitZone( std::unique_ptr<ZONE> aZone )
             commit.Add( aZone.get() );
             commit.Push( _( "Draw Zone" ) );
 
-            m_tool.GetManager()->RunAction<EDA_ITEM*>( PCB_ACTIONS::selectItem, aZone.release() );
+            m_tool.GetManager()->RunAction<EDA_ITEM*>( ACTIONS::selectItem, aZone.release() );
             break;
         }
 
@@ -251,7 +251,7 @@ void ZONE_CREATE_HELPER::commitZone( std::unique_ptr<ZONE> aZone )
             commit.Add( poly );
             commit.Push( _( "Draw Polygon" ) );
 
-            m_tool.GetManager()->RunAction<EDA_ITEM*>( PCB_ACTIONS::selectItem, poly );
+            m_tool.GetManager()->RunAction<EDA_ITEM*>( ACTIONS::selectItem, poly );
             break;
         }
     }
@@ -270,19 +270,20 @@ bool ZONE_CREATE_HELPER::OnFirstPoint( POLYGON_GEOM_MANAGER& aMgr )
 
         if( m_zone )
         {
-            m_tool.GetManager()->RunAction( PCB_ACTIONS::selectionClear );
+            m_tool.GetManager()->RunAction( ACTIONS::selectionClear );
 
             // set up properties from zone
-            const auto& settings = *m_parentView.GetPainter()->GetSettings();
-            COLOR4D color = settings.GetColor( nullptr, m_zone->GetFirstLayer() );
+            const RENDER_SETTINGS& settings = *m_parentView.GetPainter()->GetSettings();
+            COLOR4D                color = settings.GetColor( nullptr, m_zone->GetFirstLayer() );
 
             m_previewItem.SetStrokeColor( COLOR4D::WHITE );
             m_previewItem.SetFillColor( color.WithAlpha( 0.2 ) );
 
             m_parentView.SetVisible( &m_previewItem, true );
 
-            aMgr.SetLeaderMode( m_tool.Is45Limited() ? POLYGON_GEOM_MANAGER::LEADER_MODE::DEG45
-                                                     : POLYGON_GEOM_MANAGER::LEADER_MODE::DIRECT );
+            LEADER_MODE mode = m_tool.GetAngleSnapMode();
+
+            aMgr.SetLeaderMode( mode );
         }
     }
 
@@ -309,7 +310,7 @@ void ZONE_CREATE_HELPER::OnGeometryChange( const POLYGON_GEOM_MANAGER& aMgr )
 
 void ZONE_CREATE_HELPER::OnComplete( const POLYGON_GEOM_MANAGER& aMgr )
 {
-    auto& finalPoints = aMgr.GetLockedInPoints();
+    const SHAPE_LINE_CHAIN& finalPoints = aMgr.GetLockedInPoints();
 
     if( finalPoints.PointCount() < 3 )
     {
@@ -321,20 +322,22 @@ void ZONE_CREATE_HELPER::OnComplete( const POLYGON_GEOM_MANAGER& aMgr )
         // if m_params.m_mode == DRAWING_TOOL::ZONE_MODE::CUTOUT, m_zone will be merged to the
         // existing zone as a new hole.
         m_zone->Outline()->NewOutline();
-        auto* outline = m_zone->Outline();
+        SHAPE_POLY_SET* outline = m_zone->Outline();
 
         for( int i = 0; i < finalPoints.PointCount(); ++i )
             outline->Append( finalPoints.CPoint( i ) );
 
         // In DEG45 mode, we may have intermediate points in the leader that should be included
         // as they are shown in the preview.  These typically maintain the 45 constraint
-        if( aMgr.GetLeaderMode() == POLYGON_GEOM_MANAGER::LEADER_MODE::DEG45 )
+        if( aMgr.GetLeaderMode() == LEADER_MODE::DEG45 || aMgr.GetLeaderMode() == LEADER_MODE::DEG90 )
         {
             const SHAPE_LINE_CHAIN leaderPts = aMgr.GetLeaderLinePoints();
+
             for( int i = 1; i < leaderPts.PointCount(); i++ )
                 outline->Append( leaderPts.CPoint( i ) );
 
             const SHAPE_LINE_CHAIN loopPts = aMgr.GetLoopLinePoints();
+
             for( int i = 1; i < loopPts.PointCount() - 1; i++ )
                 outline->Append( loopPts.CPoint( i ) );
         }
@@ -348,7 +351,7 @@ void ZONE_CREATE_HELPER::OnComplete( const POLYGON_GEOM_MANAGER& aMgr )
         // Simplify doesn't handle that currently.
         if( chain.PointCount() >= 3 )
         {
-            SEG seg( chain.CPoint( -1 ), chain.CPoint( 1 ) );
+            SEG seg( chain.CLastPoint(), chain.CPoint( 1 ) );
 
             if( seg.LineDistance( chain.CPoint( 0 ) ) <= 1 )
                 chain.Remove( 0 );

@@ -19,9 +19,11 @@
  */
 
 #include <generate_footprint_info.h>
+#include <ki_exception.h>
 #include <string_utils.h>
 #include <footprint.h>
-#include <fp_lib_table.h>
+#include <footprint_library_adapter.h>
+#include <trace_helpers.h>
 #include <wx/log.h>
 
 
@@ -47,11 +49,18 @@ static const wxString DocFormat = wxT(
 
 std::optional<wxString> GetFootprintDocumentationURL( const FOOTPRINT& aFootprint )
 {
+    // Footprints have now a field (FIELD_T::DATASHEET) containing the url datasheet
+    // But old footprints did not have this field, so this fiels can be empty.
+    // So we use this field is not empty, and if empty see if the documentation has an URL
+    const PCB_FIELD* data_field = aFootprint.GetField( FIELD_T::DATASHEET );
+    wxString url = data_field->GetText();
+
+    if( !url.IsEmpty() )
+        return url;
+
     wxString desc = aFootprint.GetLibDescription();
 
-    wxString url;
-
-    // It is currently common practice to store a documentation link in the description.
+    // It is (or was) currently common practice to store a documentation link in the description.
     size_t idx = desc.find( wxT( "http:" ) );
 
     if( idx == wxString::npos )
@@ -87,24 +96,19 @@ std::optional<wxString> GetFootprintDocumentationURL( const FOOTPRINT& aFootprin
 
     if( url.IsEmpty() )
         return std::nullopt;
+
     return url;
 }
 
 
 class FOOTPRINT_INFO_GENERATOR
 {
-    wxString      m_html;
-    FP_LIB_TABLE* m_fp_lib_table;
-    LIB_ID const  m_lib_id;
-
-    const FOOTPRINT*    m_footprint;
-
 public:
-    FOOTPRINT_INFO_GENERATOR( FP_LIB_TABLE* aFpLibTable, LIB_ID const& aLibId )
-        : m_html( DescriptionFormat ),
-          m_fp_lib_table( aFpLibTable ),
-          m_lib_id( aLibId ),
-          m_footprint( nullptr )
+    FOOTPRINT_INFO_GENERATOR( FOOTPRINT_LIBRARY_ADAPTER* aAdapter, LIB_ID const& aLibId ) :
+            m_html( DescriptionFormat ),
+            m_adapter( aAdapter ),
+            m_lib_id( aLibId ),
+            m_footprint( nullptr )
     { }
 
     /**
@@ -112,19 +116,19 @@ public:
      */
     void GenerateHtml()
     {
-        wxCHECK_RET( m_fp_lib_table, wxT( "Footprint library table pointer is not valid" ) );
+        wxCHECK_RET( m_adapter, wxT( "Footprint library table pointer is not valid" ) );
 
         if( !m_lib_id.IsValid() )
             return;
 
         try
         {
-            m_footprint = m_fp_lib_table->GetEnumeratedFootprint( m_lib_id.GetLibNickname(),
-                                                                  m_lib_id.GetLibItemName() );
+            m_footprint = m_adapter->LoadFootprint( m_lib_id, false );
         }
         catch( const IO_ERROR& ioe )
         {
-            wxLogError( _( "Error loading footprint %s from library '%s'." ) + wxS( "\n%s" ),
+            // Log to trace instead of error to avoid popup dialogs
+            wxLogTrace( traceLibraries, "Error loading footprint %s from library '%s': %s",
                         m_lib_id.GetLibItemName().wx_str(),
                         m_lib_id.GetLibNickname().wx_str(),
                         ioe.What() );
@@ -175,12 +179,18 @@ public:
         return m_html;
     }
 
+private:
+    wxString                   m_html;
+    FOOTPRINT_LIBRARY_ADAPTER* m_adapter;
+    LIB_ID const               m_lib_id;
+
+    const FOOTPRINT* m_footprint;
 };
 
 
-wxString GenerateFootprintInfo( FP_LIB_TABLE* aFpLibTable, LIB_ID const& aLibId )
+wxString GenerateFootprintInfo( FOOTPRINT_LIBRARY_ADAPTER* aAdapter, LIB_ID const& aLibId )
 {
-    FOOTPRINT_INFO_GENERATOR gen( aFpLibTable, aLibId );
+    FOOTPRINT_INFO_GENERATOR gen( aAdapter, aLibId );
     gen.GenerateHtml();
     return gen.GetHtml();
 }

@@ -22,25 +22,32 @@
 #include <fstream>
 #include <sstream>
 
+#include <class_draw_panel_gal.h>
 #include <env_vars.h>
 #include <paths.h>
 #include <search_stack.h>
 #include <settings/settings_manager.h>
 #include <settings/common_settings.h>
+#include <settings/common_settings_internals.h>
 #include <settings/json_settings.h>
+#include <settings/json_settings_internals.h>
 #include <settings/parameters.h>
 #include <systemdirsappend.h>
 #include <trace_helpers.h>
 #include <wx/config.h>
 #include <wx/log.h>
 #include <wx/regex.h>
+#include <wx/tokenzr.h>
+#include <wx/window.h>
 
 
 ///! The following environment variables will never be migrated from a previous version
 const wxRegEx versionedEnvVarRegex( wxS( "KICAD[0-9]+_[A-Z0-9_]+(_DIR)?" ) );
 
 ///! Update the schema version whenever a migration is required
-const int commonSchemaVersion = 3;
+const int commonSchemaVersion = 5;
+
+COMMON_SETTINGS::~COMMON_SETTINGS() = default;
 
 COMMON_SETTINGS::COMMON_SETTINGS() :
         JSON_SETTINGS( "kicad_common", SETTINGS_LOC::USER, commonSchemaVersion ),
@@ -48,13 +55,14 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
         m_Backup(),
         m_Env(),
         m_Input(),
+        m_SpaceMouse(),
         m_Graphics(),
         m_Session(),
         m_System(),
         m_DoNotShowAgain(),
-        m_NetclassPanel(),
         m_PackageManager(),
-        m_Api()
+        m_Api(),
+        m_csInternals( std::make_unique<COMMON_SETTINGS_INTERNALS>() )
 {
     /*
      * Automatic dark mode detection works fine on Mac.
@@ -103,22 +111,17 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "appearance.grid_striping",
             &m_Appearance.grid_striping, false ) );
 
+    m_params.emplace_back( new PARAM<bool>( "appearance.use_custom_cursors",
+            &m_Appearance.use_custom_cursors, true ) );
+
+    m_Appearance.zoom_correction_factor = 1.0;
+    m_params.emplace_back( new PARAM<double>( "appearance.zoom_correction_factor",
+            &m_Appearance.zoom_correction_factor, 1.0, 0.1, 10.0 ) );
+
     m_params.emplace_back( new PARAM<bool>( "auto_backup.enabled", &m_Backup.enabled, true ) );
-
-    m_params.emplace_back( new PARAM<bool>( "auto_backup.backup_on_autosave",
-            &m_Backup.backup_on_autosave, false ) );
-
-    m_params.emplace_back( new PARAM<int>( "auto_backup.limit_total_files",
-            &m_Backup.limit_total_files, 25 ) );
 
     m_params.emplace_back( new PARAM<unsigned long long>( "auto_backup.limit_total_size",
             &m_Backup.limit_total_size, 104857600 ) );
-
-    m_params.emplace_back( new PARAM<int>( "auto_backup.limit_daily_files",
-            &m_Backup.limit_daily_files, 5 ) );
-
-    m_params.emplace_back( new PARAM<int>( "auto_backup.min_interval",
-            &m_Backup.min_interval, 300 ) );
 
     auto envVarsParam = m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "environment.vars",
             [&]() -> nlohmann::json
@@ -141,6 +144,8 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
                     }
 
                     wxString value = var.GetValue();
+
+                    value.Trim( true ).Trim( false ); // Trim from both sides
 
                     // Vars that existed in JSON are persisted, but if they were overridden
                     // externally, we persist the old value (i.e. the one that was loaded from JSON)
@@ -168,7 +173,7 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
                                 wxS( "COMMON_SETTINGS: Saving env var %s = %s" ),
                                 var.GetKey(), value);
 
-                    std::string key( var.GetKey().ToUTF8() );
+                    std::string key( var.GetKey().Trim( true ).Trim( false ).ToUTF8() );
                     ret[ std::move( key ) ] = value;
                 }
 
@@ -181,8 +186,8 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
 
                 for( const auto& entry : aJson.items() )
                 {
-                    wxString key = wxString( entry.key().c_str(), wxConvUTF8 );
-                    wxString val = entry.value().get<wxString>();
+                    wxString key = wxString( entry.key().c_str(), wxConvUTF8 ).Trim( true ).Trim( false );
+                    wxString val = entry.value().get<wxString>().Trim( true ).Trim( false );
 
                     if( m_Env.vars.count( key ) )
                     {
@@ -265,6 +270,9 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<int>( "input.scroll_modifier_pan_v",
             &m_Input.scroll_modifier_pan_v, WXK_SHIFT ) );
 
+    m_params.emplace_back( new PARAM<int>( "input.motion_pan_modifier",
+            &m_Input.motion_pan_modifier, 0 ) );
+
     m_params.emplace_back( new PARAM<bool>( "input.reverse_scroll_zoom",
             &m_Input.reverse_scroll_zoom, false ) );
 
@@ -283,14 +291,34 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
             &m_Input.drag_right, MOUSE_DRAG_ACTION::PAN, MOUSE_DRAG_ACTION::SELECT,
             MOUSE_DRAG_ACTION::NONE ) );
 
-    m_params.emplace_back( new PARAM<int>( "graphics.opengl_antialiasing_mode",
-            &m_Graphics.opengl_aa_mode, 2, 0, 2 ) );
+    m_params.emplace_back( new PARAM<int>( "spacemouse.rotate_speed",
+            &m_SpaceMouse.rotate_speed, 5, 1, 10 ) );
 
-    m_params.emplace_back( new PARAM<int>( "graphics.cairo_antialiasing_mode",
-            &m_Graphics.cairo_aa_mode, 0, 0, 2 ) );
+    m_params.emplace_back( new PARAM<int>( "spacemouse.pan_speed",
+            &m_SpaceMouse.pan_speed, 5, 1, 10 ) );
 
-    m_params.emplace_back( new PARAM<int>( "system.autosave_interval",
-            &m_System.autosave_interval, 600 ) );
+    m_params.emplace_back( new PARAM<bool>( "spacemouse.reverse_rotate",
+            &m_SpaceMouse.reverse_rotate, false ) );
+
+    m_params.emplace_back( new PARAM<bool>( "spacemouse.reverse_pan_x",
+            &m_SpaceMouse.reverse_pan_x, false ) );
+
+    m_params.emplace_back( new PARAM<bool>( "spacemouse.reverse_pan_y",
+            &m_SpaceMouse.reverse_pan_y, false ) );
+
+    m_params.emplace_back( new PARAM<bool>( "spacemouse.reverse_zoom",
+            &m_SpaceMouse.reverse_zoom, false ) );
+
+    m_params.emplace_back( new PARAM<int>( "graphics.canvas_type",
+            &m_Graphics.canvas_type, EDA_DRAW_PANEL_GAL::GAL_TYPE_OPENGL ) );
+
+    m_params.emplace_back( new PARAM<int>( "graphics.antialiasing_mode",
+            &m_Graphics.aa_mode, 2, 0, 2 ) );
+
+    m_params.emplace_back( new PARAM<bool>( "system.local_history_enabled",
+            &m_System.local_history_enabled, true ) );
+    m_params.emplace_back( new PARAM<int>( "system.local_history_debounce",
+            &m_System.local_history_debounce, 5, 0, 100000 ) );
 
 #ifdef __WXMAC__
     m_params.emplace_back( new PARAM<wxString>( "system.text_editor",
@@ -352,15 +380,6 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
 
     m_params.emplace_back( new PARAM_LIST<wxString>( "session.pinned_design_block_libs",
             &m_Session.pinned_design_block_libs, {} ) );
-
-    m_params.emplace_back( new PARAM<int>( "netclass_panel.sash_pos",
-            &m_NetclassPanel.sash_pos, 160 ) );
-
-    m_params.emplace_back( new PARAM<wxString>( "netclass_panel.eeschema_shown_columns",
-            &m_NetclassPanel.eeschema_visible_columns, "0 10 11 12 13" ) );
-
-    m_params.emplace_back( new PARAM<wxString>( "netclass_panel.pcbnew_shown_columns",
-            &m_NetclassPanel.pcbnew_visible_columns, "0 1 2 3 4 5 6 7 8 9" ) );
 
     m_params.emplace_back( new PARAM<int>( "package_manager.sash_pos",
             &m_PackageManager.sash_pos, 380 ) );
@@ -431,9 +450,40 @@ COMMON_SETTINGS::COMMON_SETTINGS() :
     m_params.emplace_back( new PARAM<bool>( "api.enable_server",
             &m_Api.enable_server, false ) );
 
+    m_params.emplace_back( new PARAM_LAMBDA<nlohmann::json>( "dialog.controls",
+            [&]() -> nlohmann::json
+            {
+                nlohmann::json ret = nlohmann::json::object();
+
+                for( const auto& dlg : m_csInternals->m_dialogControlValues )
+                    ret[ dlg.first ] = dlg.second;
+
+                return ret;
+            },
+            [&]( const nlohmann::json& aVal )
+            {
+                m_csInternals->m_dialogControlValues.clear();
+
+                if( !aVal.is_object() )
+                    return;
+
+                for( auto& [dlgKey, dlgVal] : aVal.items() )
+                {
+                    if( !dlgVal.is_object() )
+                        continue;
+
+                    for( auto& [ctrlKey, ctrlVal] : dlgVal.items() )
+                        m_csInternals->m_dialogControlValues[ dlgKey ][ ctrlKey ] = ctrlVal;
+                }
+            },
+            nlohmann::json::object() ) );
+
+
     registerMigration( 0, 1, std::bind( &COMMON_SETTINGS::migrateSchema0to1, this ) );
     registerMigration( 1, 2, std::bind( &COMMON_SETTINGS::migrateSchema1to2, this ) );
     registerMigration( 2, 3, std::bind( &COMMON_SETTINGS::migrateSchema2to3, this ) );
+    registerMigration( 3, 4, std::bind( &COMMON_SETTINGS::migrateSchema3to4, this ) );
+    registerMigration( 4, 5, std::bind( &COMMON_SETTINGS::migrateSchema4to5, this ) );
 }
 
 
@@ -463,21 +513,15 @@ bool COMMON_SETTINGS::migrateSchema0to1()
     if( mwp )
     {
         ( *m_internals )[nlohmann::json::json_pointer( "/input/horizontal_pan" )] = true;
-
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] =
-                WXK_SHIFT;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] = WXK_SHIFT;
         ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_v" )] = 0;
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_zoom" )] =
-                WXK_CONTROL;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_zoom" )] = WXK_CONTROL;
     }
     else
     {
         ( *m_internals )[nlohmann::json::json_pointer( "/input/horizontal_pan" )] = false;
-
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] =
-                WXK_CONTROL;
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_v" )] =
-                WXK_SHIFT;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_h" )] = WXK_CONTROL;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_pan_v" )] = WXK_SHIFT;
         ( *m_internals )[nlohmann::json::json_pointer( "/input/scroll_modifier_zoom" )] = 0;
     }
 
@@ -504,11 +548,9 @@ bool COMMON_SETTINGS::migrateSchema1to2()
     }
 
     if( prefer_selection )
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/mouse_left" )] =
-                MOUSE_DRAG_ACTION::SELECT;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/mouse_left" )] = MOUSE_DRAG_ACTION::SELECT;
     else
-        ( *m_internals )[nlohmann::json::json_pointer( "/input/mouse_left" )] =
-                MOUSE_DRAG_ACTION::DRAG_ANY;
+        ( *m_internals )[nlohmann::json::json_pointer( "/input/mouse_left" )] = MOUSE_DRAG_ACTION::DRAG_ANY;
 
     return true;
 }
@@ -561,6 +603,106 @@ bool COMMON_SETTINGS::migrateSchema2to3()
 }
 
 
+bool COMMON_SETTINGS::migrateSchema3to4()
+{
+    // >= 10 = add 1
+    try
+    {
+        // Update netclass panel shown columns for eeschema
+        const nlohmann::json::json_pointer v3_pointer_eeschema( "/netclass_panel/eeschema_shown_columns"_json_pointer );
+        wxString                           eeSchemaColumnList_old = m_internals->at( v3_pointer_eeschema );
+
+        wxStringTokenizer eeSchemaShownTokens( eeSchemaColumnList_old, " \t\r\n" );
+        wxString          eeSchemaColumnList_new;
+
+        while( eeSchemaShownTokens.HasMoreTokens() )
+        {
+            long colNumber;
+            eeSchemaShownTokens.GetNextToken().ToLong( &colNumber );
+
+            if( colNumber >= 10 )
+                ++colNumber;
+
+            eeSchemaColumnList_new += wxString::Format( wxT( "%ld " ), colNumber );
+        }
+
+        eeSchemaColumnList_new.Trim( true );
+        eeSchemaColumnList_new.Trim( false );
+
+        m_internals->at( v3_pointer_eeschema ) = eeSchemaColumnList_new.ToUTF8();
+
+        // Update netclass panel shown columns for pcbnew
+        const nlohmann::json::json_pointer v3_pointer_pcbnew( "/netclass_panel/pcbnew_shown_columns"_json_pointer );
+        wxString                           pcbnewColumnList_old = m_internals->at( v3_pointer_pcbnew );
+
+        wxStringTokenizer pcbnewShownTokens( pcbnewColumnList_old, " \t\r\n" );
+        wxString          pcbnewColumnList_new;
+
+        while( pcbnewShownTokens.HasMoreTokens() )
+        {
+            long colNumber;
+            pcbnewShownTokens.GetNextToken().ToLong( &colNumber );
+
+            if( colNumber >= 10 )
+                ++colNumber;
+
+            pcbnewColumnList_new += wxString::Format( wxT( "%ld " ), colNumber );
+        }
+
+        pcbnewColumnList_new.Trim( true );
+        pcbnewColumnList_new.Trim( false );
+
+        m_internals->at( v3_pointer_pcbnew ) = pcbnewColumnList_new.ToUTF8();
+    }
+    catch( ... )
+    {
+        wxLogTrace( traceSettings, wxT( "COMMON_SETTINGS::Migrate 3->4: /netclass_panel/shown_columns not found" ) );
+    }
+
+    return true;
+}
+
+
+bool COMMON_SETTINGS::migrateSchema4to5()
+{
+    try
+    {
+        nlohmann::json& controls = m_internals->At( "dialog" ).at( "controls" );
+
+        for( auto& [dlgKey, dlgVal] : controls.items() )
+        {
+            if( !dlgVal.is_object() )
+                continue;
+
+            auto geoIt = dlgVal.find( "__geometry" );
+
+            if( geoIt == dlgVal.end() || !geoIt->is_object() )
+                continue;
+
+            nlohmann::json& geom = *geoIt;
+
+            // Legacy values were stored in logical pixels. Convert to DIP using the
+            // primary display's scale factor (best approximation without window context).
+            int w = geom.value( "w", 0 );
+            int h = geom.value( "h", 0 );
+
+            wxSize dipSize = wxWindow::ToDIP( wxSize( w, h ), nullptr );
+            geom[ "w" ] = dipSize.x;
+            geom[ "h" ] = dipSize.y;
+
+            geom.erase( "dip" );
+        }
+    }
+    catch( ... )
+    {
+        wxLogTrace( traceSettings,
+                    wxT( "COMMON_SETTINGS::Migrate 4->5: dialog.controls not found" ) );
+    }
+
+    return true;
+}
+
+
 bool COMMON_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
 {
     bool ret = true;
@@ -575,8 +717,7 @@ bool COMMON_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
             {
                 wxString key, value;
                 long index = 0;
-                nlohmann::json::json_pointer ptr =
-                        m_internals->PointerFromString( "environment.vars" );
+                nlohmann::json::json_pointer ptr = m_internals->PointerFromString( "environment.vars" );
 
                 aCfg->SetPath( "EnvironmentVariables" );
                 ( *m_internals )[ptr] = nlohmann::json( {} );
@@ -632,7 +773,7 @@ bool COMMON_SETTINGS::MigrateFromLegacy( wxConfigBase* aCfg )
     ret &= fromLegacy<int>( aCfg, "OpenGLAntialiasingMode", "graphics.opengl_antialiasing_mode" );
     ret &= fromLegacy<int>( aCfg, "CairoAntialiasingMode",  "graphics.cairo_antialiasing_mode" );
 
-    ret &= fromLegacy<int>(  aCfg, "AutoSaveInterval",        "system.autosave_interval" );
+    ret &= fromLegacy<int>(  aCfg, "AutoSaveInterval",        "system.local_history_debounce" );
     ret &= fromLegacyString( aCfg, "Editor",                  "system.editor_name" );
     ret &= fromLegacy<int>(  aCfg, "FileHistorySize",         "system.file_history_size" );
     ret &= fromLegacyString( aCfg, "LanguageID",              "system.language" );
@@ -669,31 +810,13 @@ void COMMON_SETTINGS::InitializeEnvironment()
             }
         };
 
-    wxFileName basePath( PATHS::GetStockEDALibraryPath(), wxEmptyString );
-
-    wxFileName path( basePath );
-    path.AppendDir( wxT( "footprints" ) );
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "FOOTPRINT_DIR" ) ), path.GetFullPath() );
-
-    path = basePath;
-    path.AppendDir( wxT( "3dmodels" ) );
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "3DMODEL_DIR" ) ), path.GetFullPath() );
-
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "TEMPLATE_DIR" ) ),
-            PATHS::GetStockTemplatesPath() );
-
+    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "FOOTPRINT_DIR" ) ), PATHS::GetStockFootprintsPath() );
+    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "3DMODEL_DIR" ) ), PATHS::GetStock3dmodelsPath() );
+    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "TEMPLATE_DIR" ) ), PATHS::GetStockTemplatesPath() );
     addVar( wxT( "KICAD_USER_TEMPLATE_DIR" ), PATHS::GetUserTemplatesPath() );
-
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "3RD_PARTY" ) ),
-            PATHS::GetDefault3rdPartyPath() );
-
-    path = basePath;
-    path.AppendDir( wxT( "symbols" ) );
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "SYMBOL_DIR" ) ), path.GetFullPath() );
-
-    path = basePath;
-    path.AppendDir( wxT( "blocks" ) );
-    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "DESIGN_BLOCK_DIR" ) ), path.GetFullPath() );
+    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "3RD_PARTY" ) ), PATHS::GetDefault3rdPartyPath() );
+    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "SYMBOL_DIR" ) ), PATHS::GetStockSymbolsPath() );
+    addVar( ENV_VAR::GetVersionedEnvVarName( wxS( "DESIGN_BLOCK_DIR" ) ), PATHS::GetStockDesignBlocksPath() );
 }
 
 

@@ -25,17 +25,18 @@
 #define GIT_PROGRESS_H_
 
 #include <widgets/wx_progress_reporters.h>
+#include <import_export.h>
 
 #include <memory>
 
-class GIT_PROGRESS
+class APIEXPORT GIT_PROGRESS
 {
 public:
-    GIT_PROGRESS() : m_previousProgress( 0 )
+    GIT_PROGRESS() :
+            m_previousProgress( 0 )
     {
         m_progressReporter.reset();
     }
-
 
     void SetProgressReporter( std::unique_ptr<WX_PROGRESS_REPORTER> aProgressReporter )
     {
@@ -44,7 +45,6 @@ public:
 
     void ReportProgress( int aCurrent, int aTotal, const wxString& aMessage )
     {
-
         if( m_progressReporter )
         {
             if( aCurrent == m_previousProgress || aTotal == 0 )

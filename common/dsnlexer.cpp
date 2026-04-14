@@ -22,7 +22,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#include <charconv>
+#include <fast_float/fast_float.h>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>         // bsearch()
@@ -46,62 +46,70 @@ void DSNLEXER::init()
     specctraMode = false;
     space_in_quoted_tokens = false;
     commentsAreTokens = false;
-
+    SetKnowsBar( true );    // default since version 20240706
     curOffset = 0;
 }
 
 
-DSNLEXER::DSNLEXER( const KEYWORD* aKeywordTable, unsigned aKeywordCount,
-                    const KEYWORD_MAP* aKeywordMap,
+DSNLEXER::DSNLEXER( const KEYWORD* aKeywordTable, unsigned aKeywordCount, const KEYWORD_MAP* aKeywordMap,
                     FILE* aFile, const wxString& aFilename ) :
     iOwnReaders( true ),
     start( nullptr ),
     next( nullptr ),
     limit( nullptr ),
     reader( nullptr ),
+    specctraMode( false ),
+    m_knowsBar( false ),
+    space_in_quoted_tokens( false ),
+    commentsAreTokens( false ),
     keywords( aKeywordTable ),
     keywordCount( aKeywordCount ),
     keywordsLookup( aKeywordMap )
 {
-    FILE_LINE_READER* fileReader = new FILE_LINE_READER( aFile, aFilename );
-    PushReader( fileReader );
+    PushReader( new FILE_LINE_READER( aFile, aFilename ) );
     init();
 }
 
 
-DSNLEXER::DSNLEXER( const KEYWORD* aKeywordTable, unsigned aKeywordCount,
-                    const KEYWORD_MAP* aKeywordMap,
+DSNLEXER::DSNLEXER( const KEYWORD* aKeywordTable, unsigned aKeywordCount, const KEYWORD_MAP* aKeywordMap,
                     const std::string& aClipboardTxt, const wxString& aSource ) :
-    iOwnReaders( true ),
-    start( nullptr ),
-    next( nullptr ),
-    limit( nullptr ),
-    reader( nullptr ),
-    keywords( aKeywordTable ),
-    keywordCount( aKeywordCount ),
-    keywordsLookup( aKeywordMap )
+        iOwnReaders( true ),
+        start( nullptr ),
+        next( nullptr ),
+        limit( nullptr ),
+        reader( nullptr ),
+        specctraMode( false ),
+        m_knowsBar( false ),
+        space_in_quoted_tokens( false ),
+        commentsAreTokens( false ),
+        keywords( aKeywordTable ),
+        keywordCount( aKeywordCount ),
+        keywordsLookup( aKeywordMap )
 {
-    STRING_LINE_READER* stringReader = new STRING_LINE_READER( aClipboardTxt, aSource.IsEmpty() ?
-                                        wxString( FMT_CLIPBOARD ) : aSource );
-    PushReader( stringReader );
+    PushReader( new STRING_LINE_READER( aClipboardTxt, aSource.IsEmpty() ? wxString( FMT_CLIPBOARD )
+                                                                         : aSource ) );
     init();
 }
 
 
-DSNLEXER::DSNLEXER( const KEYWORD* aKeywordTable, unsigned aKeywordCount,
-                    const KEYWORD_MAP* aKeywordMap,
+DSNLEXER::DSNLEXER( const KEYWORD* aKeywordTable, unsigned aKeywordCount, const KEYWORD_MAP* aKeywordMap,
                     LINE_READER* aLineReader ) :
-    iOwnReaders( false ),
-    start( nullptr ),
-    next( nullptr ),
-    limit( nullptr ),
-    reader( nullptr ),
-    keywords( aKeywordTable ),
-    keywordCount( aKeywordCount ),
-    keywordsLookup( aKeywordMap )
+        iOwnReaders( false ),
+        start( nullptr ),
+        next( nullptr ),
+        limit( nullptr ),
+        reader( nullptr ),
+        specctraMode( false ),
+        m_knowsBar( false ),
+        space_in_quoted_tokens( false ),
+        commentsAreTokens( false ),
+        keywords( aKeywordTable ),
+        keywordCount( aKeywordCount ),
+        keywordsLookup( aKeywordMap )
 {
     if( aLineReader )
         PushReader( aLineReader );
+
     init();
 }
 
@@ -109,18 +117,21 @@ DSNLEXER::DSNLEXER( const KEYWORD* aKeywordTable, unsigned aKeywordCount,
 static const KEYWORD empty_keywords[1] = {};
 
 DSNLEXER::DSNLEXER( const std::string& aSExpression, const wxString& aSource ) :
-    iOwnReaders( true ),
-    start( nullptr ),
-    next( nullptr ),
-    limit( nullptr ),
-    reader( nullptr ),
-    keywords( empty_keywords ),
-    keywordCount( 0 ),
-    keywordsLookup( nullptr )
+        iOwnReaders( true ),
+        start( nullptr ),
+        next( nullptr ),
+        limit( nullptr ),
+        reader( nullptr ),
+        specctraMode( false ),
+        m_knowsBar( false ),
+        space_in_quoted_tokens( false ),
+        commentsAreTokens( false ),
+        keywords( empty_keywords ),
+        keywordCount( 0 ),
+        keywordsLookup( nullptr )
 {
-    STRING_LINE_READER* stringReader = new STRING_LINE_READER( aSExpression, aSource.IsEmpty() ?
-                                        wxString( FMT_CLIPBOARD ) : aSource );
-    PushReader( stringReader );
+    PushReader( new STRING_LINE_READER( aSExpression, aSource.IsEmpty() ? wxString( FMT_CLIPBOARD )
+                                                                        : aSource ) );
     init();
 }
 
@@ -139,6 +150,7 @@ DSNLEXER::~DSNLEXER()
 void DSNLEXER::SetSpecctraMode( bool aMode )
 {
     specctraMode = aMode;
+
     if( aMode )
     {
         // specctra mode defaults, some of which can still be changed in this mode.
@@ -292,13 +304,9 @@ const char* DSNLEXER::GetTokenText( int aTok ) const
     const char* ret;
 
     if( aTok < 0 )
-    {
         return Syntax( aTok );
-    }
     else if( (unsigned) aTok < keywordCount )
-    {
         ret = keywords[aTok].name;
-    }
     else
         ret = "token too big";
 
@@ -325,42 +333,44 @@ bool DSNLEXER::IsSymbol( int aTok )
 }
 
 
+bool DSNLEXER::IsNumber( int aTok )
+{
+    return aTok == DSN_NUMBER;
+}
+
+
 void DSNLEXER::Expecting( int aTok ) const
 {
-    wxString errText = wxString::Format(
-        _( "Expecting %s" ), GetTokenString( aTok ) );
+    wxString errText = wxString::Format( _( "Expecting '%s'" ), GetTokenString( aTok ) );
     THROW_PARSE_ERROR( errText, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
 }
 
 
 void DSNLEXER::Expecting( const char* text ) const
 {
-    wxString errText = wxString::Format(
-        _( "Expecting '%s'" ), wxString::FromUTF8( text ) );
+    wxString errText =
+            wxString::Format( _( "Expecting %s. Got '%s'" ), wxString::FromUTF8( text ), GetTokenString( CurTok() ) );
     THROW_PARSE_ERROR( errText, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
 }
 
 
 void DSNLEXER::Unexpected( int aTok ) const
 {
-    wxString errText = wxString::Format(
-        _( "Unexpected %s" ), GetTokenString( aTok ) );
+    wxString errText = wxString::Format( _( "Unexpected '%s'" ), GetTokenString( aTok ) );
     THROW_PARSE_ERROR( errText, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
 }
 
 
 void DSNLEXER::Duplicate( int aTok )
 {
-    wxString errText = wxString::Format(
-        _("%s is a duplicate"), GetTokenString( aTok ).GetData() );
+    wxString errText = wxString::Format( _( "%s is a duplicate" ), GetTokenString( aTok ).GetData() );
     THROW_PARSE_ERROR( errText, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
 }
 
 
 void DSNLEXER::Unexpected( const char* text ) const
 {
-    wxString errText = wxString::Format(
-        _( "Unexpected '%s'" ), wxString::FromUTF8( text ) );
+    wxString errText = wxString::Format( _( "Unexpected %s" ), wxString::FromUTF8( text ) );
     THROW_PARSE_ERROR( errText, CurSource(), CurLine(), CurLineNumber(), CurOffset() );
 }
 
@@ -368,6 +378,7 @@ void DSNLEXER::Unexpected( const char* text ) const
 void DSNLEXER::NeedLEFT()
 {
     int tok = NextTok();
+
     if( tok != DSN_LEFT )
         Expecting( DSN_LEFT );
 }
@@ -406,7 +417,7 @@ int DSNLEXER::NeedSYMBOLorNUMBER()
 {
     int  tok = NextTok();
 
-    if( !IsSymbol( tok ) && tok!=DSN_NUMBER )
+    if( !IsSymbol( tok ) && !IsNumber( tok ) )
         Expecting( "a symbol or number" );
 
     return tok;
@@ -417,7 +428,7 @@ int DSNLEXER::NeedNUMBER( const char* aExpectation )
 {
     int tok = NextTok();
 
-    if( tok != DSN_NUMBER )
+    if( !IsNumber( tok ) )
     {
         wxString errText = wxString::Format( _( "need a number for '%s'" ),
                                              wxString::FromUTF8( aExpectation ).GetData() );
@@ -462,9 +473,9 @@ inline bool isDigit( char cc )
 
 
 /// @return true if @a cc is an s-expression separator character.
-inline bool isSep( char cc )
+inline bool DSNLEXER::isSep( char cc )
 {
-    return isSpace( cc ) || cc == '(' || cc == ')' || cc == '|';
+    return isSpace( cc ) || cc == '(' || cc == ')' || ( m_knowsBar && cc == '|' );
 }
 
 
@@ -533,6 +544,7 @@ int DSNLEXER::NextTok()
     const char*   head = cur;
 
     prevTok = curTok;
+    curSeparator.clear();
 
     if( curTok == DSN_EOF )
         goto exit;
@@ -555,7 +567,10 @@ L_read:
 
         // skip leading whitespace
         while( cur < limit && isSpace( *cur ) )
+        {
+            curSeparator += *cur;
             ++cur;
+        }
 
         // If the first non-blank character is #, this line is a comment.
         // Comments cannot follow any other token on the same line.
@@ -587,7 +602,10 @@ L_read:
     {
         // skip leading whitespace
         while( cur < limit && isSpace( *cur ) )
+        {
+            curSeparator += *cur;
             ++cur;
+        }
     }
 
     if( cur >= limit )
@@ -609,7 +627,7 @@ L_read:
         goto exit;
     }
 
-    if( *cur == '|' )
+    if( m_knowsBar && *cur == '|' )
     {
         curText = *cur;
         curTok = DSN_BAR;
@@ -712,7 +730,7 @@ L_read:
             }   // while
 
             // L_unterminated:
-            wxString errtxt( _( "Un-terminated delimited string" ) );
+            wxString errtxt( _( "Unterminated delimited string" ) );
             THROW_PARSE_ERROR( errtxt, CurSource(), CurLine(), CurLineNumber(),
                                cur - start + curText.length() );
         }
@@ -840,55 +858,18 @@ wxArrayString* DSNLEXER::ReadCommentLines()
     return ret;
 }
 
+// Skip the white space and also accept both normal numbers and scientfic notation
+#define FROM_CHARS_FLAGS ( fast_float::chars_format::skip_white_space | fast_float::chars_format::general )
 
 double DSNLEXER::parseDouble()
 {
-#if ( defined( __GNUC__ ) && __GNUC__ < 11 ) || ( defined( __clang__ ) && __clang_major__ < 13 )
-    // GCC older than 11 "supports" C++17 without supporting the C++17 std::from_chars for doubles
-    // clang is similar
-
-    char* tmp;
-
-    errno = 0;
-
-    double fval = strtod( CurText(), &tmp );
-
-    if( errno )
-    {
-        wxString error;
-        error.Printf( _( "Invalid floating point number in\nfile: '%s'\nline: %d\noffset: %d" ),
-                      CurSource(), CurLineNumber(), CurOffset() );
-
-        THROW_IO_ERROR( error );
-    }
-
-    if( CurText() == tmp )
-    {
-        wxString error;
-        error.Printf( _( "Missing floating point number in\nfile: '%s'\nline: %d\noffset: %d" ),
-                      CurSource(), CurLineNumber(), CurOffset() );
-
-        THROW_IO_ERROR( error );
-    }
-
-    return fval;
-#else
-    // Use std::from_chars which is designed to be locale independent and performance oriented
-    // for data interchange
-
+    // Use fast_float::from_chars which is designed to be locale independent and significantly
+    // faster than strtod and std::from_chars
     const std::string& str = CurStr();
 
-    // Offset any leading whitespace, this is one thing from_chars does not handle
-    size_t woff = 0;
-
-    while( std::isspace( str[woff] ) && woff < str.length() )
-    {
-        woff++;
-    }
-
     double                 dval{};
-    std::from_chars_result res =
-            std::from_chars( str.data() + woff, str.data() + str.size(), dval );
+    fast_float::from_chars_result res = fast_float::from_chars( str.data(), str.data() + str.size(), dval,
+                                                                FROM_CHARS_FLAGS );
 
     if( res.ec != std::errc() )
     {
@@ -897,5 +878,4 @@ double DSNLEXER::parseDouble()
     }
 
     return dval;
-#endif
 }

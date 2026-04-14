@@ -270,6 +270,8 @@ public:
     int GetLineThickness() const        { return m_lineThickness; }
     void SetLineThickness( int aWidth ) { m_lineThickness = aWidth; }
 
+    void StyleFromSettings( const BOARD_DESIGN_SETTINGS& settings, bool aCheckSide ) override;
+
     /**
      * @return a list of line segments that make up this dimension (for drawing, plotting, etc).
      */
@@ -295,11 +297,12 @@ public:
 
     bool HitTest( const VECTOR2I& aPosition, int aAccuracy ) const override;
     bool HitTest( const BOX2I& aRect, bool aContained, int aAccuracy = 0 ) const override;
+    bool HitTest( const SHAPE_LINE_CHAIN& aPoly, bool aContained ) const override;
 
     const BOX2I GetBoundingBox() const override;
 
-    std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer,
-            FLASHING aFlash = FLASHING::DEFAULT ) const override;
+    std::shared_ptr<SHAPE> GetEffectiveShape( PCB_LAYER_ID aLayer = UNDEFINED_LAYER,
+                                              FLASHING aFlash = FLASHING::DEFAULT ) const override;
 
     wxString GetItemDescription( UNITS_PROVIDER* aUnitsProvider, bool aFull ) const override;
 
@@ -719,6 +722,7 @@ public:
 protected:
     virtual void swapData( BOARD_ITEM* aImage ) override;
 
+    void updateText() override;
     void updateGeometry() override;
 };
 

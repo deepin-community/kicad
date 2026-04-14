@@ -49,7 +49,8 @@ PLACEFILE_GERBER_WRITER::PLACEFILE_GERBER_WRITER( BOARD* aPcb )
 
 
 int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB_LAYER_ID aLayer,
-                                              bool aIncludeBrdEdges )
+                                              bool aIncludeBrdEdges, bool aExcludeDNP,
+                                              bool aExcludeBOM )
 {
     m_layer = aLayer;
 
@@ -63,8 +64,14 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB
 
     for( FOOTPRINT* footprint : m_pcb->Footprints() )
     {
-        if( footprint->GetAttributes() & FP_EXCLUDE_FROM_POS_FILES )
+        if( footprint->GetExcludedFromPosFilesForVariant( m_variant ) )
              continue;
+
+        if( aExcludeDNP && footprint->GetDNPForVariant( m_variant ) )
+            continue;
+
+        if( aExcludeBOM && footprint->GetExcludedFromBOMForVariant( m_variant ) )
+            continue;
 
         if( footprint->GetLayer() == aLayer )
            fp_list.push_back( footprint );
@@ -174,7 +181,7 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB
 
         VECTOR2I flash_pos = footprint->GetPosition();
 
-        plotter.FlashPadCircle( flash_pos, flash_position_shape_diam, FILLED, &metadata );
+        plotter.FlashPadCircle( flash_pos, flash_position_shape_diam, &metadata );
         metadata.m_NetlistMetadata.ClearExtraData();
 
         // Now some extra metadata is output, avoid blindly clearing the full metadata list
@@ -245,7 +252,7 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB
 
                 // Flashes a diamond at pad position:
                 plotter.FlashRegularPolygon( pad1->GetPosition(), pad1_mark_size, 4, ANGLE_0,
-                                             FILLED, &metadata );
+                                             &metadata );
             }
         }
 
@@ -279,7 +286,7 @@ int PLACEFILE_GERBER_WRITER::CreatePlaceFile( const wxString& aFullFilename, PCB
                 metadata.SetPadPinFunction( pad->GetPinFunction(), allowUtf8, quoteOption );
 
                 // Flashes a round, 0 sized round shape at pad position
-                plotter.FlashPadCircle( pad->GetPosition(), other_pads_mark_size, FILLED, &metadata );
+                plotter.FlashPadCircle( pad->GetPosition(), other_pads_mark_size, &metadata );
             }
         }
 

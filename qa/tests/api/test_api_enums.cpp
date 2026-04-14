@@ -29,7 +29,9 @@
 #include <core/typeinfo.h>
 #include <font/text_attributes.h>
 #include <layer_ids.h>
+#include <pin_type.h>
 #include <stroke_params.h>
+#include <widgets/report_severity.h>
 
 // Board-specific
 #include <api/board/board_types.pb.h>
@@ -151,6 +153,11 @@ BOOST_AUTO_TEST_CASE( KiCadObjectType )
     testEnums<KICAD_T, types::KiCadObjectType>( true );
 }
 
+BOOST_AUTO_TEST_CASE( ElectricalPinType )
+{
+    testEnums<ELECTRICAL_PINTYPE, types::ElectricalPinType>( true );
+}
+
 BOOST_AUTO_TEST_CASE( BoardLayer )
 {
     testEnums<PCB_LAYER_ID, kiapi::board::types::BoardLayer>( true );
@@ -183,7 +190,7 @@ BOOST_AUTO_TEST_CASE( DrillShape )
 
 BOOST_AUTO_TEST_CASE( UnconnectedLayerRemoval )
 {
-    testEnums<PADSTACK::UNCONNECTED_LAYER_MODE, kiapi::board::types::UnconnectedLayerRemoval>();
+    testEnums<UNCONNECTED_LAYER_MODE, kiapi::board::types::UnconnectedLayerRemoval>();
 }
 
 BOOST_AUTO_TEST_CASE( ViaType )
@@ -209,7 +216,7 @@ BOOST_AUTO_TEST_CASE( ZoneBorderStyle )
 
 BOOST_AUTO_TEST_CASE( PlacementRuleSourceType )
 {
-    testEnums<RULE_AREA_PLACEMENT_SOURCE_TYPE, kiapi::board::types::PlacementRuleSourceType>();
+    testEnums<PLACEMENT_SOURCE_T, kiapi::board::types::PlacementRuleSourceType>();
 }
 
 BOOST_AUTO_TEST_CASE( TeardropType )
@@ -265,6 +272,11 @@ BOOST_AUTO_TEST_CASE( RatsnestDisplayMode )
 BOOST_AUTO_TEST_CASE( BoardStackupLayerType )
 {
     testEnums<BOARD_STACKUP_ITEM_TYPE, kiapi::board::BoardStackupLayerType>();
+}
+
+BOOST_AUTO_TEST_CASE( DrcSeverity )
+{
+    testEnums<SEVERITY, kiapi::board::commands::DrcSeverity>();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

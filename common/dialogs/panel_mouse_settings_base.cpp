@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version 4.0.0-0-g0efcecf)
+// C++ code generated with wxFormBuilder (version 4.2.1-0-g80c4cb6a-dirty)
 // http://www.wxformbuilder.org/
 //
 // PLEASE DO *NOT* EDIT THIS FILE!
@@ -22,7 +22,7 @@ PANEL_MOUSE_SETTINGS_BASE::PANEL_MOUSE_SETTINGS_BASE( wxWindow* parent, wxWindow
 	bSizer1->Add( m_panZoomLabel, 0, wxTOP|wxRIGHT|wxLEFT, 13 );
 
 	m_staticline1 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	bSizer1->Add( m_staticline1, 0, wxEXPAND|wxBOTTOM, 5 );
+	bSizer1->Add( m_staticline1, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxBoxSizer* bSizer8;
 	bSizer8 = new wxBoxSizer( wxVERTICAL );
@@ -105,7 +105,7 @@ PANEL_MOUSE_SETTINGS_BASE::PANEL_MOUSE_SETTINGS_BASE( wxWindow* parent, wxWindow
 	bSizer1->Add( m_dragLabel, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 13 );
 
 	m_staticline3 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	bSizer1->Add( m_staticline3, 0, wxEXPAND|wxBOTTOM, 5 );
+	bSizer1->Add( m_staticline3, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxBoxSizer* bSizer9;
 	bSizer9 = new wxBoxSizer( wxVERTICAL );
@@ -158,6 +158,19 @@ PANEL_MOUSE_SETTINGS_BASE::PANEL_MOUSE_SETTINGS_BASE( wxWindow* parent, wxWindow
 
 	fgSizer1->Add( 0, 0, 1, wxEXPAND, 5 );
 
+	m_panMoveKeyLabel = new wxStaticText( this, wxID_ANY, _("Pan on mouse movement with key:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_panMoveKeyLabel->Wrap( -1 );
+	fgSizer1->Add( m_panMoveKeyLabel, 0, wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxRIGHT, 5 );
+
+	wxString m_choicePanMoveKeyChoices[] = { _("None"), _("Alt"), _("Ctrl"), _("Shift") };
+	int m_choicePanMoveKeyNChoices = sizeof( m_choicePanMoveKeyChoices ) / sizeof( wxString );
+	m_choicePanMoveKey = new wxChoice( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, m_choicePanMoveKeyNChoices, m_choicePanMoveKeyChoices, 0 );
+	m_choicePanMoveKey->SetSelection( 0 );
+	fgSizer1->Add( m_choicePanMoveKey, 0, wxALIGN_CENTER_VERTICAL|wxBOTTOM|wxEXPAND|wxLEFT|wxRIGHT, 5 );
+
+
+	fgSizer1->Add( 0, 0, 1, wxEXPAND, 5 );
+
 
 	bSizer9->Add( fgSizer1, 1, wxEXPAND|wxALL, 5 );
 
@@ -172,7 +185,7 @@ PANEL_MOUSE_SETTINGS_BASE::PANEL_MOUSE_SETTINGS_BASE( wxWindow* parent, wxWindow
 	bSizer1->Add( m_scrollLabel, 0, wxEXPAND|wxTOP|wxRIGHT|wxLEFT, 13 );
 
 	m_staticline2 = new wxStaticLine( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL );
-	bSizer1->Add( m_staticline2, 0, wxEXPAND|wxBOTTOM, 5 );
+	bSizer1->Add( m_staticline2, 0, wxEXPAND|wxTOP|wxBOTTOM, 2 );
 
 	wxBoxSizer* bMargins;
 	bMargins = new wxBoxSizer( wxHORIZONTAL );
@@ -242,7 +255,7 @@ PANEL_MOUSE_SETTINGS_BASE::PANEL_MOUSE_SETTINGS_BASE( wxWindow* parent, wxWindow
 	fgSizer2->Add( m_rbZoomAlt, 0, wxALIGN_CENTER_HORIZONTAL|wxRIGHT|wxLEFT|wxALIGN_CENTER_VERTICAL, 5 );
 
 	m_checkZoomReverse = new wxCheckBox( this, wxID_ANY, _("Reverse"), wxDefaultPosition, wxDefaultSize, 0 );
-	fgSizer2->Add( m_checkZoomReverse, 0, wxALL, 5 );
+	fgSizer2->Add( m_checkZoomReverse, 0, wxRIGHT|wxLEFT, 5 );
 
 	m_staticText11 = new wxStaticText( this, wxID_ANY, _("Pan up/down:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText11->Wrap( -1 );

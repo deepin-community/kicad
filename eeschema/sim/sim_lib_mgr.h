@@ -22,8 +22,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
-#ifndef SIM_LIB_MGR_H
-#define SIM_LIB_MGR_H
+#pragma once
 
 #include <map>
 #include <vector>
@@ -46,8 +45,10 @@ public:
 
     void Clear();
 
-    void SetFilesStack( std::vector<EMBEDDED_FILES*> aFilesStack ) { m_embeddedFilesStack = aFilesStack; }
-
+    void SetFilesStack( std::vector<EMBEDDED_FILES*> aFilesStack )
+    {
+        m_embeddedFilesStack = std::move( aFilesStack );
+    }
 
     void SetLibrary( const wxString& aLibraryPath, REPORTER& aReporter );
 
@@ -58,19 +59,21 @@ public:
                             REPORTER& aReporter );
 
     SIM_MODEL& CreateModel( const SIM_MODEL* aBaseModel, const std::vector<SCH_PIN*>& aPins,
-                            const std::vector<SCH_FIELD>& aFields, REPORTER& aReporter );
+                            const std::vector<SCH_FIELD>& aFields, bool aResolve, int aDepth,
+                            REPORTER& aReporter );
 
     // TODO: The argument can be made const.
+    // aMergedSimPins is an optional merged Sim.Pins string from all units of a multi-unit symbol.
+    // If provided (non-empty), it will be used instead of the symbol's Sim.Pins field.
     SIM_LIBRARY::MODEL CreateModel( const SCH_SHEET_PATH* aSheetPath, SCH_SYMBOL& aSymbol,
-                                    REPORTER& aReporter );
+                                    bool aResolve, int aDepth, const wxString& aVariantName,
+                                    REPORTER& aReporter, const wxString& aMergedSimPins = wxEmptyString );
 
-    SIM_LIBRARY::MODEL CreateModel( const std::vector<SCH_FIELD>& aFields,
-                                    const std::vector<SCH_PIN*>& aPins, bool aResolved,
-                                    REPORTER& aReporter );
+    SIM_LIBRARY::MODEL CreateModel( const std::vector<SCH_FIELD>& aFields, bool aResolve, int aDepth,
+                                    const std::vector<SCH_PIN*>& aPins, REPORTER& aReporter );
 
-    SIM_LIBRARY::MODEL CreateModel( const wxString& aLibraryPath,
-                                    const std::string& aBaseModelName,
-                                    const std::vector<SCH_FIELD>& aFields,
+    SIM_LIBRARY::MODEL CreateModel( const wxString& aLibraryPath, const std::string& aBaseModelName,
+                                    const std::vector<SCH_FIELD>& aFields, bool aResolve, int aDepth,
                                     const std::vector<SCH_PIN*>& aPins, REPORTER& aReporter );
 
     void SetModel( int aIndex, std::unique_ptr<SIM_MODEL> aModel );
@@ -83,12 +86,10 @@ public:
                                          REPORTER& aReporter );
 
 private:
-    std::vector<EMBEDDED_FILES*>                     m_embeddedFilesStack;
-    const PROJECT*                                   m_project;
+    std::vector<EMBEDDED_FILES*>                     m_embeddedFilesStack;  // no ownership
+    const PROJECT*                                   m_project;             // no ownership
     bool                                             m_forceFullParse;
     std::map<wxString, std::unique_ptr<SIM_LIBRARY>> m_libraries;
     std::vector<std::unique_ptr<SIM_MODEL>>          m_models;
 };
 
-
-#endif // SIM_LIB_MGR_H

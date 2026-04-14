@@ -36,11 +36,10 @@
 #include <wx/string.h>
 
 #include <math/vector2d.h>
-#include <geometry/shape_poly_set.h>
-#include <project/net_settings.h>
 #include <zone.h>
 
 class FROM_TO_CACHE;
+class NET_SETTINGS;
 class CN_CLUSTER;
 class CN_CONNECTIVITY_ALGO;
 class CN_EDGE;
@@ -51,6 +50,7 @@ class BOARD_ITEM;
 class ZONE;
 class RN_DATA;
 class RN_NET;
+class PCB_ARC;
 class PCB_TRACK;
 class PCB_VIA;
 class PAD;
@@ -247,9 +247,10 @@ public:
      * @param aItem is the reference item to find other connected items.
      * @param aTypes allows one to filter by item types.
      */
-    const std::vector<BOARD_CONNECTED_ITEM*>
-    GetConnectedItems( const BOARD_CONNECTED_ITEM* aItem, const std::vector<KICAD_T>& aTypes,
-                       bool aIgnoreNetcodes = false ) const;
+#define IGNORE_NETS 0x0001
+#define EXCLUDE_ZONES 0x0002
+    const std::vector<BOARD_CONNECTED_ITEM*> GetConnectedItems( const BOARD_CONNECTED_ITEM* aItem,
+                                                                int aFlags = 0 ) const;
 
     /**
      * Function GetNetItems()

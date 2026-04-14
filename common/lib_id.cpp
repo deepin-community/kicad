@@ -26,6 +26,7 @@
 #include <cstring>
 #include <memory>
 #include <wx/translation.h>
+#include <fmt/format.h>
 
 #include <ki_exception.h>
 #include <macros.h>     // TO_UTF8()
@@ -210,13 +211,6 @@ bool LIB_ID::isLegalChar( unsigned aUniChar )
     bool const space_allowed = true;
     bool const illegal_filename_chars_allowed = false;
 
-    if( aUniChar < ' ' )
-        return false;
-
-    // This list of characters is also duplicated in validators.cpp and footprint.cpp
-    // TODO: Unify forbidden character lists - Warning, invalid filename characters are not the same
-    // as invalid LIB_ID characters.  We will need to separate the FP filenames from FP names
-    // before this can be unified
     switch( aUniChar )
     {
     case ':':
@@ -276,8 +270,8 @@ bool LIB_ID::isLegalLibraryNameChar( unsigned aUniChar )
 
 const wxString LIB_ID::GetFullLibraryName() const
 {
-    wxString suffix = m_subLibraryName.wx_str().IsEmpty()
-                              ? wxString( wxS( "" ) )
-                              : wxString::Format( wxT( " - %s" ), m_subLibraryName.wx_str() );
-    return wxString::Format( wxT( "%s%s" ), m_libraryName.wx_str(), suffix );
+    if( m_subLibraryName.empty() )
+        return m_libraryName;
+
+    return wxString::Format( wxS( "%s - %s" ), m_libraryName.c_str(), m_subLibraryName.c_str() );
 }

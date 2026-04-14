@@ -400,6 +400,7 @@ public:
     VECTOR2D GetCursorPosition() const;
 
     EDA_ITEM* GetModel() const { return m_model; }
+    void      ClearModel() { m_model = nullptr; }
 
     APP_SETTINGS_BASE* GetSettings() const { return m_settings; }
 
@@ -516,6 +517,15 @@ public:
     {
         m_warpMouseAfterContextMenu = false;
     }
+
+    /**
+     * Normally we warp the mouse after the context menu action runs.  This works fine for
+     * something like the properties dialog, where you can continue drawing after the warp.
+     * However, if the menu command itself is a drawing action (such as "Attempt Finish",
+     * it will run before the warp (ie: from the position the command was in on the context
+     * menu).  This call allows an action to perform the warp before it is run.
+     */
+    void WarpAfterContextMenu();
 
     /**
      * Handle context menu related events.

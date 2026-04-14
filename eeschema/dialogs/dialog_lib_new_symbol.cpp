@@ -23,6 +23,7 @@
  */
 
 #include "dialog_lib_new_symbol.h"
+#include <widgets/wx_infobar.h>
 
 #include <default_values.h>
 #include <eda_draw_frame.h>
@@ -39,52 +40,50 @@ static wxString getDerivativeName( const wxString& aParentName )
 DIALOG_LIB_NEW_SYMBOL::DIALOG_LIB_NEW_SYMBOL( EDA_DRAW_FRAME*      aParent,
                                               const wxArrayString& aSymbolNames,
                                               const wxString&      aInheritFromSymbolName,
-                                              std::function<bool( wxString newName )> aValidator ) :
+                                              std::function<bool( const wxString& newName )> aValidator ) :
         DIALOG_LIB_NEW_SYMBOL_BASE( dynamic_cast<wxWindow*>( aParent ) ),
         m_pinTextPosition( aParent, m_staticPinTextPositionLabel, m_textPinTextPosition,
                            m_staticPinTextPositionUnits, true ),
         m_validator( std::move( aValidator ) ),
+        m_inheritFromSymbolName( aInheritFromSymbolName ),
         m_nameIsDefaulted( true )
 {
     if( aSymbolNames.GetCount() )
     {
-        wxArrayString escapedNames;
+        wxArrayString unescapedNames;
 
         for( const wxString& name : aSymbolNames )
-            escapedNames.Add( UnescapeString( name ) );
+            unescapedNames.Add( UnescapeString( name ) );
 
-        m_comboInheritanceSelect->SetSymbolList( escapedNames );
-
-        if( !aInheritFromSymbolName.IsEmpty() )
-        {
-            m_comboInheritanceSelect->SetSelectedSymbol( aInheritFromSymbolName );
-        }
+        m_comboInheritanceSelect->SetStringList( unescapedNames );
     }
 
-    // Trigger the event handler to show/hide the info bar message.
-    wxCommandEvent dummyEvent;
-    onParentSymbolSelect( dummyEvent );
-
-    m_textName->SetValidator( FIELD_VALIDATOR( VALUE_FIELD ) );
-    m_textReference->SetValidator( FIELD_VALIDATOR( REFERENCE_FIELD ) );
-
-    if( !aInheritFromSymbolName.IsEmpty() )
-    {
-        m_textName->ChangeValue( getDerivativeName( aInheritFromSymbolName ) );
-        m_nameIsDefaulted = true;
-    }
+    m_textName->SetValidator( FIELD_VALIDATOR( FIELD_T::VALUE ) );
+    m_textReference->SetValidator( FIELD_VALIDATOR( FIELD_T::REFERENCE ) );
 
     m_pinTextPosition.SetValue( schIUScale.MilsToIU( DEFAULT_PIN_NAME_OFFSET ) );
 
-    m_comboInheritanceSelect->Connect(
-            FILTERED_ITEM_SELECTED,
-            wxCommandEventHandler( DIALOG_LIB_NEW_SYMBOL::onParentSymbolSelect ), nullptr, this );
+    m_comboInheritanceSelect->Connect( FILTERED_ITEM_SELECTED,
+                                       wxCommandEventHandler( DIALOG_LIB_NEW_SYMBOL::onParentSymbolSelect ),
+                                       nullptr, this );
 
     m_textName->Bind( wxEVT_TEXT,
                       [this]( wxCommandEvent& aEvent )
                       {
                           m_nameIsDefaulted = false;
                       } );
+
+    m_checkTransferUserFields->Connect( wxEVT_CHECKBOX,
+                                        wxCommandEventHandler( DIALOG_LIB_NEW_SYMBOL::onCheckTransferUserFields ),
+                                        nullptr, this );
+
+    // Trigger the event handler to show/hide the info bar message.
+    wxCommandEvent dummyEvent;
+    onParentSymbolSelect( dummyEvent );
+
+    // Trigger the event handler to handle other check boxes
+    onPowerCheckBox( dummyEvent );
+    onCheckTransferUserFields( dummyEvent );
 
     // initial focus should be on first editable field.
     m_textName->SetFocus();
@@ -98,9 +97,24 @@ DIALOG_LIB_NEW_SYMBOL::DIALOG_LIB_NEW_SYMBOL( EDA_DRAW_FRAME*      aParent,
 
 DIALOG_LIB_NEW_SYMBOL::~DIALOG_LIB_NEW_SYMBOL()
 {
-    m_comboInheritanceSelect->Disconnect(
-            FILTERED_ITEM_SELECTED,
-            wxCommandEventHandler( DIALOG_LIB_NEW_SYMBOL::onParentSymbolSelect ), nullptr, this );
+    m_comboInheritanceSelect->Disconnect( FILTERED_ITEM_SELECTED,
+                                          wxCommandEventHandler( DIALOG_LIB_NEW_SYMBOL::onParentSymbolSelect ),
+                                          nullptr, this );
+    m_checkTransferUserFields->Disconnect( wxEVT_CHECKBOX,
+                                           wxCommandEventHandler( DIALOG_LIB_NEW_SYMBOL::onCheckTransferUserFields ),
+                                           nullptr, this );
+}
+
+
+bool DIALOG_LIB_NEW_SYMBOL::TransferDataToWindow()
+{
+    if( !m_inheritFromSymbolName.IsEmpty() )
+    {
+        m_comboInheritanceSelect->SetSelectedString( UnescapeString( m_inheritFromSymbolName ) );
+        m_textName->ChangeValue( UnescapeString( getDerivativeName( m_inheritFromSymbolName ) ) );
+    }
+
+    return true;
 }
 
 
@@ -117,7 +131,7 @@ void DIALOG_LIB_NEW_SYMBOL::onParentSymbolSelect( wxCommandEvent& aEvent )
     if( !parent.IsEmpty() )
     {
         m_infoBar->RemoveAllButtons();
-        m_infoBar->ShowMessage( wxString::Format( _( "Deriving from symbol '%s'." ), parent ),
+        m_infoBar->ShowMessage( wxString::Format( _( "Deriving from symbol '%s'." ), UnescapeString( parent ) ),
                                 wxICON_INFORMATION );
     }
     else
@@ -150,9 +164,15 @@ void DIALOG_LIB_NEW_SYMBOL::syncControls( bool aIsDerivedPart )
     m_staticPinTextPositionLabel->Enable( !aIsDerivedPart );
     m_textPinTextPosition->Enable( !aIsDerivedPart );
     m_staticPinTextPositionUnits->Enable( !aIsDerivedPart );
+
     m_checkShowPinNumber->Enable( !aIsDerivedPart );
     m_checkShowPinName->Enable( !aIsDerivedPart );
     m_checkShowPinNameInside->Enable( !aIsDerivedPart );
+
+    m_checkKeepDatasheet->Enable( aIsDerivedPart );
+    m_checkKeepFootprint->Enable( aIsDerivedPart );
+    m_checkTransferUserFields->Enable( aIsDerivedPart );
+    m_checkKeepContentUserFields->Enable( aIsDerivedPart );
 }
 
 
@@ -172,3 +192,9 @@ void DIALOG_LIB_NEW_SYMBOL::onPowerCheckBox( wxCommandEvent& aEvent )
     }
 }
 
+
+void DIALOG_LIB_NEW_SYMBOL::onCheckTransferUserFields( wxCommandEvent& aEvent )
+{
+    bool checked = m_checkTransferUserFields->IsChecked();
+    m_checkKeepContentUserFields->Enable( checked );
+}

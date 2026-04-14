@@ -45,7 +45,6 @@ public:
     void Reset( RESET_REASON aReason ) override;
 
     int NewProject( const TOOL_EVENT& aEvent );
-    int NewFromTemplate( const TOOL_EVENT& aEvent );
     int NewFromRepository( const TOOL_EVENT& aEvent );
     int NewJobsetFile( const TOOL_EVENT& aEvent );
     int OpenProject( const TOOL_EVENT& aEvent );
@@ -54,6 +53,12 @@ public:
     int CloseProject( const TOOL_EVENT& aEvent );
     int SaveProjectAs( const TOOL_EVENT& aEvent );
     int LoadProject( const TOOL_EVENT& aEvent );
+
+    int ArchiveProject( const TOOL_EVENT& aEvent );
+    int UnarchiveProject( const TOOL_EVENT& aEvent );
+    int ExploreProject( const TOOL_EVENT& aEvent );
+    int RestoreLocalHistory( const TOOL_EVENT& aEvent );
+    int ToggleLocalHistory( const TOOL_EVENT& aEvent );
 
     /**
      * @brief Imports a non kicad project from a sch/pcb dropped file.
@@ -73,16 +78,16 @@ public:
     ///< Set up handlers for various events.
     void setTransitions() override;
 
+    bool InShowPlayer() const { return m_inShowPlayer; }
+
 private:
-    ///< Pointer to the currently used edit/draw frame.
-    KICAD_MANAGER_FRAME* m_frame;
-
-    // Mutex to allow only a single KiFace to load at one time (released when loaded)
-    std::mutex m_loading;
-
     int openProject( const wxString& aDefaultDir );
 
     wxFileName newProjectDirectory( wxString* aFileName = nullptr, bool isRepo = false );
+
+private:
+    KICAD_MANAGER_FRAME* m_frame;           ///< Pointer to the currently used edit/draw frame.
+    bool                 m_inShowPlayer;    ///< Re-entrancy guard
 };
 
 #endif

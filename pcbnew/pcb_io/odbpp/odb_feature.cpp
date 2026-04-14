@@ -19,20 +19,27 @@
  */
 
 #include "odb_feature.h"
+
 #include <sstream>
+#include <map>
+
+#include <wx/log.h>
+
+#include "footprint.h"
+#include "pad.h"
 #include "pcb_shape.h"
 #include "odb_defines.h"
 #include "pcb_track.h"
 #include "pcb_textbox.h"
+#include "pcb_table.h"
 #include "zone.h"
 #include "board.h"
 #include "board_design_settings.h"
 #include "geometry/eda_angle.h"
 #include "odb_eda_data.h"
 #include "pcb_io_odbpp.h"
-#include <map>
-#include "wx/log.h"
 #include <callback_gal.h>
+#include <string_utils.h>
 
 
 void FEATURES_MANAGER::AddFeatureLine( const VECTOR2I& aStart, const VECTOR2I& aEnd,
@@ -78,49 +85,45 @@ bool FEATURES_MANAGER::AddContour( const SHAPE_POLY_SET& aPolySet, int aOutline 
 
 void FEATURES_MANAGER::AddShape( const PCB_SHAPE& aShape, PCB_LAYER_ID aLayer )
 {
+    int stroke_width = aShape.GetWidth();
+
     switch( aShape.GetShape() )
     {
     case SHAPE_T::CIRCLE:
     {
         int      diameter = aShape.GetRadius() * 2;
-        int      width = aShape.GetWidth();
         VECTOR2I center = ODB::GetShapePosition( aShape );
-        wxString innerDim = ODB::SymDouble2String( ( diameter - width / 2 ) );
-        wxString outerDim = ODB::SymDouble2String( ( width + diameter ) );
+        wxString innerDim = ODB::SymDouble2String( ( diameter - stroke_width / 2 ) );
+        wxString outerDim = ODB::SymDouble2String( ( stroke_width + diameter ) );
 
-        if( aShape.GetFillMode() == FILL_T::NO_FILL )
-        {
-            AddFeature<ODB_PAD>( ODB::AddXY( center ), AddRoundDonutSymbol( outerDim, innerDim ) );
-        }
-        else
-        {
+        if( aShape.IsSolidFill() )
             AddFeature<ODB_PAD>( ODB::AddXY( center ), AddCircleSymbol( outerDim ) );
-        }
+        else
+            AddFeature<ODB_PAD>( ODB::AddXY( center ), AddRoundDonutSymbol( outerDim, innerDim ) );
 
         break;
     }
 
     case SHAPE_T::RECTANGLE:
     {
-        int      stroke_width = aShape.GetWidth();
         int      width = std::abs( aShape.GetRectangleWidth() ) + stroke_width;
         int      height = std::abs( aShape.GetRectangleHeight() ) + stroke_width;
         wxString rad = ODB::SymDouble2String( ( stroke_width / 2.0 ) );
         VECTOR2I center = ODB::GetShapePosition( aShape );
 
-        if( aShape.GetFillMode() == FILL_T::NO_FILL )
+        if( aShape.IsSolidFill() )
+        {
+            AddFeature<ODB_PAD>( ODB::AddXY( center ),
+                                 AddRoundRectSymbol( ODB::SymDouble2String( width ),
+                                                     ODB::SymDouble2String( height ), rad ) );
+        }
+        else
         {
             AddFeature<ODB_PAD>( ODB::AddXY( center ),
                                  AddRoundRectDonutSymbol( ODB::SymDouble2String( width ),
                                                           ODB::SymDouble2String( height ),
                                                           ODB::SymDouble2String( stroke_width ),
                                                           rad ) );
-        }
-        else
-        {
-            AddFeature<ODB_PAD>( ODB::AddXY( center ),
-                                 AddRoundRectSymbol( ODB::SymDouble2String( width ),
-                                                     ODB::SymDouble2String( height ), rad ) );
         }
 
         break;
@@ -133,7 +136,7 @@ void FEATURES_MANAGER::AddShape( const PCB_SHAPE& aShape, PCB_LAYER_ID aLayer )
         // TODO: check if soldermask_min_thickness should be Stroke width
 
         if( aLayer != UNDEFINED_LAYER && LSET( { F_Mask, B_Mask } ).Contains( aLayer ) )
-            soldermask_min_thickness = aShape.GetWidth();
+            soldermask_min_thickness = stroke_width;
 
         int            maxError = m_board->GetDesignSettings().m_MaxError;
         SHAPE_POLY_SET poly_set;
@@ -159,22 +162,20 @@ void FEATURES_MANAGER::AddShape( const PCB_SHAPE& aShape, PCB_LAYER_ID aLayer )
             poly_set.Fracture();
         }
 
-        int strokeWidth = aShape.GetStroke().GetWidth();
-
         // ODB++ surface features can only represent closed polygons.  We add a surface for
         // the fill of the shape, if present, and add line segments for the outline, if present.
-        if( aShape.IsFilled() )
+        if( aShape.IsSolidFill() )
         {
             for( int ii = 0; ii < poly_set.OutlineCount(); ++ii )
             {
                 AddContour( poly_set, ii, FILL_T::FILLED_SHAPE );
 
-                if( strokeWidth != 0 )
+                if( stroke_width != 0 )
                 {
                     for( int jj = 0; jj < poly_set.COutline( ii ).SegmentCount(); ++jj )
                     {
                         const SEG& seg = poly_set.COutline( ii ).CSegment( jj );
-                        AddFeatureLine( seg.A, seg.B, strokeWidth );
+                        AddFeatureLine( seg.A, seg.B, stroke_width );
                     }
                 }
             }
@@ -186,7 +187,7 @@ void FEATURES_MANAGER::AddShape( const PCB_SHAPE& aShape, PCB_LAYER_ID aLayer )
                 for( int jj = 0; jj < poly_set.COutline( ii ).SegmentCount(); ++jj )
                 {
                     const SEG& seg = poly_set.COutline( ii ).CSegment( jj );
-                    AddFeatureLine( seg.A, seg.B, strokeWidth );
+                    AddFeatureLine( seg.A, seg.B, stroke_width );
                 }
             }
         }
@@ -198,9 +199,7 @@ void FEATURES_MANAGER::AddShape( const PCB_SHAPE& aShape, PCB_LAYER_ID aLayer )
     {
         ODB_DIRECTION dir = !aShape.IsClockwiseArc() ? ODB_DIRECTION::CW : ODB_DIRECTION::CCW;
 
-        AddFeatureArc( aShape.GetStart(), aShape.GetEnd(), aShape.GetCenter(),
-                       aShape.GetStroke().GetWidth(), dir );
-
+        AddFeatureArc( aShape.GetStart(), aShape.GetEnd(), aShape.GetCenter(), stroke_width, dir );
         break;
     }
 
@@ -209,25 +208,24 @@ void FEATURES_MANAGER::AddShape( const PCB_SHAPE& aShape, PCB_LAYER_ID aLayer )
         const std::vector<VECTOR2I>& points = aShape.GetBezierPoints();
 
         for( size_t i = 0; i < points.size() - 1; i++ )
-        {
-            AddFeatureLine( points[i], points[i + 1], aShape.GetStroke().GetWidth() );
-        }
+            AddFeatureLine( points[i], points[i + 1], stroke_width );
 
         break;
     }
 
     case SHAPE_T::SEGMENT:
-    {
-        AddFeatureLine( aShape.GetStart(), aShape.GetEnd(), aShape.GetStroke().GetWidth() );
-
+        AddFeatureLine( aShape.GetStart(), aShape.GetEnd(), stroke_width );
         break;
-    }
 
     default:
-    {
         wxLogError( wxT( "Unknown shape when adding ODB++ layer feature" ) );
         break;
     }
+
+    if( aShape.IsHatchedFill() )
+    {
+        for( int ii = 0; ii < aShape.GetHatching().OutlineCount(); ++ii )
+            AddContour( aShape.GetHatching(), ii, FILL_T::FILLED_SHAPE );
     }
 }
 
@@ -415,7 +413,36 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
             // add via
             PCB_VIA* via = static_cast<PCB_VIA*>( track );
 
+            bool hole = false;
+
             if( aLayer != PCB_LAYER_ID::UNDEFINED_LAYER )
+            {
+                hole = m_layerName.Contains( "plugging" );
+            }
+            else
+            {
+                hole = m_layerName.Contains( "drill" ) || m_layerName.Contains( "filling" )
+                       || m_layerName.Contains( "capping" );
+            }
+
+            if( hole )
+            {
+                AddViaDrillHole( via, aLayer );
+                subnet->AddFeatureID( EDA_DATA::FEATURE_ID::TYPE::HOLE, m_layerName,
+                                      m_featuresList.size() - 1 );
+
+                // TODO: confirm TOOLING_HOLE
+                // AddSystemAttribute( *m_featuresList.back(), ODB_ATTR::PAD_USAGE::TOOLING_HOLE );
+
+                if( !m_featuresList.empty() )
+                {
+                    AddSystemAttribute( *m_featuresList.back(), ODB_ATTR::DRILL::VIA );
+                    AddSystemAttribute(
+                            *m_featuresList.back(),
+                            ODB_ATTR::GEOMETRY{ "VIA_RoundD" + std::to_string( via->GetWidth( aLayer ) ) } );
+                }
+            }
+            else
             {
                 // to draw via copper shape on copper layer
                 AddVia( via, aLayer );
@@ -427,31 +454,7 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
                     AddSystemAttribute( *m_featuresList.back(), ODB_ATTR::PAD_USAGE::VIA );
                     AddSystemAttribute(
                             *m_featuresList.back(),
-                            ODB_ATTR::GEOMETRY{ "VIA_RoundD"
-                                                + std::to_string( via->GetWidth( aLayer ) ) } );
-                }
-            }
-            else
-            {
-                // to draw via drill hole on drill layer
-
-                if( m_layerName.Contains( "drill" ) )
-                {
-                    AddViaDrillHole( via, aLayer );
-                    subnet->AddFeatureID( EDA_DATA::FEATURE_ID::TYPE::HOLE, m_layerName,
-                                          m_featuresList.size() - 1 );
-
-                    // TODO: confirm TOOLING_HOLE
-                    // AddSystemAttribute( *m_featuresList.back(), ODB_ATTR::PAD_USAGE::TOOLING_HOLE );
-
-                    if( !m_featuresList.empty() )
-                    {
-                        AddSystemAttribute( *m_featuresList.back(), ODB_ATTR::DRILL::VIA );
-                        AddSystemAttribute(
-                                *m_featuresList.back(),
-                                ODB_ATTR::GEOMETRY{ "VIA_RoundD"
-                                                    + std::to_string( via->GetWidth( aLayer ) ) } );
-                    }
+                            ODB_ATTR::GEOMETRY{ "VIA_RoundD" + std::to_string( via->GetWidth( aLayer ) ) } );
                 }
             }
         }
@@ -487,10 +490,10 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
 
         if( PCB_TEXT* tmp_text = dynamic_cast<PCB_TEXT*>( item ) )
             text_item = static_cast<EDA_TEXT*>( tmp_text );
-        else if( PCB_TEXTBOX* tmp_text = dynamic_cast<PCB_TEXTBOX*>( item ) )
-            text_item = static_cast<EDA_TEXT*>( tmp_text );
+        else if( PCB_TEXTBOX* tmp_textbox = dynamic_cast<PCB_TEXTBOX*>( item ) )
+            text_item = static_cast<EDA_TEXT*>( tmp_textbox );
 
-        if( !text_item->IsVisible() || text_item->GetShownText( false ).empty() )
+        if( !text_item || !text_item->IsVisible() || text_item->GetShownText( false ).empty() )
             return;
 
         auto plot_text = [&]( const VECTOR2I& aPos, const wxString& aTextString,
@@ -542,9 +545,12 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
                         shape.SetEnd( *it2 );
                         shape.SetWidth( attributes.m_StrokeWidth );
                         AddShape( shape );
+
                         if( !m_featuresList.empty() )
+                        {
                             AddSystemAttribute( *m_featuresList.back(),
                                                  ODB_ATTR::STRING{ aTextString.ToStdString() } );
+                        }
                     }
                 }
 
@@ -593,9 +599,10 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
                             AddContour( poly_set, ii, FILL_T::FILLED_SHAPE );
 
                             if( !m_featuresList.empty() )
-                                AddSystemAttribute(
-                                        *m_featuresList.back(),
-                                        ODB_ATTR::STRING{ aTextString.ToStdString() } );
+                            {
+                                AddSystemAttribute( *m_featuresList.back(),
+                                                    ODB_ATTR::STRING{ aTextString.ToStdString() } );
+                            }
                         }
                     } );
 
@@ -613,18 +620,8 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
             isKnockout = static_cast<PCB_TEXTBOX*>( item )->IsKnockout();
 
         const KIFONT::METRICS& fontMetrics = item->GetFontMetrics();
-
-        KIFONT::FONT* font = text_item->GetFont();
-
-        if( !font )
-        {
-            wxString defaultFontName; // empty string is the KiCad stroke font
-
-            font = KIFONT::FONT::GetFont( defaultFontName, text_item->IsBold(),
-                                          text_item->IsItalic() );
-        }
-
-        wxString shownText( text_item->GetShownText( true ) );
+        KIFONT::FONT*          font = text_item->GetDrawFont( nullptr );
+        wxString               shownText( text_item->GetShownText( true ) );
 
         if( shownText.IsEmpty() )
             return;
@@ -650,8 +647,10 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
                 AddContour( finalpolyset, ii, FILL_T::FILLED_SHAPE );
 
                 if( !m_featuresList.empty() )
+                {
                     AddSystemAttribute( *m_featuresList.back(),
                                          ODB_ATTR::STRING{ shownText.ToStdString() } );
+                }
             }
         }
         else if( text_item->IsMultilineAllowed() )
@@ -661,7 +660,7 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
             wxStringSplit( shownText, strings_list, '\n' );
             positions.reserve( strings_list.Count() );
 
-            text_item->GetLinePositions( positions, strings_list.Count() );
+            text_item->GetLinePositions( nullptr, positions, strings_list.Count() );
 
             for( unsigned ii = 0; ii < strings_list.Count(); ii++ )
             {
@@ -781,6 +780,25 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
 
             break;
 
+        case PCB_TABLE_T:
+        {
+            PCB_TABLE* table = static_cast<PCB_TABLE*>( item );
+
+            for( PCB_TABLECELL* cell : table->GetCells() )
+                add_text( cell );
+
+            table->DrawBorders(
+                    [&]( const VECTOR2I& aPt1, const VECTOR2I& aPt2, const STROKE_PARAMS& aStroke )
+                    {
+                        int lineWidth = aStroke.GetWidth();
+
+                        if( lineWidth > 0 )
+                            AddFeatureLine( aPt1, aPt2, lineWidth );
+                    } );
+
+            break;
+        }
+
         case PCB_DIMENSION_T:
         case PCB_TARGET_T:
         case PCB_DIM_ALIGNED_T:
@@ -791,7 +809,12 @@ void FEATURES_MANAGER::InitFeatureList( PCB_LAYER_ID aLayer, std::vector<BOARD_I
             //TODO: Add support for dimensions
             break;
 
-        default: break;
+        case PCB_BARCODE_T:
+            //TODO: Add support for barcodes
+            break;
+
+        default:
+            break;
         }
     }
 }

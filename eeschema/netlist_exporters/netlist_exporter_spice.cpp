@@ -38,6 +38,7 @@
 #include <sch_screen.h>
 #include <sch_textbox.h>
 #include <string_utils.h>
+#include <algorithm>
 #include <ki_exception.h>
 
 #include <dialogs/html_message_box.h>
@@ -45,6 +46,7 @@
 #include <paths.h>
 #include <wx/dir.h>
 #include <wx/log.h>
+#include <wx/tokenzr.h>
 #include <locale_io.h>
 #include "markup_parser.h"
 
@@ -63,11 +65,11 @@ std::string NAME_GENERATOR::Generate( const std::string& aProposedName )
 
 NETLIST_EXPORTER_SPICE::NETLIST_EXPORTER_SPICE( SCHEMATIC* aSchematic ) :
     NETLIST_EXPORTER_BASE( aSchematic ),
-    m_libMgr( &aSchematic->Prj() )
+    m_libMgr( &aSchematic->Project() )
 {
     std::vector<EMBEDDED_FILES*> embeddedFilesStack;
     embeddedFilesStack.push_back( aSchematic->GetEmbeddedFiles() );
-    m_libMgr.SetFilesStack( embeddedFilesStack );
+    m_libMgr.SetFilesStack( std::move( embeddedFilesStack ) );
 }
 
 
@@ -121,9 +123,9 @@ void NETLIST_EXPORTER_SPICE::WriteTail( OUTPUTFORMATTER& aFormatter, unsigned aN
 bool NETLIST_EXPORTER_SPICE::ReadSchematicAndLibraries( unsigned aNetlistOptions,
                                                         REPORTER& aReporter )
 {
-    wxString              msg;
     std::set<std::string> refNames; // Set of reference names to check for duplication.
     int                   ncCounter = 1;
+    wxString              variant = m_schematic->GetCurrentVariant();
 
     ReadDirectives( aNetlistOptions );
 
@@ -177,7 +179,7 @@ bool NETLIST_EXPORTER_SPICE::ReadSchematicAndLibraries( unsigned aNetlistOptions
         {
             SCH_SYMBOL* symbol = findNextSymbol( item, sheet );
 
-            if( !symbol || symbol->GetExcludedFromSim() )
+            if( !symbol || symbol->ResolveExcludedFromSim( &sheet, variant ) )
                 continue;
 
             try
@@ -187,16 +189,16 @@ bool NETLIST_EXPORTER_SPICE::ReadSchematicAndLibraries( unsigned aNetlistOptions
 
                 for( const SCH_FIELD& field : symbol->GetFields() )
                 {
-                    spiceItem.fields.emplace_back( VECTOR2I(), -1, symbol, field.GetName() );
+                    spiceItem.fields.emplace_back( symbol, FIELD_T::USER, field.GetName() );
 
-                    if( field.GetId() == REFERENCE_FIELD )
+                    if( field.GetId() == FIELD_T::REFERENCE )
                         spiceItem.fields.back().SetText( symbol->GetRef( &sheet ) );
                     else
-                        spiceItem.fields.back().SetText( field.GetShownText( &sheet, false ) );
+                        spiceItem.fields.back().SetText( field.GetShownText( &sheet, false, 0, variant ) );
                 }
 
                 readRefName( sheet, *symbol, spiceItem, refNames );
-                readModel( sheet, *symbol, spiceItem, aReporter );
+                readModel( sheet, *symbol, spiceItem, variant, aReporter );
                 readPinNumbers( *symbol, spiceItem, pins );
                 readPinNetNames( *symbol, spiceItem, pins, ncCounter );
                 readNodePattern( spiceItem );
@@ -283,7 +285,7 @@ const SPICE_ITEM* NETLIST_EXPORTER_SPICE::FindItem( const wxString& aRefName ) c
     const std::list<SPICE_ITEM>& spiceItems = GetItems();
 
     auto it = std::find_if( spiceItems.begin(), spiceItems.end(),
-                            [refName]( const SPICE_ITEM& item )
+                            [&refName]( const SPICE_ITEM& item )
                             {
                                 return item.refName == refName;
                             } );
@@ -297,7 +299,6 @@ const SPICE_ITEM* NETLIST_EXPORTER_SPICE::FindItem( const wxString& aRefName ) c
 
 void NETLIST_EXPORTER_SPICE::ReadDirectives( unsigned aNetlistOptions )
 {
-    wxString msg;
     wxString text;
 
     m_directives.clear();
@@ -306,18 +307,18 @@ void NETLIST_EXPORTER_SPICE::ReadDirectives( unsigned aNetlistOptions )
     {
         for( SCH_ITEM* item : sheet.LastScreen()->Items() )
         {
-            if( item->GetExcludedFromSim() )
+            if( item->ResolveExcludedFromSim() )
                 continue;
 
             if( item->Type() == SCH_TEXT_T )
                 text = static_cast<SCH_TEXT*>( item )->GetShownText( &sheet, false );
             else if( item->Type() == SCH_TEXTBOX_T )
-                text = static_cast<SCH_TEXTBOX*>( item )->GetShownText( &sheet, false );
+                text = static_cast<SCH_TEXTBOX*>( item )->GetShownText( nullptr, &sheet, false );
             else
                 continue;
 
             // Send anything that contains directives to SPICE
-            wxStringTokenizer tokenizer( text, wxT( "\r\n" ), wxTOKEN_STRTOK );
+            wxStringTokenizer tokenizer( text, "\r\n", wxTOKEN_STRTOK );
             bool              foundDirective = false;
 
             auto isDirective =
@@ -378,7 +379,7 @@ void NETLIST_EXPORTER_SPICE::ReadDirectives( unsigned aNetlistOptions )
                 else if( line.StartsWith( wxT( "K" ) ) )
                 {
                     // Check for mutual inductor declaration
-                    wxStringTokenizer line_t( line, wxT( " \t" ), wxTOKEN_STRTOK );
+                    wxStringTokenizer line_t( line, " \t", wxTOKEN_STRTOK );
 
                     // Coupling ID
                     if( !line_t.HasMoreTokens() || !line_t.GetNextToken().StartsWith( wxT( "K" ) ) )
@@ -409,6 +410,81 @@ void NETLIST_EXPORTER_SPICE::ReadDirectives( unsigned aNetlistOptions )
 }
 
 
+wxString NETLIST_EXPORTER_SPICE::collectMergedSimPins( SCH_SYMBOL& aSymbol,
+                                                        const SCH_SHEET_PATH& aSheet )
+{
+    // Only process multi-unit symbols
+    if( !aSymbol.GetLibSymbolRef() || aSymbol.GetLibSymbolRef()->GetUnitCount() <= 1 )
+        return wxEmptyString;
+
+    wxString                                   ref = aSymbol.GetRef( &aSheet );
+    std::vector<std::pair<wxString, wxString>> pinList;
+    std::set<wxString>                         pinNumbers;
+
+    // Helper to parse and collect pin mappings from a Sim.Pins field value
+    auto parsePins = [&]( const wxString& aPins )
+    {
+        wxStringTokenizer tokenizer( aPins, wxS( " \t\r\n" ), wxTOKEN_STRTOK );
+
+        while( tokenizer.HasMoreTokens() )
+        {
+            wxString token = tokenizer.GetNextToken();
+            int      pos = token.Find( wxS( '=' ) );
+
+            if( pos == wxNOT_FOUND )
+                continue;
+
+            wxString pinNumber = token.Left( pos );
+            wxString modelPin = token.Mid( pos + 1 );
+
+            // Only add if we haven't seen this pin number before
+            if( pinNumbers.insert( pinNumber ).second )
+                pinList.emplace_back( pinNumber, modelPin );
+        }
+    };
+
+    // First, parse pins from the current symbol
+    if( SCH_FIELD* pinsField = aSymbol.GetField( SIM_PINS_FIELD ) )
+        parsePins( pinsField->GetShownText( &aSheet, false ) );
+
+    // Then, find all other units with the same reference and collect their Sim.Pins
+    for( const SCH_SHEET_PATH& sheet : m_schematic->Hierarchy() )
+    {
+        for( SCH_ITEM* item : sheet.LastScreen()->Items().OfType( SCH_SYMBOL_T ) )
+        {
+            SCH_SYMBOL* other = static_cast<SCH_SYMBOL*>( item );
+
+            if( other == &aSymbol )
+                continue;
+
+            if( other->GetRef( &sheet ) != ref )
+                continue;
+
+            if( SCH_FIELD* pinsField = other->GetField( SIM_PINS_FIELD ) )
+                parsePins( pinsField->GetShownText( &sheet, false ) );
+        }
+    }
+
+    // If no pins were collected or only from current symbol, return empty
+    // (let the normal processing handle it)
+    if( pinList.empty() )
+        return wxEmptyString;
+
+    // Build the merged Sim.Pins string
+    wxString merged;
+
+    for( const auto& [pinNumber, modelPin] : pinList )
+    {
+        if( !merged.IsEmpty() )
+            merged += wxS( " " );
+
+        merged += pinNumber + wxS( "=" ) + modelPin;
+    }
+
+    return merged;
+}
+
+
 void NETLIST_EXPORTER_SPICE::readRefName( SCH_SHEET_PATH& aSheet, SCH_SYMBOL& aSymbol,
                                           SPICE_ITEM& aItem, std::set<std::string>& aRefNames )
 {
@@ -419,10 +495,14 @@ void NETLIST_EXPORTER_SPICE::readRefName( SCH_SHEET_PATH& aSheet, SCH_SYMBOL& aS
 }
 
 
-void NETLIST_EXPORTER_SPICE::readModel( SCH_SHEET_PATH& aSheet, SCH_SYMBOL& aSymbol,
-                                        SPICE_ITEM& aItem, REPORTER& aReporter )
+void NETLIST_EXPORTER_SPICE::readModel( SCH_SHEET_PATH& aSheet, SCH_SYMBOL& aSymbol, SPICE_ITEM& aItem,
+                                        const wxString& aVariantName, REPORTER& aReporter )
 {
-    const SIM_LIBRARY::MODEL& libModel = m_libMgr.CreateModel( &aSheet, aSymbol, aReporter );
+    // For multi-unit symbols, collect merged Sim.Pins from all units
+    wxString mergedSimPins = collectMergedSimPins( aSymbol, aSheet );
+
+    const SIM_LIBRARY::MODEL& libModel = m_libMgr.CreateModel( &aSheet, aSymbol, true, 0, aVariantName,
+                                                               aReporter, mergedSimPins );
 
     aItem.baseModelName = libModel.name;
     aItem.model = &libModel.model;
@@ -491,7 +571,7 @@ void NETLIST_EXPORTER_SPICE::readPinNetNames( SCH_SYMBOL& aSymbol, SPICE_ITEM& a
 void NETLIST_EXPORTER_SPICE::getNodePattern( SPICE_ITEM&               aItem,
                                              std::vector<std::string>& aModifiers )
 {
-    std::string input = SIM_MODEL::GetFieldValue( &aItem.fields, SIM_NODES_FORMAT_FIELD, true );
+    std::string input = GetFieldValue( &aItem.fields, SIM_NODES_FORMAT_FIELD, true, 0 );
 
     if( input == "" )
         return;
@@ -563,7 +643,7 @@ void NETLIST_EXPORTER_SPICE::writeInclude( OUTPUTFORMATTER& aFormatter, unsigned
                                            const wxString& aPath )
 {
     // First, expand env vars, if any.
-    wxString expandedPath = ExpandEnvVarSubstitutions( aPath, &m_schematic->Prj() );
+    wxString expandedPath = ExpandEnvVarSubstitutions( aPath, &m_schematic->Project() );
 
     // Path may have been authored by someone on a Windows box; convert it to UNIX format
     expandedPath.Replace( '\\', '/' );
@@ -573,7 +653,7 @@ void NETLIST_EXPORTER_SPICE::writeInclude( OUTPUTFORMATTER& aFormatter, unsigned
     if( aNetlistOptions & OPTION_ADJUST_INCLUDE_PATHS )
     {
         // Look for the library in known search locations.
-        fullPath = ResolveFile( expandedPath, &Pgm().GetLocalEnvVariables(), &m_schematic->Prj() );
+        fullPath = ResolveFile( expandedPath, &Pgm().GetLocalEnvVariables(), &m_schematic->Project() );
 
         if( fullPath.IsEmpty() )
         {
@@ -711,7 +791,7 @@ SCH_SHEET_LIST NETLIST_EXPORTER_SPICE::BuildSheetList( unsigned aNetlistOptions 
     else
         sheets = m_schematic->Hierarchy();
 
-    alg::delete_if( sheets,
+    std::erase_if( sheets,
                     [&]( const SCH_SHEET_PATH& sheet )
                     {
                         return sheet.GetExcludedFromSim();

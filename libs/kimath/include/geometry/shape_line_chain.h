@@ -155,6 +155,7 @@ public:
      */
     SHAPE_LINE_CHAIN() :
             SHAPE_LINE_CHAIN_BASE( SH_LINE_CHAIN ),
+            m_accuracy( 0 ),
             m_closed( false ),
             m_width( 0 )
     {}
@@ -164,6 +165,7 @@ public:
             m_points( aShape.m_points ),
             m_shapes( aShape.m_shapes ),
             m_arcs( aShape.m_arcs ),
+            m_accuracy( aShape.m_accuracy ),
             m_closed( aShape.m_closed ),
             m_width( aShape.m_width ),
             m_bbox( aShape.m_bbox )
@@ -173,7 +175,7 @@ public:
 
     SHAPE_LINE_CHAIN( const std::vector<VECTOR2I>& aV, bool aClosed = false );
 
-    SHAPE_LINE_CHAIN( const SHAPE_ARC& aArc, bool aClosed = false );
+    SHAPE_LINE_CHAIN( const SHAPE_ARC& aArc, bool aClosed = false, std::optional<int> aMaxError = {} );
 
     SHAPE_LINE_CHAIN( const Clipper2Lib::Path64& aPath,
                       const std::vector<CLIPPER_Z_VALUE>& aZValueBuffer,
@@ -248,6 +250,26 @@ public:
 
     SHAPE_LINE_CHAIN& operator=( const SHAPE_LINE_CHAIN& ) = default;
 
+    // Move assignment operator
+    SHAPE_LINE_CHAIN& operator=( SHAPE_LINE_CHAIN&& aOther ) noexcept
+    {
+        if (this != &aOther)
+        {
+            SHAPE_LINE_CHAIN_BASE::operator=( aOther );
+
+            m_points = std::move( aOther.m_points );
+            m_shapes = std::move( aOther.m_shapes );
+            m_arcs = std::move( aOther.m_arcs );
+
+            m_accuracy = aOther.m_accuracy;
+            m_closed = aOther.m_closed;
+            m_width = aOther.m_width;
+            m_bbox = aOther.m_bbox;
+        }
+
+        return *this;
+    }
+
     SHAPE* Clone() const override;
 
     /**
@@ -286,7 +308,7 @@ public:
      *
      * @param aWidth is the width in internal units.
      */
-    void SetWidth( int aWidth )
+    void SetWidth( int aWidth ) override
     {
         m_width = aWidth;
     }
@@ -334,10 +356,10 @@ public:
     /**
      * Simplify the line chain by removing colinear adjacent segments and duplicate vertices.
      *
-     * @param aMaxError is the maximum error in internal units.  Setting to 0 means that the
+     * @param aTolerance is the maximum tolerance in internal units.  Setting to 0 means that the
      * points must be exactly co-linear to be removed.
      */
-    void Simplify( int aMaxError = 0 );
+    void Simplify( int aTolerance = 0 );
 
     // legacy function, used by the router. Please do not remove until I'll figure out
     // the root cause of rounding errors - Tom
@@ -409,10 +431,7 @@ public:
         return m_points[aIndex];
     }
 
-    const std::vector<VECTOR2I>& CPoints() const
-    {
-        return m_points;
-    }
+    const std::vector<VECTOR2I>& CPoints() const { return m_points; }
 
     /**
      * Return the last point in the line chain.
@@ -490,6 +509,7 @@ public:
     void ReservePoints( size_t aSize )
     {
         m_points.reserve( aSize );
+        m_shapes.reserve( aSize );
     }
 
     /**
@@ -520,7 +540,7 @@ public:
         if( m_points.size() == 0 )
             m_bbox = BOX2I( aP, VECTOR2I( 0, 0 ) );
 
-        if( m_points.size() == 0 || aAllowDuplication || CPoint( -1 ) != aP )
+        if( m_points.size() == 0 || aAllowDuplication || CLastPoint() != aP )
         {
             m_points.push_back( aP );
             m_shapes.push_back( SHAPES_ARE_PT );
@@ -536,11 +556,12 @@ public:
     void Append( const SHAPE_LINE_CHAIN& aOtherLine );
 
     void Append( const SHAPE_ARC& aArc );
-    void Append( const SHAPE_ARC& aArc, double aAccuracy );
+    void Append( const SHAPE_ARC& aArc, int aMaxError );
 
     void Insert( size_t aVertex, const VECTOR2I& aP );
 
     void Insert( size_t aVertex, const SHAPE_ARC& aArc );
+    void Insert( size_t aVertex, const SHAPE_ARC& aArc, int aMaxError );
 
     /**
      * Replace points with indices in range [start_index, end_index] with a single point \a aP.
@@ -622,7 +643,8 @@ public:
      * @param aEndIndex is the end of the point range to be returned (inclusive).
      * @return the cut line chain.
      */
-    const SHAPE_LINE_CHAIN Slice( int aStartIndex, int aEndIndex = -1 ) const;
+    const SHAPE_LINE_CHAIN Slice( int aStartIndex, int aEndIndex ) const;
+    const SHAPE_LINE_CHAIN Slice( int aStartIndex, int aEndIndex, int aMaxError ) const;
 
     struct compareOriginDistance
     {
@@ -638,6 +660,7 @@ public:
         VECTOR2I m_origin;
     };
 
+    bool Intersects( const SEG& aSeg) const;
     bool Intersects( const SHAPE_LINE_CHAIN& aChain ) const;
 
     /**
@@ -741,7 +764,16 @@ public:
         return false;
     }
 
-    bool CompareGeometry( const SHAPE_LINE_CHAIN& aOther ) const;
+    /**
+     * Compare this line chain with another one.
+     *
+     * @param aOther is the other line chain to compare with.
+     * @param aCyclicalCompare if true, will consider line chains equal even if they start at different points
+     * @param aEpsilon tolerance for point difference
+     *
+     * @return true if both line chains have the same points
+     */
+    bool CompareGeometry( const SHAPE_LINE_CHAIN& aOther, bool aCyclicalCompare = false, int aEpsilon = 0 ) const;
 
     void Move( const VECTOR2I& aVector ) override
     {
@@ -958,6 +990,9 @@ private:
     std::vector<std::pair<ssize_t, ssize_t>> m_shapes;
 
     std::vector<SHAPE_ARC> m_arcs;
+
+    // the maxError to use when converting arcs to points
+    int m_accuracy;
 
     /// is the line chain closed?
     bool m_closed;

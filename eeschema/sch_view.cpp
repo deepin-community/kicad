@@ -57,6 +57,40 @@ SCH_VIEW::~SCH_VIEW()
 }
 
 
+void SCH_VIEW::Update( const KIGFX::VIEW_ITEM* aItem, int aUpdateFlags ) const
+{
+    if( aItem->IsSCH_ITEM() )
+    {
+        // The equivalent function in PCB_VIEW doesn't need to do this, but
+        // that's only because RunOnChildren's constness is misleading in the PCB editor;
+        // it doesn't modify target item, but our uses of it modify its children.
+        SCH_ITEM* schItem = const_cast<SCH_ITEM*>( static_cast<const SCH_ITEM*>( aItem ) );
+
+        if( schItem->Type() == SCH_TABLECELL_T )
+        {
+            VIEW::Update( schItem->GetParent() );
+        }
+        else
+        {
+            schItem->RunOnChildren(
+                    [this, aUpdateFlags]( SCH_ITEM* child )
+                    {
+                        VIEW::Update( child, aUpdateFlags );
+                    },
+                    RECURSE_MODE::RECURSE );
+        }
+    }
+
+    VIEW::Update( aItem, aUpdateFlags );
+}
+
+
+void SCH_VIEW::Update( const KIGFX::VIEW_ITEM* aItem ) const
+{
+    SCH_VIEW::Update( aItem, KIGFX::ALL );
+}
+
+
 void SCH_VIEW::Cleanup()
 {
     Clear();
@@ -81,7 +115,7 @@ void SCH_VIEW::DisplaySheet( const SCH_SCREEN *aScreen )
         Add( item );
 
     m_drawingSheet.reset( new DS_PROXY_VIEW_ITEM( schIUScale, &aScreen->GetPageSettings(),
-                                                  &aScreen->Schematic()->Prj(),
+                                                  &aScreen->Schematic()->Project(),
                                                   &aScreen->GetTitleBlock(),
                                                   aScreen->Schematic()->GetProperties() ) );
     m_drawingSheet->SetPageNumber( TO_UTF8( aScreen->GetPageNumber() ) );
@@ -90,6 +124,11 @@ void SCH_VIEW::DisplaySheet( const SCH_SCREEN *aScreen )
     m_drawingSheet->SetColorLayer( LAYER_SCHEMATIC_DRAWINGSHEET );
     m_drawingSheet->SetPageBorderColorLayer( LAYER_SCHEMATIC_PAGE_LIMITS );
     m_drawingSheet->SetIsFirstPage( aScreen->GetVirtualPageNumber() == 1 );
+
+    wxString currentVariant = aScreen->Schematic()->GetCurrentVariant();
+    wxString variantDesc = aScreen->Schematic()->GetVariantDescription( currentVariant );
+    m_drawingSheet->SetVariantName( TO_UTF8( currentVariant ) );
+    m_drawingSheet->SetVariantDesc( TO_UTF8( variantDesc ) );
 
     if( m_frame && m_frame->IsType( FRAME_SCH ) )
     {
@@ -133,7 +172,7 @@ void SCH_VIEW::DisplaySymbol( LIB_SYMBOL* aSymbol )
     LIB_SYMBOL* drawnSymbol = aSymbol;
 
     // Draw the parent items if the symbol is inherited from another symbol.
-    if( aSymbol->IsAlias() )
+    if( aSymbol->IsDerived() )
     {
         if( std::shared_ptr< LIB_SYMBOL > parent = aSymbol->GetRootSymbol() )
             drawnSymbol = parent.get();

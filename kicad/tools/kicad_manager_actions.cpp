@@ -41,15 +41,6 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::newProject( TOOL_ACTION_ARGS()
         .DefaultHotkey( MD_CTRL + 'N' )
         .LegacyHotkeyName( "New Project" )
         .FriendlyName( _( "New Project..." ) )
-        .Tooltip( _( "Create a new, blank project" ) )
-        .Icon( BITMAPS::new_project ) );
-
-TOOL_ACTION KICAD_MANAGER_ACTIONS::newFromTemplate( TOOL_ACTION_ARGS()
-        .Name( "kicad.Control.newFromTemplate" )
-        .Scope( AS_GLOBAL )
-        .DefaultHotkey( MD_CTRL + 'T' )
-        .LegacyHotkeyName( "New Project From Template" )
-        .FriendlyName( _( "New Project from Template..." ) )
         .Tooltip( _( "Create a new project based on an existing project" ) )
         .Icon( BITMAPS::new_project_from_template ) );
 
@@ -214,3 +205,43 @@ TOOL_ACTION KICAD_MANAGER_ACTIONS::editOtherPCB( TOOL_ACTION_ARGS()
         .Name( "kicad.Control.editOtherPCB" )
         .Scope( AS_GLOBAL )
         .Parameter<wxString*>( nullptr ) );      // Default to no filename
+
+TOOL_ACTION KICAD_MANAGER_ACTIONS::archiveProject( TOOL_ACTION_ARGS()
+        .Name( "kicad.Control.archiveProject" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Archive Project..." ) )
+        .Tooltip( _( "Archive all project files" ) )
+        .Icon( BITMAPS::zip ) );
+
+TOOL_ACTION KICAD_MANAGER_ACTIONS::unarchiveProject( TOOL_ACTION_ARGS()
+        .Name( "kicad.Control.unarchiveProject" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Unarchive Project..." ) )
+        .Tooltip( _( "Unarchive project files from zip archive" ) )
+        .Icon( BITMAPS::unzip ) );
+
+TOOL_ACTION KICAD_MANAGER_ACTIONS::openProjectDirectory( TOOL_ACTION_ARGS()
+        .Name( "kicad.Control.OpenProjectDirectory" )
+        .Scope( AS_GLOBAL )
+#ifdef __APPLE__
+        .FriendlyName( _( "Reveal Project in Finder" ) )
+        .Tooltip( _( "Open project folder in Finder" ) )
+#else
+        .FriendlyName( _( "Browse Project Files" ) )
+        .Tooltip( _( "Open project directory in file explorer" ) )
+#endif
+        .Icon( BITMAPS::directory_browser ) );
+
+TOOL_ACTION KICAD_MANAGER_ACTIONS::restoreLocalHistory( TOOL_ACTION_ARGS()
+        .Name( "kicad.Control.restoreLocalHistory" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Restore Project from Local History..." ) )
+        .Tooltip( _( "Restore project files from local history" ) )
+        .Icon( BITMAPS::restore_from_file ) );
+
+TOOL_ACTION KICAD_MANAGER_ACTIONS::showLocalHistory( TOOL_ACTION_ARGS()
+        .Name( "kicad.Control.showLocalHistory" )
+        .Scope( AS_GLOBAL )
+        .FriendlyName( _( "Local History" ) )
+        .Tooltip( _( "Show or hide local history panel" ) )
+        .Icon( BITMAPS::recent ) );

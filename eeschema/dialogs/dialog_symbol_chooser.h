@@ -24,6 +24,7 @@
 #define DIALOG_SYMBOL_CHOOSER_H
 
 #include "dialog_shim.h"
+#include <template_fieldnames.h>
 #include <symbol_library_common.h>
 #include <symbol_tree_model_adapter.h>
 #include <footprint_info.h>
@@ -52,7 +53,7 @@ public:
                            const SYMBOL_LIBRARY_FILTER* aFilter,
                            std::vector<PICKED_SYMBOL>& aHistoryList,
                            std::vector<PICKED_SYMBOL>& aAlreadyPlaced, bool aAllowFieldEdits,
-                           bool aShowFootprints );
+                           bool aShowFootprints, bool& aCancelled );
 
     ~DIALOG_SYMBOL_CHOOSER();
 
@@ -74,7 +75,10 @@ public:
      *
      * @return vector of pairs; each.first = field ID, each.second = new value.
      */
-    std::vector<std::pair<int, wxString>> GetFields() const;
+    std::vector<std::pair<FIELD_T, wxString>> GetFields() const;
+
+    bool GetKeepSymbol() { return m_keepSymbol->GetValue(); }
+    bool GetPlaceAllUnits() { return m_useUnits->GetValue(); }
 
 public:
     static std::mutex         g_Mutex;
@@ -83,6 +87,11 @@ protected:
     PANEL_SYMBOL_CHOOSER*     m_chooserPanel;
     wxCheckBox*               m_keepSymbol;
     wxCheckBox*               m_useUnits;
+
+private:
+    void onLazyLoadUpdate();
+
+    wxString                  m_originalTitle;
 };
 
 #endif /* DIALOG_SYMBOL_CHOOSER_H */

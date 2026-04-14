@@ -80,7 +80,6 @@ enum DSN_SYNTAX_T
 class KICOMMON_API DSNLEXER
 {
 public:
-
     /**
      * Initialize a DSN lexer and prepares to read from aFile which is already open and has
      * \a aFilename.
@@ -289,6 +288,15 @@ public:
         return old;
     }
 
+    void SetKnowsBar( bool knowsBar = true )
+    {
+        // This is used to control whether the lexer knows about the DSN_BAR token.
+        // If it does not, then it will not return a DSN_BAR token, but rather
+        // treat it as a string.
+        // This is used to support the KiCad legacy format, which does not have a DSN_BAR
+        m_knowsBar = knowsBar;
+    }
+
     /**
      * Change the handling of comments.
      *
@@ -323,6 +331,8 @@ public:
      * #DSN_QUOTE, etc.  It may however, coincidentally match a keyword and still be a symbol.
      */
     static bool IsSymbol( int aTok );
+
+    static bool IsNumber( int aTok );
 
     /**
      * Throw an #IO_ERROR exception with an input file specific error message.
@@ -417,13 +427,18 @@ public:
         return curText;
     }
 
+    const std::string& CurSeparator() const
+    {
+        return curSeparator;
+    }
+
     /**
      * Return the current token text as a wxString, assuming that the input byte stream
      * is UTF8 encoded.
      */
     wxString FromUTF8() const
     {
-        return wxString::FromUTF8( curText.c_str() );
+        return wxString::FromUTF8( curText );
     }
 
     /**
@@ -466,6 +481,8 @@ public:
 
 protected:
     void init();
+
+    inline bool isSep( char cc );
 
     int readLine()
     {
@@ -528,6 +545,7 @@ protected:
         return parseDouble( GetTokenText( aToken ) );
     }
 
+protected:
     bool                iOwnReaders;            ///< On readerStack, should I delete them?
     const char*         start;
     const char*         next;
@@ -546,6 +564,8 @@ protected:
                                                 ///< 2) Kicad quoting protocol is not in effect
                                                 ///< 3) space_in_quoted_tokens is functional
                                                 ///< else not.
+    bool                m_knowsBar;             ///< True if the lexer knows about the bar token.
+                                                ///< This was introduced by 77797103f7eb1483e03660d3b7848537ebe7cb1f
 
     char                stringDelimiter;
     bool                space_in_quoted_tokens; ///< Blank spaces within quoted strings.
@@ -557,6 +577,7 @@ protected:
 
     int                 curTok;                 ///< The current token obtained on last NextTok().
     std::string         curText;                ///< The text of the current token.
+    std::string         curSeparator;           ///< The text of the separator preceeding the current text.
 
     const KEYWORD*      keywords;               ///< Table sorted by CMake for bsearch().
     unsigned            keywordCount;           ///< Count of keywords table.

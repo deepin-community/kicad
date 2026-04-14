@@ -30,8 +30,10 @@
 #include <stack>
 #include <trace_helpers.h>
 #include <kiplatform/ui.h>
+#include <app_monitor.h>
 
 #include <wx/event.h>
+#include <wx/evtloop.h>
 #include <wx/clipbrd.h>
 #include <wx/app.h>
 
@@ -78,8 +80,7 @@ struct TOOL_MANAGER::TOOL_STATE
 
     ~TOOL_STATE()
     {
-        if( !stateStack.empty() )
-            wxFAIL;
+        wxASSERT_MSG( stateStack.empty(), wxT( "StateStack not empty!" ) );
     }
 
     /// The tool itself
@@ -462,6 +463,9 @@ bool TOOL_MANAGER::runTool( TOOL_BASE* aTool )
 {
     wxASSERT( aTool != nullptr );
 
+    wxString msg = wxString::Format( wxS( "TOOL_MANAGER::runTool - running tool %s" ), aTool->GetName() );
+    APP_MONITOR::AddTransactionBreadcrumb( msg, "tool.run" );
+
     if( !isRegistered( aTool ) )
     {
         wxASSERT_MSG( false, wxT( "You cannot run unregistered tools" ) );
@@ -470,7 +474,7 @@ bool TOOL_MANAGER::runTool( TOOL_BASE* aTool )
 
     TOOL_ID id = aTool->GetId();
 
-    wxLogTrace( kicadTraceToolStack, wxS( "TOOL_MANAGER::runTool - running tool %s" ),
+    wxLogTrace( kicadTraceToolStack, msg,
                 aTool->GetName() );
 
     if( aTool->GetType() == INTERACTIVE )
@@ -906,6 +910,15 @@ bool TOOL_MANAGER::dispatchActivation( const TOOL_EVENT& aEvent )
 
 void TOOL_MANAGER::DispatchContextMenu( const TOOL_EVENT& aEvent )
 {
+    // Don't open context menus if we're inside a yielding event loop such as a progress dialog.
+    // Opening a popup menu during YieldFor creates a nested modal situation that can leave the
+    // menu stuck and unresponsive, potentially locking up the entire UI on some platforms.
+    if( wxEventLoopBase* loop = wxEventLoopBase::GetActive() )
+    {
+        if( loop->IsYielding() )
+            return;
+    }
+
     for( TOOL_ID toolId : m_activeTools )
     {
         TOOL_STATE* st = m_toolIdIndex[toolId];
@@ -1004,6 +1017,16 @@ void TOOL_MANAGER::DispatchContextMenu( const TOOL_EVENT& aEvent )
         m_cursorSettings.clear();
         break;
     }
+}
+
+
+void TOOL_MANAGER::WarpAfterContextMenu()
+{
+    if( m_viewControls && m_warpMouseAfterContextMenu )
+        m_viewControls->WarpMouseCursor( m_menuCursor, true, false );
+
+    // Don't warp again when the menu is closed
+    m_warpMouseAfterContextMenu = false;
 }
 
 

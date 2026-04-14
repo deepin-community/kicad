@@ -67,16 +67,6 @@ To install the dependencies on Arch/Manjaro run the following:
 
 == Building the docs
 
-=== Windows
-
-Start with link:windows_dependencies.adoc[] then run:
-
-    cd kicad-doc
-    mkdir build
-    cd build
-    cmake -G "MinGW Makefiles" -DPDF_GENERATOR=FOP ../
-    make
-
 === MacOS / Linux
 
     cd kicad-doc
@@ -144,22 +134,10 @@ Note that the defaults are fine for local development where you don't care
 about the documentation containing accurate version numbers, commit hashes,
 etc. The defaults are also probably fine for downstream packaging usecases.
 
-==== SINGLE_LANGUAGE
-
-This option is deprecated, use **LANGUAGES** instead
-
 ==== PDF_GENERATOR
 
-By default CMake will use `asciidoctor-web-pdf` for building PDFs.
-
-You can build PDFs however using either `DBLATEX` or `FOP` by using the
-**PDF_GENERATOR** option whilst configuring a CMake build.
-
-For example, use `-DPDF_GENERATOR=FOP` to use FOP to build the PDFs. If the
-**BUILD_FORMATS** option doesn't include `pdf`, the **PDF_GENERATOR** option
-will have no effect on the build.
-
-This option doesn't transform the built package name.
+By default CMake will use `asciidoctor-web-pdf` for building PDFs. This is the
+only supported PDF generator.
 
 == Packaging the docs
 
@@ -175,3 +153,7 @@ And if on OS X you might want something like:
     mkdir build; cd build
     cmake -DCMAKE_INSTALL_PREFIX="/Library/Application Support/kicad" ..
     make install
+
+== Translating the docs
+
+See the link:translating/translation_instructions.adoc[translation instructions].

@@ -33,13 +33,24 @@
 
 #include <widgets/progress_reporter_base.h>
 
+#define PR_NO_ABORT 0
+#define PR_CAN_ABORT wxPD_CAN_ABORT
+
+
+#if defined( _WIN32 ) && wxCHECK_VERSION( 3, 3, 0 )
+// In order to get a dark mode compatible progress dialog on Windows with wx 3.3
+#define WX_PROGRESS_REPORTER_BASE wxGenericProgressDialog
+#else
+#define WX_PROGRESS_REPORTER_BASE wxProgressDialog
+#endif
+
 /**
  * Multi-thread safe progress reporter dialog, intended for use of tasks that parallel reporting
  * back of work status.
  *
  * @see PROGRESS_REPORTER.
  */
-class WX_PROGRESS_REPORTER : public PROGRESS_REPORTER_BASE, public wxProgressDialog
+class WX_PROGRESS_REPORTER : public PROGRESS_REPORTER_BASE, public WX_PROGRESS_REPORTER_BASE
 {
 public:
     /**
@@ -53,12 +64,12 @@ public:
      *   aNumPhases = 1 is the usual progress bar
      *   aNumPhases = n creates n virtual progress bar zones: a 0 to 100 percent width
      *   of a virtual zone fills 0 to 1/n progress bar full size of the nth virtual zone index
-     * @param aCanAbort is true if the abort button should be shown
+     * @param aCanAbort indicates if the Cancel button should be shown
      * @param aReserveSpaceForMessage will ensure that the dialog is laid out for status messages,
      *        preventing layout issues on Windows when reporting a message after the initial layout
      */
-    WX_PROGRESS_REPORTER( wxWindow* aParent, const wxString& aTitle, int aNumPhases,
-                          bool aCanAbort = true, bool aReserveSpaceForMessage = true );
+    WX_PROGRESS_REPORTER( wxWindow* aParent, const wxString& aTitle, int aNumPhases, int aCanAbort,
+                          bool aReserveSpaceForMessage = true );
     ~WX_PROGRESS_REPORTER();
 
     /**
@@ -66,7 +77,7 @@ public:
      */
     void SetTitle( const wxString& aTitle ) override
     {
-        wxProgressDialog::SetTitle( aTitle );
+        WX_PROGRESS_REPORTER_BASE::SetTitle( aTitle );
     }
 
 private:

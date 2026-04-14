@@ -28,11 +28,12 @@
 #include <kicad_curl/kicad_curl.h>
 
 #include <mutex>
+#include <atomic>
 #include <ki_exception.h>   // THROW_IO_ERROR
 
 
 static std::shared_mutex s_curlMutex;
-static bool              s_curlShuttingDown = false;
+static std::atomic<bool> s_curlShuttingDown = false;
 
 
 void KICAD_CURL::Init()
@@ -40,9 +41,7 @@ void KICAD_CURL::Init()
     s_curlShuttingDown = false;
 
     if( curl_global_init( CURL_GLOBAL_ALL ) != CURLE_OK )
-    {
         THROW_IO_ERROR( "curl_global_init() failed." );
-    }
 }
 
 

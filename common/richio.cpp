@@ -50,51 +50,14 @@
 #endif
 
 
-static int vprint( std::string* result, const char* format, va_list ap )
-{
-    va_list tmp;
-    va_copy( tmp, ap );
-    size_t  len = vsnprintf( nullptr, 0, format, tmp );
-    va_end( tmp );
-
-    // Resize the output to hold the required data
-    size_t  size = result->size();
-    result->resize( size + len );
-
-    // Now do the actual printing
-    len = vsnprintf( result->data() + size, len + 1, format, ap );
-
-    return len;
-}
-
-
-int StrPrintf( std::string* result, const char* format, ... )
-{
-    va_list     args;
-
-    va_start( args, format );
-    int ret = vprint( result, format, args );
-    va_end( args );
-
-    return ret;
-}
-
-
-std::string StrPrintf( const char* format, ... )
-{
-    std::string ret;
-    va_list     args;
-
-    va_start( args, format );
-    ignore_unused( vprint( &ret, format, args ) );
-    va_end( args );
-
-    return ret;
-}
-
-
 wxString SafeReadFile( const wxString& aFilePath, const wxString& aReadType )
 {
+    // Check the path exists as a file first
+    // the IsOpened check would be logical, but on linux you can fopen (in read mode) a directory
+    // And then everything else in here will barf
+    if( !wxFileExists( aFilePath ) )
+        THROW_IO_ERROR( wxString::Format( _( "File '%s' does not exist." ), aFilePath ) );
+
     wxString contents;
     wxFFile  ff( aFilePath );
 
@@ -108,12 +71,14 @@ wxString SafeReadFile( const wxString& aFilePath, const wxString& aReadType )
 
     ff.Seek( 0 );
 
-    if( utf16le )
-        ff.ReadAll( &contents, wxMBConvUTF16LE() );
-    else
-        ff.ReadAll( &contents, wxMBConvUTF8() );
+    bool readOk = false;
 
-    if( contents.empty() )
+    if( utf16le )
+        readOk = ff.ReadAll( &contents, wxMBConvUTF16LE() );
+    else
+        readOk = ff.ReadAll( &contents, wxMBConvUTF8() );
+
+    if( !readOk || contents.empty() )
     {
         ff.Seek( 0 );
         ff.ReadAll( &contents, wxConvAuto( wxFONTENCODING_CP1252 ) );
@@ -601,10 +566,15 @@ void FILE_OUTPUTFORMATTER::write( const char* aOutBuf, int aCount )
 
 
 PRETTIFIED_FILE_OUTPUTFORMATTER::PRETTIFIED_FILE_OUTPUTFORMATTER( const wxString& aFileName,
+                                                                  KICAD_FORMAT::FORMAT_MODE aFormatMode,
                                                                   const wxChar* aMode,
                                                                   char aQuoteChar ) :
-        OUTPUTFORMATTER( OUTPUTFMTBUFZ, aQuoteChar )
+        OUTPUTFORMATTER( OUTPUTFMTBUFZ, aQuoteChar ),
+        m_mode( aFormatMode )
 {
+    if( ADVANCED_CFG::GetCfg().m_CompactSave && m_mode == KICAD_FORMAT::FORMAT_MODE::NORMAL )
+        m_mode = KICAD_FORMAT::FORMAT_MODE::COMPACT_TEXT_PROPERTIES;
+
     m_fp = wxFopen( aFileName, aMode );
 
     if( !m_fp )
@@ -628,7 +598,7 @@ bool PRETTIFIED_FILE_OUTPUTFORMATTER::Finish()
     if( !m_fp )
         return false;
 
-    KICAD_FORMAT::Prettify( m_buf, ADVANCED_CFG::GetCfg().m_CompactSave );
+    KICAD_FORMAT::Prettify( m_buf, m_mode );
 
     if( fwrite( m_buf.c_str(), m_buf.length(), 1, m_fp ) != 1 )
         THROW_IO_ERROR( strerror( errno ) );

@@ -6,8 +6,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Getting_Started_in_KiCad_zh_CN\n"
-"POT-Creation-Date: 2024-08-02 10:48+0800\n"
-"PO-Revision-Date: 2024-08-03 21:53+0800\n"
+"POT-Creation-Date: 2025-06-12 00:15+0800\n"
+"PO-Revision-Date: 2025-07-03 00:40+0800\n"
 "Last-Translator: taotieren <admin@taotieren.com>\n"
 "Language-Team: admin@taotieren.com\n"
 "Language: zh_CN\n"
@@ -15,7 +15,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Poedit 3.5\n"
+"X-Generator: Poedit 3.6\n"
 "X-Poedit-SourceCharset: UTF-8\n"
 
 #. type: Title =
@@ -25,12 +25,12 @@ msgid "Getting Started in KiCad"
 msgstr "KiCad 入门"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:12
+#: getting_started_in_kicad.adoc:14
 msgid "*Copyright*"
 msgstr "*版权*"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:17
+#: getting_started_in_kicad.adoc:19
 msgid ""
 "This document is Copyright (C) 2010-2024 by its contributors as listed "
 "below. You may distribute it and/or modify it under the terms of either the "
@@ -44,56 +44,77 @@ msgstr ""
 "本文档。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:19
+#: getting_started_in_kicad.adoc:21
 msgid "All trademarks within this guide belong to their legitimate owners."
 msgstr "本指南中的所有商标均属于其合法所有者。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:22
+#: getting_started_in_kicad.adoc:24
 msgid "*Contributors*"
 msgstr "*贡献者*"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:24
+#: getting_started_in_kicad.adoc:26
 msgid "Graham Keeth, Jon Evans, Glenn Peterson."
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:27
+#: getting_started_in_kicad.adoc:29
 msgid "*Former Contributors*"
-msgstr "*以前的贡献者*"
+msgstr "*前贡献者*"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:29
+#: getting_started_in_kicad.adoc:31
 msgid ""
 "David Jahshan, Phil Hutchinson, Fabrizio Tappero, Christina Jarron, Melroy "
 "van den Berg."
 msgstr ""
+"David Jahshan, Phil Hutchinson, Fabrizio Tappero, Christina Jarron, Melroy "
+"van den Berg."
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:33
+#: getting_started_in_kicad.adoc:35
 msgid "*Feedback*"
 msgstr "*反馈*"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:37
+#: getting_started_in_kicad.adoc:39
 msgid ""
 "The KiCad project welcomes feedback, bug reports, and suggestions related to "
 "the software or its documentation. For more information on how to submit "
-"feedback or report an issue, please see the instructions at https://www."
-"kicad.org/help/report-an-issue/"
+"feedback or report an issue, please see the instructions at https://"
+"www.kicad.org/help/report-an-issue/"
 msgstr ""
 "KiCad 项目欢迎与软件或其文档相关的反馈、错误报告和建议。有关如何提交反馈或报"
 "告问题的更多信息，请参阅 https://www.kicad.org/help/report-an-issue/ 上的说明"
 
-#. type: Title ==
-#: getting_started_in_kicad.adoc:39
-#, no-wrap
-msgid "Introduction to KiCad Version 8"
-msgstr "KiCad 第 8 版介绍"
+#. type: Plain text
+#: getting_started_in_kicad.adoc:41
+msgid "*Software and Documentation Version*"
+msgstr "*软件与文档版本*"
 
 #. type: Plain text
+#: getting_started_in_kicad.adoc:44
+msgid ""
+"This user manual is based on KiCad {kicad-version-long}. Functionality and "
+"appearance may be different in other versions of KiCad."
+msgstr ""
+"本用户手册基于 KiCad {kicad-version-long} 版本编写。其他版本的 KiCad 在功能和"
+"外观上可能有所不同。"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:46
+msgid "Documentation revision: `{doc-commit}`."
+msgstr "文档修订版本：`{doc-commit}`。"
+
+#. type: Title ==
 #: getting_started_in_kicad.adoc:48
+#, no-wrap
+msgid "Introduction to KiCad {kicad-version-short}"
+msgstr "KiCad {kicad-version-short} 简介"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:57
 msgid ""
 "KiCad is an open-source software suite for creating electronic circuit "
 "schematics, printed circuit boards (PCBs), and associated part descriptions. "
@@ -112,7 +133,7 @@ msgstr ""
 "视化成品 PCB 的 3D 查看器以及用于检查电路行为的集成 SPICE 仿真器。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:53
+#: getting_started_in_kicad.adoc:62
 msgid ""
 "KiCad runs on all major operating systems and a wide range of computer "
 "hardware. It supports PCBs with up to 32 copper layers and is suitable for "
@@ -126,21 +147,22 @@ msgstr ""
 "团队开发的，其使命是创建适合专业设计师的免费和开源的电子设计软件。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:56
+#: getting_started_in_kicad.adoc:65
 msgid ""
 "The latest documentation for KiCad is available at https://docs.kicad.org. "
-"This document applies to KiCad version 8.0."
+"This document applies to KiCad version 9.0."
 msgstr ""
-"KiCad 的最新文档可在 https://docs.kicad.org。本文件适用于 KiCad 8.0 版本。"
+"KiCad 的最新文档可在 https://docs.kicad.org 获取。本文档适用于 KiCad 9.0 版"
+"本。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:58
+#: getting_started_in_kicad.adoc:67
 #, no-wrap
 msgid "Downloading and installing KiCad"
 msgstr "下载和安装 KiCad"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:62
+#: getting_started_in_kicad.adoc:71
 msgid ""
 "KiCad runs on many operating systems, including Microsoft Windows, Apple "
 "macOS, and many major Linux distributions."
@@ -149,7 +171,7 @@ msgstr ""
 "Linux 发行版。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:66
+#: getting_started_in_kicad.adoc:75
 msgid ""
 "You can find the most up to date instructions and download links at https://"
 "www.kicad.org/download/. These instructions are not included in this manual "
@@ -159,7 +181,7 @@ msgstr ""
 "有包括在本手册中，因为它们可能随着操作系统更新的发布而改变。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:76
+#: getting_started_in_kicad.adoc:85
 msgid ""
 "KiCad stable releases occur periodically per the https://dev-docs.kicad.org/"
 "en/rules-guidelines/release-policy/[KiCad Stable Release Policy]. New "
@@ -177,18 +199,18 @@ msgstr ""
 "KiCad 开发团队的目标是在新功能开发期间尽可能保持开发分支的可用性。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:78
+#: getting_started_in_kicad.adoc:87
 #, no-wrap
 msgid "Support"
 msgstr "支持"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:80
+#: getting_started_in_kicad.adoc:89
 msgid "If you have ideas, remarks or questions, or if you just need help:"
 msgstr "如果您有想法，评论或问题，或者您只是需要帮助："
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:83
+#: getting_started_in_kicad.adoc:92
 msgid ""
 "The https://forum.kicad.info/[official KiCad user forum] is a great place to "
 "connect with other KiCad users and get help."
@@ -197,7 +219,7 @@ msgstr ""
 "系并获得帮助的好地方。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:85
+#: getting_started_in_kicad.adoc:94
 msgid ""
 "Join our communities on https://www.kicad.org/community/chat/[Discord or "
 "IRC] for real-time discussion with users and developers."
@@ -206,7 +228,7 @@ msgstr ""
 "户和开发者进行实时讨论。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:87
+#: getting_started_in_kicad.adoc:96
 msgid ""
 "Check the KiCad website for https://www.kicad.org/help/learning-resources/"
 "[learning resources] made by the KiCad community."
@@ -215,20 +237,20 @@ msgstr ""
 "resources/[学习资源]。"
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:88
+#: getting_started_in_kicad.adoc:97
 #, no-wrap
 msgid "Basic Concepts and Workflow"
 msgstr "基本概念和工作流程"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:91
+#: getting_started_in_kicad.adoc:100
 msgid ""
 "The typical workflow in KiCad consists of two main tasks: drawing a "
 "schematic and laying out a circuit board."
 msgstr "KiCad 的典型工作流程包括两个主要任务：绘制原理图和布局电路板。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:99
+#: getting_started_in_kicad.adoc:108
 msgid ""
 "The schematic is a symbolic representation of the circuit: which components "
 "are used and what connections are made between them. Schematic symbols are "
@@ -244,19 +266,19 @@ msgstr ""
 "出来，然后再布线电路板。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:100
+#: getting_started_in_kicad.adoc:109
 #, no-wrap
 msgid "Example Schematic"
 msgstr "原理图示例"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:100
+#: getting_started_in_kicad.adoc:109
 #, no-wrap
 msgid "images/coldfire-schematic.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:108
+#: getting_started_in_kicad.adoc:117
 msgid ""
 "The board is the physical realization of the schematic, with component "
 "footprints positioned on the board and copper tracks making the connections "
@@ -270,19 +292,19 @@ msgstr ""
 "件将被焊接到电路板上相应的封装上。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:109
+#: getting_started_in_kicad.adoc:118
 #, no-wrap
 msgid "Example Layout"
 msgstr "布局示例"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:109
+#: getting_started_in_kicad.adoc:118
 #, no-wrap
 msgid "images/coldfire-layout.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:116
+#: getting_started_in_kicad.adoc:125
 msgid ""
 "KiCad has separate windows for drawing the schematic (\"Schematic Editor\"), "
 "laying out the board (\"PCB Editor\"), and editing symbols and footprints "
@@ -297,31 +319,31 @@ msgstr ""
 "简单。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:117
+#: getting_started_in_kicad.adoc:126
 #, no-wrap
 msgid "Example Symbol"
 msgstr "布局示例"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:117
+#: getting_started_in_kicad.adoc:126
 #, no-wrap
 msgid "images/coldfire-symbol.png"
 msgstr ""
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:118
+#: getting_started_in_kicad.adoc:127
 #, no-wrap
 msgid "Example Footprint"
 msgstr "封装示例"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:118
+#: getting_started_in_kicad.adoc:127
 #, no-wrap
 msgid "images/coldfire-footprint.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:127
+#: getting_started_in_kicad.adoc:136
 msgid ""
 "Finally, it is important to understand that KiCad has a project-based "
 "workflow.  A KiCad project is a folder with a project file, a schematic, a "
@@ -339,13 +361,13 @@ msgstr ""
 "所有与工程相关的文件放在一起。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:128
+#: getting_started_in_kicad.adoc:137
 #, no-wrap
 msgid "PCB Design Workflow"
 msgstr "PCB 设计工作流程"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:137
+#: getting_started_in_kicad.adoc:146
 msgid ""
 "Typically, the schematic is drawn first. This means adding symbols to the "
 "schematic and drawing the connections between them. Custom symbols may need "
@@ -361,7 +383,7 @@ msgstr ""
 "（ERC），原理图中的设计信息被转移到电路板编辑器中，并开始布局。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:145
+#: getting_started_in_kicad.adoc:154
 msgid ""
 "The schematic describes which components are in the design and how they are "
 "connected; the board editor uses this information to make layout easier and "
@@ -369,15 +391,15 @@ msgid ""
 "requires careful placement of each footprint on the circuit board. After "
 "component placement, copper tracks are drawn between components based on the "
 "connections in the schematic as well as other electrical considerations, "
-"such as trace resistance, controlled impedance requirements, crosstalk, etc."
+"such as track resistance, controlled impedance requirements, crosstalk, etc."
 msgstr ""
-"原理图描述了设计中的哪些元件以及它们的连接方式；电路板编辑器利用这些信息使布"
-"局更容易，并防止原理图和 PCB 之间的不匹配。布局过程需要在电路板上仔细放置每个"
-"封装。在元件放置完毕后，根据原理图中的连接以及其他电气方面的考虑，如跟踪电"
-"阻、控制阻抗要求、串扰等，在元件之间绘制铜线。"
+"该原理图描述了设计中包含哪些元件以及它们之间的连接方式；电路板编辑器利用这些"
+"信息来简化布局过程，并防止原理图与 PCB 之间出现不匹配。布局过程需要仔细地将每"
+"个元件封装放置在电路板上。在元件放置完成后，根据原理图中的连接关系以及其他电"
+"气考虑因素（如走线电阻、受控阻抗要求、串扰等），在元件之间绘制铜走线。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:150
+#: getting_started_in_kicad.adoc:159
 msgid ""
 "Often the schematic will need to be updated after layout has begun; the "
 "schematic changes can be easily pulled into the board design. The reverse "
@@ -389,7 +411,7 @@ msgstr ""
 "中，以保持两者的一致性。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:154
+#: getting_started_in_kicad.adoc:163
 msgid ""
 "When the board layout is complete and the board has passed the Design Rules "
 "Check (DRC), fabrication outputs are generated so that the board can be "
@@ -399,13 +421,13 @@ msgstr ""
 "电路板就可以由 PCB 制造者制造。"
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:155
+#: getting_started_in_kicad.adoc:164
 #, no-wrap
 msgid "Tutorial Part 1: Project"
 msgstr "教程第一部分：工程"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:163
+#: getting_started_in_kicad.adoc:172
 msgid ""
 "The first thing to do when starting a new design is to create a new "
 "project.  Opening KiCad will bring up the Project Manager. Click **File** -> "
@@ -420,19 +442,19 @@ msgstr ""
 "这将在一个新的子文件夹中创建你的工程文件，其名称与你的工程相同。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:164
+#: getting_started_in_kicad.adoc:173
 #, no-wrap
 msgid "Project Manager After Creating a New Project"
 msgstr "创建一个新工程后的工程管理"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:164
+#: getting_started_in_kicad.adoc:173
 #, no-wrap
 msgid "images/project-manager-new-project.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:170
+#: getting_started_in_kicad.adoc:179
 msgid ""
 "At left, the Project Files pane lists the files in the new project. There is "
 "a project file with the extension `.kicad_pro`, a schematic file with the "
@@ -444,7 +466,7 @@ msgstr ""
 "的电路板文件。这些文件都与你的工程共享一个名称。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:175
+#: getting_started_in_kicad.adoc:184
 msgid ""
 "There may also be a `-backups` directory: KiCad will automatically create "
 "backups of your project when you save, and optionally at fixed time "
@@ -452,31 +474,39 @@ msgid ""
 "-> **Preferences** -> **Common** -> **Project Backup**."
 msgstr ""
 "也可能有一个`备份`目录。KiCad 会在你保存时自动创建工程的备份，也可以选择在固"
-"定的时间间隔内进行备份。 备份设置可以通过进入 **偏好设置** -> **偏好设置** -"
-"> **常用** -> **工程备份** 来配置。"
+"定的时间间隔内进行备份。 备份设置可以通过进入 **偏好设置** -> **偏好设置** "
+"-> **常用** -> **工程备份** 来配置。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:178
+#: getting_started_in_kicad.adoc:187
 #, no-wrap
 msgid ""
 "Opening the Preferences dialog may trigger a library table configuration\n"
 "      dialog. This dialog is explained <<sym-lib-table-setup,below>>.\n"
-msgstr "打开偏好设置对话框可能会触发库表配置对话框。该对话框的说明 《符号库表设置，下文》。\n"
+msgstr "打开偏好设置对话框可能会触发库表配置对话框。该对话框的说明 <<sym-lib-table-setup,下文章节>>。\n"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:190 getting_started_in_kicad.adoc:234
+#, no-wrap
+msgid ""
+"On macOS, the Preferences dialog is in the **KiCad** menu, not the\n"
+"      **Preferences** menu.\n"
+msgstr "在 macOS 上，偏好设置对话框位于 **KiCad** 菜单中，而非 **偏好设置** 菜单。\n"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:179
+#: getting_started_in_kicad.adoc:191
 #, no-wrap
 msgid "Project Backup Settings"
 msgstr "工程备份设置"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:179
+#: getting_started_in_kicad.adoc:191
 #, no-wrap
 msgid "images/project-backup-settings.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:185
+#: getting_started_in_kicad.adoc:197
 msgid ""
 "At right of the Project Window, there are buttons to launch the various "
 "tools that KiCad provides. Launching these tools will automatically open the "
@@ -487,19 +517,19 @@ msgstr ""
 "打开当前项目中的相关设计文件（原理图或 PCB）。首先打开原理图编辑器。"
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:186
+#: getting_started_in_kicad.adoc:198
 #, no-wrap
 msgid "Tutorial Part 2: Schematic"
 msgstr "教程第 2 部分：原理图"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:189
+#: getting_started_in_kicad.adoc:201
 #, no-wrap
 msgid "Symbol Library Table Setup"
 msgstr "符号库表设置"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:195
+#: getting_started_in_kicad.adoc:207
 msgid ""
 "The first time the schematic editor is opened, a dialog will appear asking "
 "how to configure the global symbol library table. The symbol library table "
@@ -513,7 +543,7 @@ msgstr ""
 "建议你选择默认选项。**复制默认的全局符号库表（推荐）**。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:202
+#: getting_started_in_kicad.adoc:214
 msgid ""
 "If KiCad cannot find the libraries in their expected installation location, "
 "this option will be disabled. In this case, the user should choose the "
@@ -526,7 +556,7 @@ msgstr ""
 "下面给出的位置。选择 `sym-lib-table` 文件。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:206
+#: getting_started_in_kicad.adoc:218
 msgid ""
 "The location of the default library table files depends on operating system "
 "and may vary based on installation location. Below are the defaults for each "
@@ -536,40 +566,40 @@ msgstr ""
 "作系统的默认值："
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:208
-msgid "Windows: `C:\\Program Files\\KiCad\\8.0\\share\\kicad\\template\\`"
+#: getting_started_in_kicad.adoc:220
+msgid "Windows: `C:\\Program Files\\KiCad\\9.0\\share\\kicad\\template\\`"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:209
+#: getting_started_in_kicad.adoc:221
 msgid "Linux: `/usr/share/kicad/template/`"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:210
+#: getting_started_in_kicad.adoc:222
 msgid "macOS: `/Applications/KiCad/KiCad.app/Contents/SharedSupport/template/`"
 msgstr ""
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:211
+#: getting_started_in_kicad.adoc:223
 #, no-wrap
 msgid "Symbol Library Table Configuration"
 msgstr "符号库表配置"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:211
+#: getting_started_in_kicad.adoc:223
 #, no-wrap
 msgid "images/symbol-lib-table-configuration.png"
 msgstr ""
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:213
+#: getting_started_in_kicad.adoc:225
 #, no-wrap
 msgid "Schematic Editor Basics"
 msgstr "原理图编辑器基础知识"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:219
+#: getting_started_in_kicad.adoc:231
 msgid ""
 "To pan around the schematic, click and drag with the middle mouse button or "
 "right mouse button. Zoom in and out with the mousewheel or kbd:[F1] and kbd:"
@@ -583,7 +613,7 @@ msgstr ""
 "置。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:227
+#: getting_started_in_kicad.adoc:242
 msgid ""
 "By default, KiCad enables a mouse setting called **Center and Warp Cursor on "
 "Zoom**. When this feature is enabled, the mouse cursor is automatically "
@@ -601,19 +631,19 @@ msgstr ""
 "在鼠标和触摸板偏好设置中禁用该功能。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:228
+#: getting_started_in_kicad.adoc:243
 #, no-wrap
 msgid "Mouse and Touchpad Preferences"
 msgstr "鼠标和触摸板偏好设置"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:228
+#: getting_started_in_kicad.adoc:243
 #, no-wrap
 msgid "images/mouse-and-touchpad-prefs.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:233
+#: getting_started_in_kicad.adoc:248
 msgid ""
 "The toolbar at the left side of the schematic editor screen contains basic "
 "display settings. The toolbar at the right side of the screen contains tools "
@@ -623,25 +653,25 @@ msgstr ""
 "原理图的工具。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:237
+#: getting_started_in_kicad.adoc:252
 msgid ""
 "Most tools in KiCad either have default hotkeys assigned, or can have custom "
-"hotkeys assigned. To view all hotkeys, go to **Help** -> **List Hotkeys..."
-"**.  Hotkeys can be changed in **Preferences** -> **Preferences...** -> "
-"**Hotkeys**."
+"hotkeys assigned. To view all hotkeys, go to **Help** -> **List "
+"Hotkeys...**.  Hotkeys can be changed in the **Hotkeys** panel of the "
+"Preferences dialog."
 msgstr ""
-"KiCad 中的大多数工具要么有默认的快捷键，要么可以分配自定义的快捷键。要查看所"
-"有快捷键，请进入 **帮助** -> **列出快捷键...**。 快捷键可以在 **偏好设置** -"
-"> **偏好设置...** -> **快捷键** 进行更改。"
+"KiCad 中的大多数工具要么已分配默认快捷键，要么可以自定义快捷键。要查看所有快"
+"捷键，请前往 **帮助** -> **列出快捷键...**。快捷键可以在偏好设置对话框的 **快"
+"捷键** 面板中进行更改。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:238
+#: getting_started_in_kicad.adoc:253
 #, no-wrap
 msgid "Schematic Sheet Setup"
 msgstr "原理图图框设置"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:243
+#: getting_started_in_kicad.adoc:258
 msgid ""
 "Before drawing anything in the schematic, set up the schematic sheet "
 "itself.  Click **File** -> **Page Settings**. Give the schematic a title and "
@@ -651,35 +681,35 @@ msgstr ""
 "**页面设置**。给原理图一个标题和日期，如果需要的话，改变原理图大小。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:244
+#: getting_started_in_kicad.adoc:259
 #, no-wrap
 msgid "Schematic Page Settings"
 msgstr "图框设置"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:244
+#: getting_started_in_kicad.adoc:259
 #, no-wrap
 msgid "images/schematic-page-setup.png"
 msgstr ""
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:247
+#: getting_started_in_kicad.adoc:262
 #, no-wrap
 msgid "Adding Symbols to the Schematic"
-msgstr "将符号添加到原理图中"
+msgstr "在原理图中添加符号"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:252
+#: getting_started_in_kicad.adoc:267
 msgid ""
 "Start making the circuit by adding some symbols to the schematic. Open the "
 "Choose Symbol dialog by clicking the **Add Symbols** button image:images/"
 "add_component_24.png[] on the right side of the window or pressing kbd:[A]."
 msgstr ""
-"在原理图中添加一些符号，开始制作电路。点击窗口右侧的 **添加符号** 按钮 image:"
-"images/add_component_24.png[] 或按 kbd:[A] 键，打开 `选择符号` 对话框。"
+"在原理图中添加一些符号，开始制作电路。点击窗口右侧的 **添加符号** 按钮 "
+"image:images/add_component_24.png[] 或按 kbd:[A] 键，打开 `选择符号` 对话框。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:257
+#: getting_started_in_kicad.adoc:272
 msgid ""
 "This action will trigger the Footprint Library Table Setup dialog if it has "
 "not already been triggered. This dialog is equivalent to the <<sym-lib-table-"
@@ -687,10 +717,11 @@ msgid ""
 "footprints instead of symbols."
 msgstr ""
 "如果尚未触发封装库表设置对话框，则此操作将触发该对话框。该对话框等同于前面解"
-"释的《符号库表设置，符号库表设置对话框》，但针对的是封装而不是符号。"
+"释的 <<sym-lib-table-setup,符号库表设置对话框章节>>，但针对的是封装而不是符"
+"号。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:264
+#: getting_started_in_kicad.adoc:279
 msgid ""
 "Again, select the default option: **Copy default global footprint library "
 "table (recommended)**. If this is option is disabled, select the second "
@@ -700,12 +731,12 @@ msgid ""
 "`fp-lib-table` file and click **OK**."
 msgstr ""
 "同样，选择默认选项。**复制默认全局封装库表（推荐）**。如果这个选项被禁用，请"
-"选择第二个选项，**复制自定义全局封装库表**。点击底部的文件夹按钮，浏览到《符"
-"号库表默认位置，符号库表设置说明》中给出的位置。 选择 `fp-lib-table` 文件并点"
-"击 **OK**。"
+"选择第二个选项，**复制自定义全局封装库表**。点击底部的文件夹按钮，浏览到 "
+"<<sym-lib-table-default-location,符号库表设置说明章节>> 中给出的位置。 选择 "
+"`fp-lib-table` 文件并点击 **OK**。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:269
+#: getting_started_in_kicad.adoc:284
 msgid ""
 "The Choose Symbol dialog lists the available symbol libraries and the "
 "component symbols contained within them. Basic devices like passive "
@@ -718,7 +749,7 @@ msgstr ""
 "其他库中找到。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:272
+#: getting_started_in_kicad.adoc:287
 msgid ""
 "Scroll down to the `Device` library, expand it, and select the `LED` "
 "symbol.  Click **OK**, and click again to place the symbol in the schematic."
@@ -727,19 +758,19 @@ msgstr ""
 "击，将该符号放入原理图中。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:273
+#: getting_started_in_kicad.adoc:288
 #, no-wrap
 msgid "LED Symbol in Choose Symbol Dialog"
 msgstr "选择符号对话框中的 LED 符号"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:273
+#: getting_started_in_kicad.adoc:288
 #, no-wrap
 msgid "images/symbol-led.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:281
+#: getting_started_in_kicad.adoc:296
 msgid ""
 "Next, add a current-limiting resistor. Go back to the symbol chooser, but "
 "this time try searching for a resistor by entering `R` in the filter box at "
@@ -754,7 +785,7 @@ msgstr ""
 "选择一个电阻符号并将其添加到原理图中。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:284
+#: getting_started_in_kicad.adoc:299
 msgid ""
 "Finally, add a battery to power the LED. The `Device` library has a suitable "
 "`Battery_Cell` symbol."
@@ -762,59 +793,73 @@ msgstr ""
 "最后，添加一个电池为LED供电。`Device` 库有一个合适的 `Battery_Cell` 符号。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:285
+#: getting_started_in_kicad.adoc:300
 #, no-wrap
 msgid "Schematic with Symbols Placed"
 msgstr "放置了符号的原理图"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:285
+#: getting_started_in_kicad.adoc:300
 #, no-wrap
 msgid "images/symbols-placed.png"
 msgstr ""
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:287
+#: getting_started_in_kicad.adoc:302
 #, no-wrap
 msgid "Selecting and Moving Objects"
 msgstr "选择和移动对象"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:290
+#: getting_started_in_kicad.adoc:306
 msgid ""
 "Next, position the symbols correctly relative to each other, as shown in the "
-"screenshot. Do this by selecting, moving, and rotating the symbols."
+"screenshot. You will do this by selecting each symbol, then moving and "
+"rotating it."
 msgstr ""
-"接下来，如截图所示，正确定位符号之间的关系。通过选择、移动和旋转符号来做到这"
-"一点。"
+"接下来，按照截图所示，将符号彼此间的位置正确摆放。您可以通过选择每个符号，然"
+"后移动和旋转它来完成这一步骤。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:291
+#: getting_started_in_kicad.adoc:307
 #, no-wrap
 msgid "Schematic with Symbols Moved and Rotated"
 msgstr "符号移动和旋转的原理图"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:291
+#: getting_started_in_kicad.adoc:307
 #, no-wrap
 msgid "images/symbols-moved.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:297
+#: getting_started_in_kicad.adoc:314
 msgid ""
-"In KiCad 8.0, objects are selected by clicking on them. Additional objects "
-"can be added to the selection with kbd:[Shift]+click, or removed with kbd:"
-"[Ctrl+Shift]+click (macOS: kbd:[Cmd+Shift]+click). You can toggle an item's "
-"selection state with kbd:[Ctrl]+click (macOS: kbd:[Cmd]+click)."
+"In KiCad, objects are selected by clicking on them while the selection tool "
+"is active. The selection tool is the default tool when no other tool is "
+"active, so you can enter the selection tool by quitting any active tool (kbd:"
+"[Esc]) or by clicking the image:images/cursor_24.png[\"Select tool icon\"] "
+"button in the right toolbar."
 msgstr ""
-"在 KiCad 8.0 中，对象是通过点击来选择的。可以用 kbd:[Shift] + 单击 将其他对象"
-"添加到选择中，或用 kbd:[Ctrl+Shift] + 单击（macOS：kbd:[Cmd+Shift] + 单击）将"
-"其删除。你可以用 kbd:[Ctrl] + 单击（macOS：kbd:[Cmd] + 单击）来切换一个项目的"
-"选择状态。"
+"在 KiCad 中，当选择工具处于激活状态时，通过点击对象即可进行选择。选择工具在无"
+"其他工具激活时是默认工具，因此您可以通过退出任何当前激活的工具（kbd:[Esc]）或"
+"点击右侧工具栏中的 image:images/cursor_24.png[“选择工具图标”]按钮来进入选择工"
+"具模式。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:304
+#: getting_started_in_kicad.adoc:318
+msgid ""
+"Additional objects can be added to the selection with kbd:[Shift]+click, or "
+"removed with kbd:[Ctrl+Shift]+click (macOS: kbd:[Cmd+Shift]+click). You can "
+"toggle an item's selection state with kbd:[Ctrl]+click (macOS: kbd:[Cmd]"
+"+click)."
+msgstr ""
+"可以通过按下 kbd:[Shift]+单击 来向选择中添加更多对象，或通过按下 kbd:"
+"[Ctrl+Shift]+单击（macOS：kbd:[Cmd+Shift]+单击）来移除对象。您可以通过按下 "
+"kbd:[Ctrl]+单击（macOS：kbd:[Cmd]+单击）来切换项目的选择状态。"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:325
 msgid ""
 "Drag selection is also possible; dragging from left-to-right selects objects "
 "that are entirely enclosed by the selection box, while dragging right-to-"
@@ -829,7 +874,7 @@ msgstr ""
 "中增加、减少或切换。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:310
+#: getting_started_in_kicad.adoc:331
 msgid ""
 "Note that it is possible to select an entire symbol (by clicking on the "
 "symbol shape itself) or to select one text field in the symbol without "
@@ -842,7 +887,7 @@ msgstr ""
 "将只作用于所选择的文本，而不作用于符号的其他部分。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:317
+#: getting_started_in_kicad.adoc:338
 msgid ""
 "Selected objects are moved by pressing kbd:[M] and rotated by pressing kbd:"
 "[R].  The kbd:[G] hotkey (drag) can also be used to move objects. For moving "
@@ -857,28 +902,29 @@ msgstr ""
 "下导线。选定的对象可以用 kbd:[Del] 键删除。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:318
+#: getting_started_in_kicad.adoc:339
 #, no-wrap
 msgid "Wiring the Schematic"
 msgstr "为原理图布线"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:327
+#: getting_started_in_kicad.adoc:348
 msgid ""
 "The symbol pins all have small circles on them, indicating that they are not "
 "connected. Fix that by drawing wires between symbol pins as shown in the "
 "screenshot. Click the **Add a Wire** button image:images/add_line_24.png[] "
-"on the right-hand toolbar or use the kbd:[W] hotkey. Click to start drawing "
-"a wire, and finish drawing the wire by clicking on a symbol pin or double "
-"clicking anywhere. Pressing Escape will cancel drawing the wire."
+"on the right-hand toolbar or use the kbd:[W] hotkey. Click and release to "
+"start drawing a wire, and finish drawing the wire by clicking on a symbol "
+"pin or double clicking anywhere. Pressing Escape will cancel drawing the "
+"wire."
 msgstr ""
-"符号引脚上都有小圆圈，表明它们没有连接。通过在符号引脚之间画导线来解决这个问"
-"题，如截图中所示。点击右侧工具栏上的 **添加导线** 按钮 image:images/"
-"add_line_24.png[] 或使用 kbd:[W] 快捷键。点击开始画导线，通过点击符号引脚或双"
-"击任何地方完成画导线。按 Escape 键将取消画导线。"
+"符号引脚上均带有小圆圈，表示它们尚未连接。请按照截图所示，在符号引脚之间绘制"
+"导线以解决此问题。点击右侧工具栏上的 **添加导线** 按钮 image:images/"
+"add_line_24.png[]，或使用快捷键 kbd:[W]。点击并释放鼠标以开始绘制导线，通过点"
+"击符号引脚或双击任意位置完成绘制。按下 Esc 键将取消绘制导线。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:331
+#: getting_started_in_kicad.adoc:352
 msgid ""
 "Another convenient method of drawing wires is to hover over an unconnected "
 "pin.  The mouse cursor will change to indicate that a wire can be drawn "
@@ -889,19 +935,19 @@ msgstr ""
 "可以从该位置开始画导线。点击该引脚就会自动开始画导线。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:332
+#: getting_started_in_kicad.adoc:353
 #, no-wrap
 msgid "Schematic with Nets Wired"
 msgstr "带网络线的原理图"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:332
+#: getting_started_in_kicad.adoc:353
 #, no-wrap
 msgid "images/symbols-wired.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:336
+#: getting_started_in_kicad.adoc:357
 msgid ""
 "Next, add power and ground symbols to the schematic. While not strictly "
 "necessary in such a simple schematic, these make it easier to understand "
@@ -911,7 +957,7 @@ msgstr ""
 "义上的必要，但这些符号使大型原理图更容易理解。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:342
+#: getting_started_in_kicad.adoc:363
 msgid ""
 "A number of power and ground symbols are available in the `Power` symbol "
 "library.  However, there is a shortcut for adding these symbols: click the "
@@ -919,19 +965,19 @@ msgid ""
 "[P] hotkey. This brings up the **Choose a Symbol** dialog, but only displays "
 "symbol libraries that contain power symbols."
 msgstr ""
-"在 `Power` 符号库中，有许多电源和地线符号。 然而，有一个添加这些符号的快捷方"
-"式：点击 **添加电源符号** 按钮 image:images/add_power_24.png[] 或使用 kbd:"
-"[P] 快捷键。这将弹出 **选择符号** 对话框，但只显示包含电源符号的符号库。"
+"在 `Power` 符号库中提供了多种电源和地符号。不过，添加这些符号有一个快捷方式："
+"点击 **添加电源符号** 按钮 image:images/add_power_24.png[] 或使用 kbd:[P] 快"
+"捷键。这将弹出 **选择符号** 对话框，但仅显示包含电源符号的符号库。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:344
+#: getting_started_in_kicad.adoc:365
 msgid ""
 "Add a VCC symbol and GND symbol and then connect them to the circuit with "
 "wires."
-msgstr "添加一个 VCC 符号和 GND 符号，然后用导线将它们连接到电路上。"
+msgstr "添加一个 VCC 符号和一个 GND 符号，然后用导线将它们连接到电路中。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:351
+#: getting_started_in_kicad.adoc:372
 msgid ""
 "Finally, add a label to the wire between the LED and resistor. Again, this "
 "may not be necessary in a simple circuit, but it is good practice to label "
@@ -947,19 +993,19 @@ msgstr ""
 "标签放入原理图中，使方形连接点与导线重合。根据需要旋转和对齐标签。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:352
+#: getting_started_in_kicad.adoc:373
 #, no-wrap
 msgid "Schematic with Nets Labeled"
 msgstr "带有网络标签的原理图"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:352
+#: getting_started_in_kicad.adoc:373
 #, no-wrap
 msgid "images/symbols-labeled.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:357
+#: getting_started_in_kicad.adoc:378
 msgid ""
 "Note that labels and power symbols with the same name are connected "
 "together.  Another GND symbol or wire labeled `led` on this schematic page "
@@ -971,36 +1017,36 @@ msgstr ""
 "来。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:358
+#: getting_started_in_kicad.adoc:379
 #, no-wrap
 msgid "Annotation, Symbol Properties, and Footprints"
 msgstr "批注、符号属性和封装"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:360
+#: getting_started_in_kicad.adoc:381
 #, no-wrap
 msgid "Annotation"
 msgstr "批注"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:363
+#: getting_started_in_kicad.adoc:384
 msgid ""
 "Each symbol needs a unique reference designator assigned to it. This process "
 "is also known as annotation."
 msgstr "每个符号都需要为其分配一个独特的位号。这个过程也被称为注解。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:367
+#: getting_started_in_kicad.adoc:388
 msgid ""
-"By default in KiCad 8.0, symbols are automatically annotated when they are "
-"added to the schematic. Automatic annotation can be enabled or disabled "
-"using the image:images/annotate_24.png[] button in the left toolbar."
+"By default, symbols are automatically annotated when they are added to the "
+"schematic. Automatic annotation can be enabled or disabled using the "
+"image:images/annotate_24.png[] button in the left toolbar."
 msgstr ""
-"在 KiCad 8.0 中，默认情况下，符号被添加到原理图中时，会自动进行批注。可以使用"
-"左侧工具栏中的 image:images/annotate_24.png[] 按钮来启用或禁用自动批注。"
+"默认情况下，符号在添加到原理图时会自动进行批注。可以通过左侧工具栏中的 "
+"image:images/annotate_24.png[] 按钮来启用或禁用自动批注功能。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:371
+#: getting_started_in_kicad.adoc:392
 msgid ""
 "While it is not necessary for this guide, symbols can be manually annotated "
 "or reannotated using the **Fill in schematic symbol reference designators** "
@@ -1010,13 +1056,13 @@ msgstr ""
 "（image:images/annotate_24.png[]）对符号进行手动批注或重新批注。"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:372 getting_started_in_kicad.adoc:962
+#: getting_started_in_kicad.adoc:393 getting_started_in_kicad.adoc:1014
 #, no-wrap
 msgid "Symbol Properties"
 msgstr "符号属性"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:378
+#: getting_started_in_kicad.adoc:399
 msgid ""
 "Next, fill in values for each component. Select the LED, right-click, and "
 "select Properties... (kbd:[E]). This project will use a red LED, so change "
@@ -1031,7 +1077,7 @@ msgstr ""
 "辑位号。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:381
+#: getting_started_in_kicad.adoc:402
 msgid ""
 "This project will use a 3V lithium coin cell battery, so change the `Value` "
 "field of `BT1` to `3V`. Change the resistor's value to `1k`."
@@ -1040,13 +1086,13 @@ msgstr ""
 "的值改为 `1k`。"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:383
+#: getting_started_in_kicad.adoc:404
 #, no-wrap
 msgid "Footprint Assignment"
 msgstr "封装分配"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:388
+#: getting_started_in_kicad.adoc:409
 msgid ""
 "Finally, assign a footprint to each component. This defines how each "
 "component will attach to the PCB. Some symbols come with footprints pre-"
@@ -1057,7 +1103,7 @@ msgstr ""
 "留了封装，但对许多元件来说，有多种可能的封装，所以用户需要选择适当的一个。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:392
+#: getting_started_in_kicad.adoc:413
 msgid ""
 "There are several ways to assign footprints, but one convenient way is to "
 "use the footprint assignment tool by clicking the image:images/"
@@ -1067,7 +1113,7 @@ msgstr ""
 "image:images/icon_cvpcb_24_24.png[] 按钮。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:400
+#: getting_started_in_kicad.adoc:421
 msgid ""
 "The left pane of this window lists the available footprint libraries. The "
 "middle pane shows the symbols in the schematic. All of these symbols will "
@@ -1084,19 +1130,19 @@ msgstr ""
 "选择 **查看所选封装**，即可预览封装。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:401
+#: getting_started_in_kicad.adoc:422
 #, no-wrap
 msgid "Assign Footprint Tool"
 msgstr "分配封装工具"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:401
+#: getting_started_in_kicad.adoc:422
 #, no-wrap
 msgid "images/footprint-assignment-tool.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:406
+#: getting_started_in_kicad.adoc:427
 msgid ""
 "Many footprints are included with KiCad, so the footprint assignment tool "
 "offers several ways to filter out footprints that aren't relevant to the "
@@ -1106,19 +1152,19 @@ msgstr ""
 "关的封装。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:407
+#: getting_started_in_kicad.adoc:428
 #, no-wrap
 msgid "Footprint Filter Buttons"
 msgstr "封装筛选按钮"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:407
+#: getting_started_in_kicad.adoc:428
 #, no-wrap
 msgid "images/footprint-assignment-filters.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:415
+#: getting_started_in_kicad.adoc:436
 msgid ""
 "[[footprint-filters]] The leftmost button image:images/"
 "module_filtered_list_24.png[] activates filters that can be defined in each "
@@ -1127,13 +1173,13 @@ msgid ""
 "too restrictive, so it can be useful to turn this filter off in some "
 "situations."
 msgstr ""
-"[[封装筛选器]] 最左边的按钮 image:images/module_filtered_list_24.png[] 可以激"
-"活每个符号中可以定义的筛选器。例如，一个运算放大器符号可以定义筛选器，只显示 "
-"SOIC 和 DIP 封装。有时，这些预定义的筛选器缺失或限制性太强，所以在某些情况"
-"下，关闭这个筛选器可能会很有用。"
+"[[封装筛选器]] 最左侧的按钮 image:images/module_filtered_list_24.png[] 用于激"
+"活可以在每个符号中定义的筛选器。例如，一个运算放大器符号可能会定义仅显示 "
+"SOIC 和 DIP 封装的过滤器。有时这些预定义的筛选器可能缺失或过于严格，因此在某"
+"些情况下关闭此筛选器可能会很有用。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:418
+#: getting_started_in_kicad.adoc:439
 msgid ""
 "The middle button image:images/module_pin_filtered_list_24.png[] filters by "
 "pin count, so that only 8-pad footprints are shown for 8-pin symbols. This "
@@ -1143,7 +1189,7 @@ msgstr ""
 "只有 8 个引脚的符号才会显示 8 个引脚的封装。这个筛选器几乎总是有用的。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:423
+#: getting_started_in_kicad.adoc:444
 msgid ""
 "The right button image:images/module_library_list_24.png[] filters by "
 "selected library. Libraries are selected in the left pane; footprints not in "
@@ -1156,27 +1202,76 @@ msgstr ""
 "筛选器就很有用。通常情况下，最好使用这个筛选器或符号筛选器，但不能同时使用。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:425
+#: getting_started_in_kicad.adoc:446
 msgid ""
 "The text box filters out footprints that don't match the text in the box.  "
 "This filter is disabled when the box is empty."
 msgstr "文本框筛选掉与框中文本不匹配的封装。 当方框为空时，这个筛选器被禁用。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:430
+#: getting_started_in_kicad.adoc:452
 msgid ""
 "Using the filters, find each of the footprints shown in the central column "
-"in the screenshot above. Assign each footprint to a symbol by selecting the "
-"symbol in the central column and then double clicking the appropriate "
-"footprint in the right column. Once all of the footprints have been "
-"assigned, click **OK**."
+"in the screenshot above. The footprints for each symbol are also listed in "
+"the table below. Assign each footprint to a symbol by selecting the symbol "
+"in the central column and then double clicking the appropriate footprint in "
+"the right column. Once all of the footprints have been assigned, click "
+"**OK**."
 msgstr ""
-"使用筛选器，找到上图截图中中央栏所示的每个封装。选择中央栏中的符号，然后双击"
-"右侧栏中相应的封装，即可将每个封装分配给一个符号。分配完所有封装后，点击 **确"
-"定**。"
+"使用筛选器，在上方截图的中列中找到每个显示的封装。每个符号对应的封装也列在下"
+"表中。通过在中列中选择符号，然后在右列中双击相应的封装，将每个封装分配给符"
+"号。完成所有封装的分配后，点击 **确定**。"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:455
+#, no-wrap
+msgid "Symbol Reference"
+msgstr "符号位号"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:456
+#, no-wrap
+msgid "Footprint to assign"
+msgstr "分配封装"
+
+#. type: Table
+#: getting_started_in_kicad.adoc:456
+#, no-wrap
+msgid "`BT1`"
+msgstr ""
+
+#. type: Table
+#: getting_started_in_kicad.adoc:457
+#, no-wrap
+msgid "`Battery:BatteryHolder_Keystone_1058_1x2032`"
+msgstr ""
+
+#. type: Table
+#: getting_started_in_kicad.adoc:457
+#, no-wrap
+msgid "`D1`"
+msgstr ""
+
+#. type: Table
+#: getting_started_in_kicad.adoc:458
+#, no-wrap
+msgid "`LED_THT:LED_D5.0mm`"
+msgstr ""
+
+#. type: Table
+#: getting_started_in_kicad.adoc:458
+#, no-wrap
+msgid "`R1`"
+msgstr ""
+
+#. type: Table
+#: getting_started_in_kicad.adoc:459
+#, no-wrap
+msgid "`Resistor_THT:R_Axial_DIN0309_L9.0mm_D3.2mm_P12.70mm_Horizontal`"
+msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:434
+#: getting_started_in_kicad.adoc:464
 msgid ""
 "There are other ways to assign footprints; one way is through the symbol "
 "properties window. For more information on assigning footprints, see the "
@@ -1186,13 +1281,13 @@ msgstr ""
 "信息，请参阅 xref:../eeschema/eeschema.adoc#assigning-footprints[手册]。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:435
+#: getting_started_in_kicad.adoc:465
 #, no-wrap
 msgid "Electrical Rules Check"
 msgstr "电气规则检查"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:446
+#: getting_started_in_kicad.adoc:476
 msgid ""
 "The last remaining thing to do in the schematic is to check for electrical "
 "errors. KiCad's Electrical Rules Checker (ERC) cannot make sure that the "
@@ -1201,8 +1296,8 @@ msgid ""
 "together, or a power input that isn't powered by anything. It also checks "
 "for some other mistakes like symbols that aren't annotated and typos in net "
 "labels. To see the full list of electrical rules and to adjust their "
-"severity, go to **File** -> **Schematic Setup...** -> **Electrical Rules** -"
-"> **Violation Severity**. It is a good idea to run ERC before starting "
+"severity, go to **File** -> **Schematic Setup...** -> **Electrical Rules** "
+"-> **Violation Severity**. It is a good idea to run ERC before starting "
 "layout."
 msgstr ""
 "原理图中剩下的最后一件事就是检查电气错误。KiCad 的电气规则检查器（ERC）无法确"
@@ -1213,7 +1308,7 @@ msgstr ""
 "布局之前，最好先运行 ERC。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:449
+#: getting_started_in_kicad.adoc:479
 msgid ""
 "Run an electrical rules check by clicking the **ERC** button (image:images/"
 "erc_24.png[]) in the top toolbar and then clicking **Run ERC**."
@@ -1222,7 +1317,7 @@ msgstr ""
 "行 ERC**，运行电气规则检查。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:454
+#: getting_started_in_kicad.adoc:484
 msgid ""
 "Even in this simple schematic, KiCad has found two potential errors. The "
 "errors are listed in the ERC window, and arrows point to the violation "
@@ -1234,19 +1329,19 @@ msgstr ""
 "头。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:455
+#: getting_started_in_kicad.adoc:485
 #, no-wrap
 msgid "ERC Violation Messages"
 msgstr "ERC 违规消息"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:455
+#: getting_started_in_kicad.adoc:485
 #, no-wrap
 msgid "images/erc-messages.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:461
+#: getting_started_in_kicad.adoc:491
 msgid ""
 "You can exclude individual violations or ignore entire classes of violations "
 "by right clicking on each error message. However, it's usually worth "
@@ -1258,7 +1353,7 @@ msgstr ""
 "它们不是实际的设计错误。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:468
+#: getting_started_in_kicad.adoc:498
 msgid ""
 "In this case, KiCad reports \"Input Power pin not driven by any Output Power "
 "pins\" for both the `VCC` and `GND` nets. This is a common KiCad ERC error.  "
@@ -1273,19 +1368,19 @@ msgstr ""
 "人来说，`VCC` 和 `GND` 显然是由电池驱动的，但有必要在原理图中明确显示。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:469
+#: getting_started_in_kicad.adoc:499
 #, no-wrap
 msgid "PWR_FLAG Added to Schematic"
 msgstr "PWR_FLAG 添加到原理图中"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:469
+#: getting_started_in_kicad.adoc:499
 #, no-wrap
 msgid "images/symbols-pwr-flag.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:475
+#: getting_started_in_kicad.adoc:505
 msgid ""
 "There is a special `PWR_FLAG` symbol in the `Power` symbol library that is "
 "used to solve this problem by telling KiCad that the nets are actually "
@@ -1297,46 +1392,45 @@ msgstr ""
 "重新运行 ERC。当 ERC 通过而没有任何违反时，原理图就完成了。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:476
+#: getting_started_in_kicad.adoc:506
 #, no-wrap
 msgid "Bill of Materials"
 msgstr "物料清单"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:479
+#: getting_started_in_kicad.adoc:509
 msgid ""
 "A final optional step is to generate a Bill of Materials listing all "
 "components used in the project. Click **Tools** -> **Generate Bill of "
 "Materials...**."
 msgstr ""
-"最后一个可选步骤是生成 BOM，列出项目中使用的所有元件。单击 **工具** -> **生"
+"最后一步是可选的，即生成一份列出工程中所有元件的 BOM。点击 **工具** -> **生"
 "成 BOM...**。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:480
+#: getting_started_in_kicad.adoc:510
 #, no-wrap
 msgid "BOM Dialog"
 msgstr "BOM 对话框"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:480
+#: getting_started_in_kicad.adoc:510
 #, no-wrap
 msgid "images/bom-generator.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:485
+#: getting_started_in_kicad.adoc:515
 msgid ""
-"KiCad 8.0 has a GUI for BOM export. You can configure which symbol metadata "
-"will be exported, and how the symbols are grouped, in the **Edit** tab, and "
+"KiCad has a GUI for BOM export. You can configure which symbol metadata will "
+"be exported, and how the symbols are grouped, in the **Edit** tab, and "
 "configure the output format in the **Export** tab."
 msgstr ""
-"KiCad 8.0 有一个用于 BOM 导出的图形用户界面。您可以在 **编辑** 选项卡中配置哪"
-"些符号元数据将被导出，以及如何对符号进行分组，并在 **导出** 选项卡中配置输出"
-"格式。"
+"KiCad 提供了一个用于 BOM 导出的图形用户界面。您可以在 **编辑** 选项卡中配置要"
+"导出的符号元数据以及符号的分组方式，并在 **导出** 选项卡中配置输出格式。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:489
+#: getting_started_in_kicad.adoc:519
 msgid ""
 "For now, the default settings should be fine, but you can see a raw view of "
 "what will be exported in the preview pane. Specify an output file in the "
@@ -1346,32 +1440,32 @@ msgstr ""
 "在 **导出** 选项卡中指定输出文件，然后按下 **导出** 按钮。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:492
+#: getting_started_in_kicad.adoc:522
 msgid ""
 "The BOM should look like the below image when it is opened in a spreadsheet "
 "program."
 msgstr "在电子表格程序中打开时，BOM 应如下图所示。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:493
+#: getting_started_in_kicad.adoc:523
 #, no-wrap
 msgid "Generated BOM"
 msgstr "生成 BOM"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:493
+#: getting_started_in_kicad.adoc:523
 #, no-wrap
 msgid "images/bom.png"
 msgstr ""
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:495
+#: getting_started_in_kicad.adoc:525
 #, no-wrap
 msgid "Tutorial Part 3: Circuit Board"
 msgstr "教程第 3 部分：电路板"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:498
+#: getting_started_in_kicad.adoc:528
 msgid ""
 "With the schematic completed, go back to the Project Window and open the PCB "
 "Editor, either by clicking the PCB Editor button or opening the board file."
@@ -1380,13 +1474,13 @@ msgstr ""
 "开电路板文件。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:499
+#: getting_started_in_kicad.adoc:529
 #, no-wrap
 msgid "PCB Editor Basics"
 msgstr "PCB 编辑器基础知识"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:503
+#: getting_started_in_kicad.adoc:533
 msgid ""
 "Navigation in the PCB Editor is the same as the Schematic editor: pan by "
 "dragging with the middle mouse button or right mouse button, and zoom with "
@@ -1396,7 +1490,7 @@ msgstr ""
 "[F1] / kbd:[F2] 缩放。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:509
+#: getting_started_in_kicad.adoc:539
 msgid ""
 "The main part of the PCB Editor is a canvas where the board will be "
 "designed.  The toolbar on the left side has various display options for the "
@@ -1409,7 +1503,7 @@ msgstr ""
 "的工具条包含了设计 PCB 的工具。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:518
+#: getting_started_in_kicad.adoc:548
 #, no-wrap
 msgid ""
 "Some buttons on the right toolbar have a small triangle in the bottom\n"
@@ -1423,7 +1517,7 @@ msgid ""
 msgstr "右边工具栏上的一些按钮在右下角有一个小三角形 image:images/pcbnew_palette_buttons.png[]。这个三角形表示该按钮有一个扩展的调色板，包含几个相关的工具，比如说不同种类的尺寸。要选择一个备用工具，请点击并按住按钮直到调色板出现，然后点击备用工具。另一种使用调色板的方法是点击按钮并向左拖动，直到调色板出现，然后在所需的工具被突出显示时释放鼠标按钮。\n"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:522
+#: getting_started_in_kicad.adoc:552
 msgid ""
 "At far right is the Appearance Panel and Selection Filter. The Appearance "
 "panel is used to change visibility, colors, and opacity of PCB layers, "
@@ -1434,7 +1528,7 @@ msgstr ""
 "颜色和不透明度。通过点击层的名称可以改变活动层。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:526
+#: getting_started_in_kicad.adoc:556
 msgid ""
 "Below the Appearance Panel is the Selection Filter, which enables and "
 "disables selection of various types of PCB objects. This is useful to select "
@@ -1444,13 +1538,13 @@ msgstr ""
 "在拥挤的布局中选择特定的项目很有用。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:527
+#: getting_started_in_kicad.adoc:557
 #, no-wrap
 msgid "Board Setup and Stackup"
 msgstr "板子的设置和压层"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:531
+#: getting_started_in_kicad.adoc:561
 msgid ""
 "Before designing the board, set the page size and add information to the "
 "title block. Click **File** -> **Page Settings...**, then choose an "
@@ -1460,19 +1554,19 @@ msgstr ""
 "页面设置...**，然后选择一个合适的纸张尺寸，并输入日期、修订和标题。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:532
+#: getting_started_in_kicad.adoc:562
 #, no-wrap
 msgid "Layout Page Settings"
 msgstr "布局页面设置"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:532
+#: getting_started_in_kicad.adoc:562
 #, no-wrap
 msgid "images/layout-page-setup.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:538
+#: getting_started_in_kicad.adoc:568
 msgid ""
 "Next, go to **File** -> **Board Setup...** to define how the PCB will be "
 "manufactured. The most important settings are the stackup, i.e. what copper "
@@ -1484,7 +1578,7 @@ msgstr ""
 "过孔的尺寸和间距。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:542
+#: getting_started_in_kicad.adoc:572
 msgid ""
 "To set the stackup, open the **Board Stackup** -> **Physical Stackup** page "
 "of the Board Setup window. For this guide, leave the number of copper layers "
@@ -1494,19 +1588,19 @@ msgstr ""
 "南中，将铜层的数量定为 2，但更复杂的工程可能需要更多的铜层。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:543
+#: getting_started_in_kicad.adoc:573
 #, no-wrap
 msgid "Physical Stackup"
 msgstr "物理压层"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:543
+#: getting_started_in_kicad.adoc:573
 #, no-wrap
 msgid "images/board-setup-stackup.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:550
+#: getting_started_in_kicad.adoc:580
 msgid ""
 "Next, go to the **Design Rules** -> **Constraints** page. The settings on "
 "this page specify the overriding design rules for everything in the board "
@@ -1520,43 +1614,44 @@ msgstr ""
 "具有可制造性。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:551
+#: getting_started_in_kicad.adoc:581
 #, no-wrap
 msgid "Constraints"
 msgstr "约束"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:551
+#: getting_started_in_kicad.adoc:581
 #, no-wrap
 msgid "images/board-setup-constraints.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:557
+#: getting_started_in_kicad.adoc:587
 msgid ""
 "Finally, open the **Design Rules** -> **Net Classes** page. A net class is a "
 "set of design rules associated with a specific group of nets. This page "
 "lists the design rules for each net class in the design and allows assigning "
-"nets to each net class."
+"nets to each net class (nets can also be assigned to net classes in the "
+"schematic editor)."
 msgstr ""
-"最后，打开 **设计规则** -> **网络类** 页面。网络类是一组与特定网络组相关的设"
-"计规则。这个页面列出了设计中每个网络类的设计规则，并允许将网络类分配给每个网"
-"络类。"
+"最后，打开 **设计规则** -> **网络类** 页面。网络类是与特定网络组相关联的一组"
+"设计规则。此页面列出了设计中每个网络类的设计规则，并允许将网络分配到各个网络"
+"类（网络也可以在原理图编辑器中分配到网络类）。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:558
+#: getting_started_in_kicad.adoc:588
 #, no-wrap
 msgid "Net Classes"
 msgstr "网络类"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:558
+#: getting_started_in_kicad.adoc:588
 #, no-wrap
 msgid "images/board-setup-net-classes.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:563
+#: getting_started_in_kicad.adoc:593
 msgid ""
 "Track width and spacing can be managed manually by the designer during "
 "layout, but net classes are recommended because they provide an automatic "
@@ -1566,28 +1661,29 @@ msgstr ""
 "提供了一种自动管理和检查设计规则的方法。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:570
+#: getting_started_in_kicad.adoc:600
 msgid ""
 "In this design, no net classes are specified, so all nets will belong to the "
 "`Default` net class. The default design rules for this net class are "
 "acceptable for this project, but other designs may have multiple net "
 "classes, each with different design rules. For example a board might have a "
-"`High Current` netclass with wide traces, or a `50 ohm` netclass with "
-"specific width and clearance rules for 50 ohm controlled-impedance traces."
+"`High Current` netclass with wide tracks, or a `50 ohm` netclass with "
+"specific width and clearance rules for 50 ohm controlled-impedance tracks."
 msgstr ""
-"在这个设计中，没有指定网络类，所以所有的网络都属于 `默认` 网络类。这个网络类"
-"的默认设计规则对这个工程来说是可以接受的，但是其他设计可能有多个网络类，每个"
-"网络类有不同的设计规则。例如，一块板子可能有一个宽线 `高电流` 网络类，有，或"
-"者一个 `50 ohm` 网络类，有特定的宽度和 50 欧姆控制阻抗线的间隙规则。"
+"在此设计中，未指定任何网络类别，因此所有网络都将归属于 `默认` 网络类别。对于"
+"本项目而言，该默认网络类别的设计规则是可接受的，但在其他设计中，可能会存在多"
+"个网络类别，每个类别都有不同的设计规则。例如，一块电路板可能包含一个 `大电流"
+"` 网络类别，其走线较宽；或者一个 `50 ohm` 网络类别，针对 50 ohm 阻抗控制的走"
+"线，具有特定的线宽和间距规则。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:571
+#: getting_started_in_kicad.adoc:601
 #, no-wrap
 msgid "Importing Changes From Schematic"
 msgstr "从原理图中导入更改"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:576
+#: getting_started_in_kicad.adoc:606
 msgid ""
 "The schematic is complete, but there are not yet any components in the "
 "layout.  To import design data from the schematic into the layout, click "
@@ -1599,7 +1695,7 @@ msgstr ""
 "一个按钮 image:images/update_pcb_from_sch_24.png[] 。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:582
+#: getting_started_in_kicad.adoc:612
 msgid ""
 "Read through the messages in the **Changes To Be Applied** window, which "
 "will say that the three components in the schematic will be added to the "
@@ -1612,31 +1708,31 @@ msgstr ""
 "相对于其他封装的位置将在以后被改变。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:583
+#: getting_started_in_kicad.adoc:613
 #, no-wrap
 msgid "Update PCB from Schematic"
 msgstr "从原理图更新 PCB"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:583
+#: getting_started_in_kicad.adoc:613
 #, no-wrap
 msgid "images/update-pcb-from-schematic.png"
 msgstr ""
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:584
+#: getting_started_in_kicad.adoc:614
 #, no-wrap
 msgid "Footprints Added"
 msgstr "添加的封装"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:584
+#: getting_started_in_kicad.adoc:614
 #, no-wrap
 msgid "images/footprints-added.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:590
+#: getting_started_in_kicad.adoc:620
 msgid ""
 "In KiCad, updating the PCB with changes in the schematic is a manual "
 "process: the designer decides when it is appropriate to update the PCB with "
@@ -1649,13 +1745,13 @@ msgstr ""
 "PCB** 工具来保持原理图和布局的同步。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:591
+#: getting_started_in_kicad.adoc:621
 #, no-wrap
 msgid "Drawing A Board Outline"
 msgstr "绘制电路板边框"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:595
+#: getting_started_in_kicad.adoc:625
 msgid ""
 "Now the three components have been placed, but the board itself has not been "
 "defined. The board is defined by drawing a board outline on the `Edge.Cuts` "
@@ -1665,7 +1761,7 @@ msgstr ""
 "层上画一个板的边框来定义电路板。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:599
+#: getting_started_in_kicad.adoc:629
 msgid ""
 "It's often useful to draw the board outline with a coarse grid, which makes "
 "it easy to get round numbers for the board size. Switch to a coarse grid by "
@@ -1675,19 +1771,19 @@ msgstr ""
 "数。在画布上方的网格下拉菜单中选择 1 毫米，就可以切换到粗略的网格。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:600
+#: getting_started_in_kicad.adoc:630
 #, no-wrap
 msgid "1mm grid"
 msgstr "1mm 网格"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:600
+#: getting_started_in_kicad.adoc:630
 #, no-wrap
 msgid "images/coarse-grid.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:612
+#: getting_started_in_kicad.adoc:643
 msgid ""
 "To draw on the `Edge.Cuts` layer, click **Edge.Cuts** in the Layers tab of "
 "the Appearance panel at right. Choose the rectangle tool image:images/"
@@ -1696,38 +1792,40 @@ msgid ""
 "rectangle roughly surrounds the three footprints. The other graphic tools "
 "(line image:images/add_line_24.png[], arc image:images/add_arc_24.png[], "
 "circle image:images/add_circle_24.png[], polygon image:images/"
-"add_graphical_polygon_24.png[], or a combination of them) could also be used "
-"to define the board outline; the only requirement is that the outline is a "
-"single closed shape that doesn't intersect itself."
+"add_graphical_polygon_24.png[], bezier image:images/add_bezier_24.png[], or "
+"a combination of them) could also be used to define the board outline; the "
+"only requirement is that the outline is a single closed shape that doesn't "
+"intersect itself."
 msgstr ""
-"要在 `Edge.Cuts` 图层上绘图，请单击右侧外观面板图层选项卡中的 **Edge.Cuts**。"
-"在右侧工具栏中选择矩形工具 image:images/add_rectangle_24.png[]，在画布上单击"
-"放置第一个角，然后再次单击放置对角，这样矩形就大致包围了三个封装。也可以使用"
-"其他图形工具（线形 image:images/add_line_24.png[]、弧形 image:images/"
-"add_arc_24.png[]、圆形 image:images/add_circle_24.png[]、多边形 image:images/"
-"add_graphical_polygon_24.png[]，或它们的组合）来定义电路板的轮廓；唯一的要求"
-"是轮廓必须是不相交的单个封闭图形。"
+"要在 `Edge.Cuts` 层上绘制，请点击右侧外观面板的“图层”选项卡中的 "
+"**Edge.Cuts**。选择右侧工具栏中的矩形工具 image:images/"
+"add_rectangle_24.png[]，在画布上点击以放置第一个角点，然后再次点击以放置对角"
+"点，使矩形大致包围三个封装。其他图形工具（如直线 image:images/"
+"add_line_24.png[]、圆弧 image:images/add_arc_24.png[]、圆形 image:images/"
+"add_circle_24.png[]、多边形 image:images/add_graphical_polygon_24.png[]、贝塞"
+"尔曲线 image:images/add_bezier_24.png[]，或它们的组合）也可用于定义板框；唯一"
+"的要求是板框必须是一个不自交的闭合形状。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:613
+#: getting_started_in_kicad.adoc:644
 #, no-wrap
 msgid "Edge Cuts"
 msgstr "板框"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:613
+#: getting_started_in_kicad.adoc:644
 #, no-wrap
 msgid "images/select-edge-cuts.png"
 msgstr ""
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:615
+#: getting_started_in_kicad.adoc:646
 #, no-wrap
 msgid "Placing Footprints"
 msgstr "放置封装"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:618
+#: getting_started_in_kicad.adoc:649
 msgid ""
 "The next step in the layout process is to arrange the footprints on the "
 "board.  In general, there are a several considerations for positioning "
@@ -1737,14 +1835,14 @@ msgstr ""
 "素："
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:621
+#: getting_started_in_kicad.adoc:652
 msgid ""
 "Some footprints may have exact requirements for their locations, such as "
 "connectors, indicators, or buttons and switches."
 msgstr "有些封装可能对其位置有确切的要求，如连接器、指示灯或按钮和开关。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:624
+#: getting_started_in_kicad.adoc:655
 msgid ""
 "Some components may need to be placed according to electrical "
 "considerations.  Bypass capacitors should be close to the power pins of the "
@@ -1755,16 +1853,16 @@ msgstr ""
 "敏感的模拟元件应远离数字干扰。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:626
+#: getting_started_in_kicad.adoc:657
 msgid ""
 "Almost all components have a \"Courtyard\" (or two if both Front and Back "
-"are defined). Generally Courtyards should not intersect."
+"are defined). Generally courtyards should not intersect."
 msgstr ""
-"几乎所有的元件都有一个 \"边框\"（或两个，如果前面和后面都有定义）。一般来说，"
-"边框不应该相交。"
+"几乎所有元件都有一个“边框”（如果定义了正面和背面，则可能有两个）。通常情况"
+"下，边框之间不应相互交叉。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:631
+#: getting_started_in_kicad.adoc:662
 msgid ""
 "Otherwise components should be positioned for ease of routing. Connected "
 "components should generally be close together, and arranged to minimize "
@@ -1777,14 +1875,14 @@ msgstr ""
 "很有用。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:634
+#: getting_started_in_kicad.adoc:665
 msgid ""
 "For the purposes of this guide, the only placement goal is to make the "
 "routing process as simple as possible."
 msgstr "在本指南中，唯一的放置目标是使布线过程尽可能简单。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:639
+#: getting_started_in_kicad.adoc:670
 msgid ""
 "Start by moving the battery holder `BT1` onto the back side of the board. "
 "Click it to select it, then press kbd:[M] to move it. Press kbd:[F] to flip "
@@ -1796,19 +1894,19 @@ msgstr ""
 "色。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:640
+#: getting_started_in_kicad.adoc:671
 #, no-wrap
 msgid "BT1 flipped to the back"
 msgstr "BT1 翻到后面"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:640
+#: getting_started_in_kicad.adoc:671
 #, no-wrap
 msgid "images/bt1-flipped.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:644
+#: getting_started_in_kicad.adoc:675
 msgid ""
 "All PCB layers are viewed from front side of the board. Footprints on the "
 "bottom of the board are therefore upside down and appear mirrored."
@@ -1817,7 +1915,7 @@ msgstr ""
 "像的。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:648
+#: getting_started_in_kicad.adoc:679
 msgid ""
 "Each PCB layer has a unique color, which is shown by the swatches in the "
 "Layers tab of the Appearance panel. In the default color scheme, items on "
@@ -1829,7 +1927,7 @@ msgstr ""
 "色。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:654
+#: getting_started_in_kicad.adoc:685
 msgid ""
 "Now place the other two components. One at a time, select each component, "
 "then move and rotate it with kbd:[M] and kbd:[R]. Watch the ratsnest lines "
@@ -1842,93 +1940,96 @@ msgstr ""
 "些线不被缠住。一个可能的安排显示在下面的截图中。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:655
+#: getting_started_in_kicad.adoc:686
 #, no-wrap
 msgid "Footprints positioned optimally"
 msgstr "封装的最佳位置"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:655
+#: getting_started_in_kicad.adoc:686
 #, no-wrap
 msgid "images/footprints-positioned.png"
 msgstr ""
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:657
+#: getting_started_in_kicad.adoc:688
 #, no-wrap
 msgid "Routing Tracks"
 msgstr "布线"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:659
+#: getting_started_in_kicad.adoc:690
 msgid ""
 "With the components in place, it's time to connect the pads with copper "
-"traces."
-msgstr "元件就位后，现在是用铜线连接焊盘的时候了。"
+"tracks."
+msgstr "元件就位后，接下来便是用铜线将焊盘连接起来。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:662
+#: getting_started_in_kicad.adoc:693
 msgid ""
-"The first trace will be drawn on the front of the board, so change the "
+"The first track will be drawn on the front of the board, so change the "
 "active layer to `F.Cu` in the Layers tab of the Appearance panel."
 msgstr ""
-"第一条布线将被画在电路板的正面，所以在外观面板的层标签中把活动层改为 `F.Cu`。"
+"第一条走线将在电路板的正面绘制，因此请在“外观”面板的“图层”选项卡中将活动层更"
+"改为 `F.Cu`。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:669
+#: getting_started_in_kicad.adoc:700
 msgid ""
 "Click **Route Tracks** image:images/add_tracks_24.png[] in the right-hand "
-"toolbar or press kbd:[X]. Click on the `led` pad of `D1`. The ratsnest line "
-"indicates there is an unrouted connection to the `led` pad of `R1`, so click "
-"on that pad to draw a trace connecting the two pads. Clicking on the second "
-"pad completes the trace. The ratsnest line between the `led` pins is no "
-"longer drawn because the connection has been made in copper."
+"toolbar or press kbd:[X]. Click on the `led` pad of `D1` and release the "
+"mouse button. The ratsnest line indicates there is an unrouted connection to "
+"the `led` pad of `R1`, so click on that pad to draw a track connecting the "
+"two pads.  Clicking on the second pad completes the track. The ratsnest line "
+"between the `led` pins is no longer drawn because the connection has been "
+"made in copper."
 msgstr ""
-"点击右侧工具栏中的 **布线** image:images/add_tracks_24.png[] 或按 kbd:[X]。点"
-"击 `D1` 的 `led` 焊盘。鼠窝线表明有一个与 `R1` 的 `led` 焊盘的飞线布线连接，"
-"所以点击该焊盘来画一个连接这两个焊盘的布线。点击第二个焊盘就完成了布线。"
-"`led` 引脚之间的飞线不再被画出，因为连接已经在铜中完成。"
+"点击右侧工具栏中的 **布线** image:images/add_tracks_24.png[] 或按下 kbd:[X]。"
+"点击 `D1` 的 `led` 焊盘并松开鼠标按钮。此时，飞线布线（ratsnest line）显示 "
+"`R1` 的 `led` 焊盘存在未布线的连接，因此点击该焊盘以绘制连接两个焊盘的走线。"
+"点击第二个焊盘后，走线即完成。由于铜层已建立连接，`led` 引脚之间的飞线将不再"
+"显示。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:670
+#: getting_started_in_kicad.adoc:701
 #, no-wrap
 msgid "First connection routed"
 msgstr "第一个连接的布线"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:670
+#: getting_started_in_kicad.adoc:701
 #, no-wrap
 msgid "images/route-first-connection.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:676
+#: getting_started_in_kicad.adoc:707
 msgid ""
-"Now draw a trace between the `GND` pads of `BT1` and `D1`, starting with the "
+"Now draw a track between the `GND` pads of `BT1` and `D1`, starting with the "
 "`BT1` pad on the back of the board. Notice that the active layer "
 "automatically changed to `B.Cu` after clicking on the `BT1` pad. Click on "
 "the `D1` pad to finish the track."
 msgstr ""
-"现在在 `BT1` 和 `D1` 的 `GND` 焊盘之间布线，从电路板背面的 `BT1` 焊盘开始。注"
-"意在点击 `BT1` 焊盘后，活动层自动变成了 `B.Cu`。点击 `D1` 焊盘来完成这个布"
-"线。"
+"现在，在 `BT1` 和 `D1` 的 `GND` 焊盘之间绘制一条走线，从电路板背面的 `BT1` 焊"
+"盘开始。请注意，点击 `BT1` 焊盘后，活动层自动切换为 `B.Cu`。点击 `D1` 焊盘以"
+"完成走线。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:682
+#: getting_started_in_kicad.adoc:713
 msgid ""
 "While `BT1` has surface mount pads that are only on the bottom of the board, "
 "`D1` has through hole pads that can connect to tracks on both the front and "
 "back. Through hole pads are one way to make a connection between multiple "
 "layers. In this case, `D1` is a component on the front side of the board, "
-"but its through hole pads are used to connect to a trace on the back of the "
+"but its through hole pads are used to connect to a track on the back of the "
 "board."
 msgstr ""
-"`BT1` 的表面贴装焊盘只位于电路板的底部，而 `D1` 的通孔焊盘则可以连接到正面和"
-"背面的布线。通孔焊盘是在多层电路板之间建立连接的一种方法。在本例中，`D1` 是电"
-"路板正面的一个元件，但它的通孔焊盘用于连接电路板背面的一条布线。"
+"虽然 `BT1` 的表面贴装焊盘仅位于电路板的底部，但 `D1` 的通孔焊盘可以连接到电路"
+"板正面和背面的走线。通孔焊盘是实现多层之间连接的一种方式。在本例中，`D1` 是电"
+"路板正面上的一个元件，但其通孔焊盘用于连接到电路板背面的走线。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:688
+#: getting_started_in_kicad.adoc:719
 msgid ""
 "Another way to make a connection across layers is with a via. Start routing "
 "at the `VCC` pad of `BT1` on the back of the board. Press kbd:[V] and click "
@@ -1937,23 +2038,23 @@ msgid ""
 "clicking on the `VCC` pad of `R1`."
 msgstr ""
 "另一种跨层连接的方法是用过孔。在电路板背面的 `BT1` 的 `VCC` 焊盘上开始布线。"
-"按 kbd:[V] 并在 `BT1` 和 `R1` 之间点击，插入一个过孔，同时将活动层切换到 `F."
-"Cu`。通过点击 `R1` 的 `VCC` 焊盘完成电路板顶部的布线。"
+"按 kbd:[V] 并在 `BT1` 和 `R1` 之间点击，插入一个过孔，同时将活动层切换到 "
+"`F.Cu`。通过点击 `R1` 的 `VCC` 焊盘完成电路板顶部的布线。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:689
+#: getting_started_in_kicad.adoc:720
 #, no-wrap
 msgid "All connections routed"
 msgstr "所有连接的布线"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:689
+#: getting_started_in_kicad.adoc:720
 #, no-wrap
 msgid "images/routing-complete.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:694
+#: getting_started_in_kicad.adoc:725
 msgid ""
 "At this point, all connections are routed. This can be confirmed by looking "
 "at the status screen in the bottom left of the window, where the number of "
@@ -1963,37 +2064,37 @@ msgstr ""
 "其中未被布线的网络数量为 0。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:695
+#: getting_started_in_kicad.adoc:726
 #, no-wrap
 msgid "Placing Copper Zones"
 msgstr "放置敷铜"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:700
+#: getting_started_in_kicad.adoc:731
 msgid ""
 "Copper zones are regions of copper with an associated net. Zones "
 "automatically connect to copper objects belonging to the same net and avoid "
 "objects belonging to other nets. Zones are often used for ground and power "
-"connections because they provide a lower impedance connection than traces."
+"connections because they provide a lower impedance connection than tracks."
 msgstr ""
-"铜区是具有相关网络的铜区域。区域会自动连接到属于同一网络的铜对象，并避开属于"
-"其他网络的铜对象。铜区通常用于接地和电源连接，因为它们提供的连接阻抗比铜线"
-"低。"
+"铜区域是指带有相关网络的铜质区域。这些区域会自动连接到属于同一网络的铜质对"
+"象，并避开属于其他网络的对象。铜区域常用于接地和电源连接，因为它们提供的连接"
+"阻抗比导线更低。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:705
+#: getting_started_in_kicad.adoc:736
 msgid ""
 "Add a `GND` zone on the bottom of the board by switching to the bottom "
 "copper layer and clicking the **Add a filled zone** button image:images/"
 "add_zone_24.png[] in the right toolbar. Click on the PCB to place the first "
 "corner of the zone."
 msgstr ""
-"通过切换到底部铜层并点击右侧工具栏中的 **添加敷铜** 按钮 image:images/"
-"add_zone_24.png[]，在电路板的底部添加一个 `GND` 敷铜。在 PCB 上点击，放置该敷"
-"铜的第一个角。"
+"在电路板底部添加一个 `GND` 区域，方法是切换到底部铜层，然后点击右侧工具栏中"
+"的 **添加填充区域** 按钮 image:images/add_zone_24.png[]。点击 PCB 以放置区域"
+"的第一个角。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:710
+#: getting_started_in_kicad.adoc:741
 msgid ""
 "In the Copper Zone Properties dialog that appears, select the `GND` net and "
 "make sure that the `B.Cu` layer is selected. Click **OK**, then click to "
@@ -2004,50 +2105,51 @@ msgstr ""
 "**，然后点击放置该敷铜的其他三个角。在放置最后一个角时，双击来完成该敷铜。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:711
+#: getting_started_in_kicad.adoc:742
 #, no-wrap
 msgid "Zone outline"
 msgstr "敷铜边框"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:711
+#: getting_started_in_kicad.adoc:742
 #, no-wrap
 msgid "images/zone-outline.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:722
+#: getting_started_in_kicad.adoc:753
 msgid ""
 "The zone outline is displayed on the canvas, but the zone is not yet filled "
 "-- there is no copper in the zone area, and therefore the zone is not making "
 "any electrical connections. Fill the zone with **Edit** -> **Fill All "
 "Zones** (kbd:[B]). Copper has been added to the zone, but it doesn't connect "
-"to the `VCC` or `led` pads and traces, and is clipped by the board edge. It "
-"overlaps with the `GND` trace drawn earlier, and it connects to the `GND` "
-"pads through thin traces. These are thermal reliefs, which make the pads "
+"to the `VCC` or `led` pads and tracks, and is clipped by the board edge. It "
+"overlaps with the `GND` track drawn earlier, and it connects to the `GND` "
+"pads through thin tracks. These are thermal reliefs, which make the pads "
 "easier to solder.  Thermal reliefs and other zone settings can be modified "
 "in the zone properties dialog."
 msgstr ""
-"敷铜边框显示在画布上，但区还没有被填满 -- 在敷铜的范围内没有铜，因此敷铜没有"
-"进行任何电气连接。用 **编辑** -> **填充所有敷铜** (kbd:[B])填充该敷铜。铜已经"
-"被添加到该敷铜，但是它没有连接到 `VCC` 或 `led` 焊盘和导线，并且被板子的边缘"
-"剪掉。它与前面画的 `GND` 线重叠，并通过细线与 `GND` 焊盘连接。这些是散热条，"
-"使焊盘更容易焊接。 散热条和其他敷铜设置可以在敷铜属性对话框中修改。"
+"敷铜边框已在画布上显示，但敷铜尚未填充——敷铜内没有铜箔，因此该敷铜尚未形成任"
+"何电气连接。通过 **编辑** -> **填充所有区域**  (kbd:[B]) 来填充敷铜。此时，铜"
+"箔已添加到敷铜中，但它并未连接到 `VCC` 或 `led` 焊盘和走线，且被板边裁剪。它"
+"与之前绘制的 `GND` 走线重叠，并通过细小的走线与 `GND` 焊盘相连。这些细小的走"
+"线是热焊盘（Thermal Relief），它们使焊盘更易于焊接。热焊盘及其他敷铜设置可以"
+"在敷铜属性对话框中进行修改。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:723
+#: getting_started_in_kicad.adoc:754
 #, no-wrap
 msgid "Filled copper zone"
 msgstr "填充敷铜"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:723
+#: getting_started_in_kicad.adoc:754
 #, no-wrap
 msgid "images/zone-filled.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:729
+#: getting_started_in_kicad.adoc:760
 msgid ""
 "In KiCad, zones are not filled automatically when they are first drawn or "
 "modified, or when footprints within them are moved. Zones are refilled by "
@@ -2055,11 +2157,11 @@ msgid ""
 "up-to-date before generating <<fab,fabrication outputs>>."
 msgstr ""
 "在 KiCad 中，当第一次绘制或修改敷铜时，或移动敷铜内的封装时，敷铜不会被自动填"
-"充。敷铜是通过手动填充和运行《DRC，DRC》时重新填充。在生成《制造，制造输出》"
-"之前，请确保敷铜填充是最新的。"
+"充。敷铜是通过手动填充和运行 <<drc,DRC 章节>>时重新填充。在生成 <<fab,制造输"
+"出章节>> 之前，请确保敷铜填充是最新的。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:735
+#: getting_started_in_kicad.adoc:766
 msgid ""
 "Sometimes filled zones can make it hard to see other objects in a crowded "
 "board design. Zones can be hidden except for their boundaries using the "
@@ -2073,7 +2175,7 @@ msgstr ""
 "敷铜的填充与取消填充是不同的。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:739
+#: getting_started_in_kicad.adoc:770
 msgid ""
 "Zones can also be made transparent using the Appearance panel, and inactive "
 "layers can also be hidden or dimmed using the **Layer Display Options** in "
@@ -2083,100 +2185,100 @@ msgstr ""
 "** 隐藏或调暗。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:741
+#: getting_started_in_kicad.adoc:772
 #, no-wrap
 msgid "Design Rule Checking"
 msgstr "设计规则检查"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:750
+#: getting_started_in_kicad.adoc:781
 msgid ""
 "Design Rule Checking is the layout equivalent of Electrical Rule Checking "
 "for the schematic. DRC looks for design mistakes like mismatches between the "
 "schematic and layout, copper regions that have insufficient clearance or are "
-"shorted together, and traces that do not connect to anything. Custom rules "
-"can also be written in KiCad 8.0. To view the full list of design rules that "
-"are checked and to adjust their severity, go to **File** -> **Board Setup..."
-"** -> **Design Rules** -> **Violation Severity**. Running DRC and fixing all "
+"shorted together, and tracks that do not connect to anything. You can also "
+"write custom DRC rules. To view the full list of design rules that are "
+"checked and to adjust their severity, go to **File** -> **Board Setup...** "
+"-> **Design Rules** -> **Violation Severity**. Running DRC and fixing all "
 "errors is strongly advised before generating <<fab,fabrication outputs>>."
 msgstr ""
-"设计规则检查相当于原理图的电气规则检查。DRC 可查找设计错误，如原理图和布局之"
-"间的不匹配、铜区域间隙不足或短路，以及没有连接到任何东西的布线。也可以在 "
-"KiCad 8.0 中编写自定义规则。要查看检查的设计规则的完整列表并调整其严重程度，"
-"请访问 **文件** -> **电路板设置...** -> **设计规则** -> **违规严重程度**。强"
-"烈建议在生成《制造，制造输出》之前运行 DRC 并修复所有错误。"
+"设计规则检查（DRC）相当于原理图中的电气规则检查（ERC）。DRC 用于查找设计错"
+"误，例如原理图与布局之间的不匹配、铜区域间距不足或短路，以及未连接到任何地方"
+"的走线。您还可以编写自定义的 DRC 规则。要查看完整的设计规则列表并调整其严重"
+"性，请前往 **文件** -> **板设置...** -> **设计规则** -> **违规严重性**。在生"
+"成 <<fab,制造输出章节>> 之前，强烈建议运行 DRC 并修复所有错误。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:755
+#: getting_started_in_kicad.adoc:786
 msgid ""
 "Run a DRC check with **Inspect** -> **Design Rules Checker**, or use the "
 "button image:images/erc_24.png[] in the top toolbar. Click **Run DRC**. When "
 "the checks are complete, no errors or warnings should be reported. Close the "
 "DRC window."
 msgstr ""
-"用 **检查** -> **设计规则检查** 来运行 DRC 检查，或者使用顶部工具栏的 image:"
-"images/erc_24.png[] 按钮。单击 **运行 DRC**。当检查完成后，不应该有错误或警告"
-"报告。关闭 DRC 窗口。"
+"用 **检查** -> **设计规则检查** 来运行 DRC 检查，或者使用顶部工具栏的 "
+"image:images/erc_24.png[] 按钮。单击 **运行 DRC**。当检查完成后，不应该有错误"
+"或警告报告。关闭 DRC 窗口。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:762
+#: getting_started_in_kicad.adoc:793
 msgid ""
 "Now intentionally cause a DRC error by moving the resistor footprint to "
 "overlap the filled area of the zone. Use kbd:[D] (Drag) to move the resistor "
-"footprint slightly while keeping the traces attached to its pads. This "
+"footprint slightly while keeping the tracks attached to its pads. This "
 "creates a clearance violation because the `VCC` and `led` pads of the "
 "resistor are shorted to the `GND` zone fill. Ordinarily this would be fixed "
 "by refilling the zone, but don't refill the zone yet."
 msgstr ""
-"现在故意造成 DRC 错误，将电阻的封装移动到与该敷铜的填充区域重叠。使用 kbd:[D]"
-"（拖动）稍微移动电阻的封装，同时保持导线连接到其焊盘上。这就产生了间隙违规，"
-"因为电阻的 `VCC` 和 `led` 焊盘与 `GND` 区的填充物短路了。通常情况下，这可以通"
-"过重新填充敷铜来解决，但现在不要重新填充敷铜。"
+"现在，故意通过移动电阻器封装使其与填充区域重叠来引发 DRC 错误。使用 kbd:[D]"
+"（拖动）功能轻微移动电阻器封装，同时保持其焊盘上的走线连接。这将导致一个间距"
+"违规，因为电阻器的 `VCC` 和 `led` 焊盘与 `GND` 区域填充短路。通常，这种情况可"
+"以通过重新填充区域来修复，但暂时不要重新填充区域。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:763
+#: getting_started_in_kicad.adoc:794
 #, no-wrap
 msgid "Resistor footprint moved to violate clearance"
 msgstr "电阻的封装被移动以违反间隙"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:763
+#: getting_started_in_kicad.adoc:794
 #, no-wrap
 msgid "images/resistor-moved.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:773
+#: getting_started_in_kicad.adoc:804
 msgid ""
 "Run DRC again, but make sure to uncheck the **Refill all zones before "
 "performing DRC** checkbox. DRC reports 6 violations: for each pad of `R1`, "
 "there is a clearance violation between the pad and the zone, another "
 "clearance violation between the pad's through hole and the zone, and a third "
 "violation where the pad's solder mask opening exposes the copper of two "
-"different nets (the `GND` fill and the trace connected to the pad). Arrows "
+"different nets (the `GND` fill and the track connected to the pad). Arrows "
 "point to each violation in the canvas. Clicking on each violation message "
 "zooms in on the respective violation."
 msgstr ""
-"再次运行 DRC，但确保取消选中 ** 在执行 DRC 之前重新填充所有敷铜** 复选框。"
-"DRC 报告了 6 项违规：对于 `R1` 的每个焊盘，焊盘和敷铜之间存在间隙违规，焊盘的"
-"通孔和敷铜之间存在另一个间隙违规，焊盘的阻焊开孔暴露了两个不同网络（`GND` 填"
-"充和连接到焊盘的布线）的铜，这是第三个违规。箭头指向画布中的每个违规点。单击"
-"每个违规信息可放大相应的违规情况。"
+"再次运行 DRC，但请确保取消勾选 **在执行 DRC 前重新填充所有区域** 复选框。DRC "
+"报告了 6 个违规：对于 `R1` 的每个焊盘，存在焊盘与区域之间的间距违规，焊盘通孔"
+"与区域之间的另一间距违规，以及第三个违规，即焊盘的阻焊层开口暴露了两个不同网"
+"络（`GND` 填充和连接到焊盘的走线）的铜层。画布上的箭头指向每个违规。点击每个"
+"违规信息会放大显示相应的违规位置。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:774
+#: getting_started_in_kicad.adoc:805
 #, no-wrap
 msgid "DRC errors due to clearance violation between R1 and GND"
 msgstr "由于 `R1` 和 `GND` 之间的间隙违反，导致 DRC 错误"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:774
+#: getting_started_in_kicad.adoc:805
 #, no-wrap
 msgid "images/drc-errors.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:779
+#: getting_started_in_kicad.adoc:810
 msgid ""
 "Close the DRC dialog, press kbd:[B] to refill the zone, and re-run DRC.  "
 "Alternatively, check the **Refill all zones before performing DRC** checkbox "
@@ -2186,13 +2288,13 @@ msgstr ""
 "行 DRC 之前重新填充所有敷铜** 复选框并重新运行 DRC。所有的违规行为都被修复。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:780
+#: getting_started_in_kicad.adoc:811
 #, no-wrap
 msgid "3D Viewer"
 msgstr "3D 查看器"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:785
+#: getting_started_in_kicad.adoc:816
 msgid ""
 "KiCad offers a 3D viewer that is useful for inspecting the PCB. Open the 3D "
 "viewer with **View** -> **3D Viewer**. Pan by dragging with the middle mouse "
@@ -2205,45 +2307,45 @@ msgstr ""
 "行，可以看到顶部的 LED 和电阻，以及底部的电池座。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:789
+#: getting_started_in_kicad.adoc:820
 msgid ""
 "A raytracing mode is available, which is slower but offers more accurate "
 "rendering. Switch to the raytracing mode with **Preferences** -> "
 "**Raytracing**."
 msgstr ""
-"有一种光线追踪模式，它比较慢，但能提供更精确的渲染。用 **偏好设置** -> **光线"
-"追踪** 切换到光线追踪模式。"
+"提供了一种光线追踪模式，虽然速度较慢，但能提供更精确的渲染效果。您可以通过 **"
+"偏好设置** -> **光线追踪** 切换到该模式。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:790
+#: getting_started_in_kicad.adoc:821
 #, no-wrap
 msgid "Raytraced view of the PCB"
 msgstr "PCB 的光线追踪视图"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:790
+#: getting_started_in_kicad.adoc:821
 #, no-wrap
 msgid "images/raytracing.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:795
+#: getting_started_in_kicad.adoc:826
 msgid ""
 "Many of the footprints in KiCad's library come with 3D models, including all "
 "of the footprints used in this guide. Some footprints do not come with 3D "
 "models, <<footprints-and-3d-models,but users can add their own>>."
 msgstr ""
 "KiCad 库中的许多封装都带有 3D 模型，包括本指南中使用的所有封装。有些封装没有"
-"附带 3D 模型，《封装和 3D 模型，但用户可以添加自己的模型》。"
+"附带 3D 模型，<<footprints-and-3d-models,但用户可以添加自己的模型章节>>。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:797
+#: getting_started_in_kicad.adoc:828
 #, no-wrap
 msgid "Fabrication Outputs"
 msgstr "制造输出"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:800
+#: getting_started_in_kicad.adoc:831
 msgid ""
 "With the board design finished, the final step is to generate fabrication "
 "outputs so the board can be manufactured."
@@ -2251,7 +2353,7 @@ msgstr ""
 "随着电路板设计的完成，最后一步是生成制造输出，这样电路板就可以被制造出来。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:804
+#: getting_started_in_kicad.adoc:835
 msgid ""
 "Open the Plot dialog with **File** -> **Plot...**. This dialog can plot the "
 "design in several formats, but Gerber is usually the right format for "
@@ -2261,17 +2363,17 @@ msgstr ""
 "式，但 Gerber 通常是向 PCB 制造厂家制造的正确格式。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:813
+#: getting_started_in_kicad.adoc:844
 msgid ""
 "Specify an output directory so that the plotted files will be collected in a "
 "folder. Otherwise, the default settings are fine, but make sure all the "
 "necessary layers are checked: include the copper layers (`++*++.Cu`), board "
-"outline (`Edge.Cuts`), soldermask (`++*++.Mask`), and silkscreen (`++*++."
-"Silkscreen`).  The paste layers (`++*++.Paste`) are useful for manufacturing "
-"solder paste stencils. The Adhesive layers (`++*++.Adhesive`) are needed "
-"only if any components will be glued to the board during assembly. Other "
-"layers may be useful to plot, but are not typically necessary for PCB "
-"fabrication."
+"outline (`Edge.Cuts`), soldermask (`++*++.Mask`), and silkscreen (`++*+"
+"+.Silkscreen`).  The paste layers (`++*++.Paste`) are useful for "
+"manufacturing solder paste stencils. The Adhesive layers (`++*++.Adhesive`) "
+"are needed only if any components will be glued to the board during "
+"assembly. Other layers may be useful to plot, but are not typically "
+"necessary for PCB fabrication."
 msgstr ""
 "指定一个输出目录，这样绘制的文件就会被收集到一个文件夹中。否则，默认设置就可"
 "以了，但要确保所有必要的层都被选中：包括铜层（`++*++.Cu`）、电路板边框"
@@ -2281,19 +2383,19 @@ msgstr ""
 "常对 PCB 的制作没有必要。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:814
+#: getting_started_in_kicad.adoc:845
 #, no-wrap
 msgid "Plot dialog"
 msgstr "绘制对话框"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:814
+#: getting_started_in_kicad.adoc:845
 #, no-wrap
 msgid "images/fabrication-outputs.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:820
+#: getting_started_in_kicad.adoc:851
 msgid ""
 "Click **Plot** to generate the Gerber files. Also click **Generate Drill "
 "Files...** and then **Generate Drill File** to create files specifying the "
@@ -2305,25 +2407,25 @@ msgstr ""
 "对话框。设计就完成了。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:821
+#: getting_started_in_kicad.adoc:852
 #, no-wrap
 msgid "Generate Drill Files dialog"
 msgstr "生成钻孔文件对话框"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:821
+#: getting_started_in_kicad.adoc:852
 #, no-wrap
 msgid "images/generate-drill-files.png"
 msgstr ""
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:823
+#: getting_started_in_kicad.adoc:854
 #, no-wrap
 msgid "Tutorial Part 4: Custom Symbols and Footprints"
 msgstr "教程第 4 部分：自定义符号和封装"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:828
+#: getting_started_in_kicad.adoc:859
 msgid ""
 "The circuit would be improved by adding a switch to turn the LED on and off. "
 "The process to add this switch will require creating a new symbol and "
@@ -2334,32 +2436,32 @@ msgstr ""
 "建一个新的符号和封装库，绘制一个开关符号，并为开关创建一个封装。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:833
+#: getting_started_in_kicad.adoc:864
 msgid ""
-"The specific switch that will be used in this guide is the https://www."
-"nkkswitches.com/pdf/MtogglesBushing.pdf[NKK M2011S3A1W03], an SPST toggle "
-"switch. Many other switches could be used, but the pin numbering and "
+"The specific switch that will be used in this guide is the https://"
+"www.nkkswitches.com/pdf/MtogglesBushing.pdf[NKK M2011S3A1W03], an SPST "
+"toggle switch. Many other switches could be used, but the pin numbering and "
 "footprint dimensions may need to be adjusted."
 msgstr ""
-"本指南将使用的具体开关是 https://www.nkkswitches.com/pdf/MtogglesBushing."
-"pdf[NKK M2011S3A1W03]，一种 SPST（单刀单置） 拨动开关。许多其他开关也可以使"
-"用，但引脚编号和封装尺寸可能需要调整。"
+"本指南将使用的具体开关是 https://www.nkkswitches.com/pdf/"
+"MtogglesBushing.pdf[NKK M2011S3A1W03]，一种 SPST（单刀单置） 拨动开关。许多其"
+"他开关也可以使用，但引脚编号和封装尺寸可能需要调整。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:834
+#: getting_started_in_kicad.adoc:865
 #, no-wrap
 msgid "Library and Library Table Basics"
 msgstr "库和库表的基础知识"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:838
+#: getting_started_in_kicad.adoc:869
 msgid ""
 "Symbols and footprints are organized into libraries. A library can hold "
 "symbols or footprints, but not both."
 msgstr "符号和封装被组织到库中。一个库可以容纳符号或封装，但不能同时容纳。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:843
+#: getting_started_in_kicad.adoc:874
 msgid ""
 "KiCad keeps track of the user's symbol libraries and footprint libraries in "
 "the symbol library table and footprint library table, respectively. Each "
@@ -2370,7 +2472,7 @@ msgstr ""
 "库名的列表，以及每个库在硬盘上存在的位置。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:850
+#: getting_started_in_kicad.adoc:881
 msgid ""
 "In addition to global symbol and footprint library tables, there are also "
 "project library tables for symbols and footprints. Symbols and footprints "
@@ -2384,7 +2486,7 @@ msgstr ""
 "以将自己的库添加到全局库表或工程专用表中。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:856
+#: getting_started_in_kicad.adoc:887
 msgid ""
 "The symbol library tables can be viewed or edited with **Preferences** -> "
 "**Manage Symbol Libraries...** in the Schematic Editor or Symbol Editor "
@@ -2398,19 +2500,19 @@ msgstr ""
 "置** -> **管理封装库...** 查看或编辑。这两个库表也可以从工程管理器中访问。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:857
+#: getting_started_in_kicad.adoc:888
 #, no-wrap
 msgid "symbol library table"
 msgstr "符号库表"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:857
+#: getting_started_in_kicad.adoc:888
 #, no-wrap
 msgid "images/symbol-library-table.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:865
+#: getting_started_in_kicad.adoc:896
 msgid ""
 "Often, paths to libraries are defined with path substitution variables. This "
 "enables a user to move all of their libraries to a new location without "
@@ -2425,7 +2527,7 @@ msgstr ""
 "**配置路径...** 进行编辑。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:869
+#: getting_started_in_kicad.adoc:900
 msgid ""
 "One useful path substitution variable is `${KIPRJMOD}`. This variable always "
 "points at the current project directory, so it can be used for including "
@@ -2435,7 +2537,7 @@ msgstr ""
 "它可以用来包括存储在工程目录内的工程专用库。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:875
+#: getting_started_in_kicad.adoc:906
 msgid ""
 "On first run, KiCad <<sym-lib-table-setup,prompts the user to set up the "
 "symbol library table>> and <<fp-lib-table-setup,footprint library table>>. "
@@ -2443,49 +2545,49 @@ msgid ""
 "footprint library table files. Make a backup of the tables before deleting "
 "them."
 msgstr ""
-"在第一次运行时，KiCad 《符号库表设置，提示用户设置符号库表》和《封装库表设"
-"置，提示用户设置封装库表》。要再次进行这种设置，请删除或重命名符号库表或封装"
-"库表文件。在删除这些表之前，请对它们进行备份。"
+"在第一次运行时，KiCad <<sym-lib-table-setup,提示用户设置符号库表章节>> 和 "
+"<<fp-lib-table-setup,提示用户设置封装库表章节>>。要再次进行这种设置，请删除或"
+"重命名符号库表或封装库表文件。在删除这些表之前，请对它们进行备份。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:878
+#: getting_started_in_kicad.adoc:909
 msgid ""
 "The location of the symbol and footprint library table files depends on "
 "operating system."
 msgstr "符号和封装库表文件的位置取决于操作系统。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:880
+#: getting_started_in_kicad.adoc:911
 msgid ""
-"Windows: `%APPDATA%\\kicad\\8.0\\sym-lib-table` and `%APPDATA%"
-"\\kicad\\8.0\\fp-lib-table`"
+"Windows: `%APPDATA%\\kicad\\9.0\\sym-lib-table` and `%APPDATA%"
+"\\kicad\\9.0\\fp-lib-table`"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:881
+#: getting_started_in_kicad.adoc:912
 msgid ""
-"Linux: `~/.config/kicad/8.0/sym-lib-table` and `~/.config/kicad/8.0/fp-lib-"
+"Linux: `~/.config/kicad/9.0/sym-lib-table` and `~/.config/kicad/9.0/fp-lib-"
 "table`"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:882
-msgid "macOS: `~/Library/Preferences/kicad/8.0/sym-lib-table` and"
+#: getting_started_in_kicad.adoc:913
+msgid "macOS: `~/Library/Preferences/kicad/9.0/sym-lib-table` and"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:883
-msgid "`~/Library/Preferences/kicad/8.0/fp-lib-table`"
+#: getting_started_in_kicad.adoc:914
+msgid "`~/Library/Preferences/kicad/9.0/fp-lib-table`"
 msgstr ""
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:884
+#: getting_started_in_kicad.adoc:915
 #, no-wrap
 msgid "Creating New Global or Project Libraries"
 msgstr "创建新的全局库或工程库"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:889
+#: getting_started_in_kicad.adoc:920
 msgid ""
 "The first step in drawing a new symbol or footprint is to choose a library "
 "in which to store it. For this guide, the switch symbol and footprint will "
@@ -2495,7 +2597,7 @@ msgstr ""
 "装将进入新的工程专用库。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:896
+#: getting_started_in_kicad.adoc:927
 msgid ""
 "Open the Symbol Editor from the Project Manager. Click **File** -> **New "
 "Library**, and select **Project**. Choose a name for the new library (e.g.  "
@@ -2506,17 +2608,17 @@ msgid ""
 msgstr ""
 "从工程管理器中打开符号编辑器。点击 **文件** -> **新建库**，并选择 **工程**。"
 "为新库选择一个名字（例如：`getting-started.kicad_sym`）并保存在工程目录中。空"
-"的新库现在在左边的库窗格中被选中，并被自动添加到工程库表中（在 **偏好设置** -"
-"> **管理符号库...** 中检查工程专用库标签）。"
+"的新库现在在左边的库窗格中被选中，并被自动添加到工程库表中（在 **偏好设置** "
+"-> **管理符号库...** 中检查工程专用库标签）。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:897
+#: getting_started_in_kicad.adoc:928
 #, no-wrap
 msgid "Creating New Symbols"
 msgstr "新建符号"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:905
+#: getting_started_in_kicad.adoc:936
 msgid ""
 "Now create the switch symbol in the new library. With the `getting-started` "
 "library selected in the Libraries pane, click **File** -> **New Symbol...**. "
@@ -2531,7 +2633,7 @@ msgstr ""
 "保持默认值。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:910
+#: getting_started_in_kicad.adoc:941
 msgid ""
 "In the Libraries pane, the `M2011S3A1W03` symbol now appears under the "
 "`getting-started` library. In the canvas, a cross indicates the center of "
@@ -2543,32 +2645,67 @@ msgstr ""
 "的中心，并为位号添加了文本。现在，请将文本从符号中心移开，使其不碍事。"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:911
+#: getting_started_in_kicad.adoc:942
 #, no-wrap
 msgid "Symbol Pins"
 msgstr "符号引脚"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:921
+#: getting_started_in_kicad.adoc:948
 msgid ""
-"Start drawing the symbol by adding a pin. Click the **Add a pin** button "
+"Start drawing the symbol by adding a pin. This symbol will not have a pin 1, "
+"so we will start with a pin numbered 2. Click the **Add a pin** button "
 "image:images/pin_24.png[] on the right toolbar. The Pin Properties dialog "
-"will appear. Set **Pin name** to `A`, **Pin number** to `2`, **Electrical "
-"type** to `Passive`, and **Orientation** to `Right`. Set **X Position** to "
-"`-200 mils` and **Y Position** to `0`. Click **OK**, then click on the "
-"canvas to place the pin.  If the pin moved after clicking **OK**, it might "
-"be necessary to edit the pin's properties again (double click the pin, or "
-"right click on the pin -> **Properties...**) to set the position correctly."
+"will appear. Set the pin properties as follows:"
 msgstr ""
-"添加引脚，开始绘制符号。点击右侧工具栏上的 **添加引脚** 按钮 image:images/"
-"pin_24.png[]。引脚属性对话框将出现。将 **引脚名称** 设为 `A`，**引脚编号** 设"
-"为 `2`，**电气类型** 设为 `无源`，**方向** 设为 `右`。将 **X 位置** 设为 "
-"`-200 mils`，**Y 位置** 设为 `0`。点击 **确定**，然后点击画布上的引脚。 如果"
-"引脚在点击 **OK** 后移动，可能需要再次编辑引脚属性（双击引脚，或右击引脚 -> "
-"**属性...**）以正确设置位置。"
+"开始绘制符号时，先添加一个引脚。由于该符号没有引脚 1，因此我们将从编号为 2 的"
+"引脚开始。点击右侧工具栏中的 **添加引脚** 按钮 image:images/pin_24.png[]。随"
+"后将弹出“引脚属性”对话框。请按以下方式设置引脚属性："
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:930
+#: getting_started_in_kicad.adoc:950
+msgid "**Pin name**: `A`"
+msgstr "**引脚名称**: `A`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:951
+msgid "**Pin number**: `2`"
+msgstr "**引脚编号**: `2`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:952
+msgid "**Electrical type**: `Passive`"
+msgstr "**电气类型**: `无源`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:953
+msgid "**Orientation**: `Right`"
+msgstr "**方向**: `右`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:954
+msgid "**X Position**: `-200 mils`"
+msgstr "**X 位置**: `-200 mils`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:955
+msgid "**Y Position**: `0`"
+msgstr "**Y 位置**: `0`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:960
+msgid ""
+"Click **OK**, then click on the canvas to place the pin. If the pin moved "
+"after clicking **OK**, it might be necessary to edit the pin's properties "
+"again (double click the pin, or right click on the pin -> **Properties...**) "
+"to set the position correctly."
+msgstr ""
+"点击 **确定**，然后在画布上点击以放置图钉。如果点击 **确定** 后引脚移动了，可"
+"能需要再次编辑引脚的属性（双击引脚，或右键点击引脚 -> **属性...**）以正确设置"
+"位置。"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:969
 #, no-wrap
 msgid ""
 "It is strongly recommended to always use mils (or inches) in the Schematic\n"
@@ -2582,29 +2719,29 @@ msgid ""
 msgstr "强烈建议在原理图编辑器和符号编辑器中始终使用 mils（或 in），尤其是符号引脚。混合使用英制和公制单位将导致符号引脚无法正确连接，因为它们无法与导线或其他引脚对齐。KiCad 库的引脚使用 50 mils 网格；使用不同的单位系统将导致符号和原理图无法与 KiCad 的内置符号连接。请注意，与 PCB 编辑器不同，原理图中的单位没有物理意义。\n"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:931
+#: getting_started_in_kicad.adoc:970
 #, no-wrap
 msgid "pin properties"
 msgstr "引脚属性"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:931
+#: getting_started_in_kicad.adoc:970
 #, no-wrap
 msgid "images/pin-properties.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:935
+#: getting_started_in_kicad.adoc:974
 msgid ""
 "Add a second pin, but this time don't use the **Add a pin** tool. Instead, "
 "press kbd:[Insert]. A new pin numbered 3 is added to the symbol, just below "
 "pin 2."
 msgstr ""
-"添加第二个引脚，但这次不要使用 **添加引脚** 工具。相反，按 kbd:[Insert]。一个"
-"编号为 3 的新引脚被添加到符号中，就在引脚 2 下面。"
+"添加第二个引脚，但这次不要使用 **添加引脚** 工具。而是按下 kbd:[Insert]。一个"
+"新的编号为 3 的引脚被添加到符号中，正好位于引脚 2 的下方。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:943
+#: getting_started_in_kicad.adoc:982
 #, no-wrap
 msgid ""
 "In many places in KiCad, pressing kbd:[Insert] will repeat the last action.\n"
@@ -2617,24 +2754,64 @@ msgid ""
 msgstr "在 KiCad 的许多地方，按 kbd:[Insert] 会重复上次的操作。新项目的位置将被移位，并根据情况自动增加编号。在符号编辑器中，这可以用来快速放置大量的引脚。在原理图编辑器中，它可以用来重复放置一个元件，或者用编号标签标记一个大元件的引脚。 kbd:[Insert] 在封装和电路板编辑器中也很有用。\n"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:947
+#: getting_started_in_kicad.adoc:989
 msgid ""
-"We want Pin 3 to be on the right side of the switch symbol, so edit the "
-"properties of pin 3 and change **X position** to `200 mils`, **Y position** "
-"to `0`, and **Orientation** to `Left`. Also, change **Pin name** to `B`."
+"We want Pin 3 to be on the right side of the switch symbol, so we will edit "
+"its properties to change the location and orientation. Instead of using the "
+"Pin Properties dialog, this time we can use the Properties Panel. This is a "
+"docked panel on the left side of the editing canvas that lets you view and "
+"edit the properties of the selected object or objects. To show or hide the "
+"Properties Panel, use the image:images/tools_24.png[] button in the left "
+"toolbar."
 msgstr ""
-"我们希望引脚 3 位于开关符号的右侧，因此编辑引脚 3 的属性，将 **X 位置** 改为 "
-"`200 mils`，**Y 位置** 改为 `0`，**方向** 改为 `左`。同时，将 **引脚名称** 改"
-"为 `B`。"
+"我们希望引脚 3 位于开关符号的右侧，因此将编辑其属性以更改位置和方向。这次，我"
+"们不使用引脚属性对话框，而是利用属性面板。这是一个停靠在编辑画布左侧的面板，"
+"允许您查看和编辑所选对象的属性。要显示或隐藏属性面板，请使用左侧工具栏中的 "
+"image:images/tools_24.png[] 按钮。"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:991
+msgid ""
+"With pin 3 selected, use the Properties panel to set its properties as "
+"follows:"
+msgstr "在选中引脚 3 的情况下，使用属性面板按如下方式设置其属性："
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:993
+msgid "**Pin Name**: `B`"
+msgstr "**引脚名称**: `B`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:994
+msgid "**Position X**: `200 mils`"
+msgstr "**位置 X**: `200 mils`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:995
+msgid "**Position Y**: `0`"
+msgstr "**位置 Y**: `0`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:996
+msgid "**Orientation**: `Left`"
+msgstr "**方向**: `左`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:999
+#, no-wrap
+msgid ""
+"The Properties Panel is available in every KiCad editor (Schematic, Board,\n"
+"      Symbol, and Footprint).\n"
+msgstr "属性面板在 KiCad 的每个编辑器（原理图、PCB、符号和封装）中均可使用。\n"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:948
+#: getting_started_in_kicad.adoc:1000
 #, no-wrap
 msgid "Graphical Features"
 msgstr "图形特征"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:955
+#: getting_started_in_kicad.adoc:1007
 msgid ""
 "With the pins placed, use the circle image:images/add_circle_24.png[] and "
 "line image:images/add_line_24.png[] tools to make the symbol look like an "
@@ -2648,7 +2825,7 @@ msgstr ""
 "小的网格。添加图形后，再切换回 50 mil 的网格。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:959
+#: getting_started_in_kicad.adoc:1011
 msgid ""
 "Small grids are useful for graphical features, but **symbol pins must always "
 "be placed on a 50 mil (1.27 mm) grid**. Pins which are not aligned to a 50 "
@@ -2658,19 +2835,19 @@ msgstr ""
 "**。没有对准 50 mil 网格的引脚将无法与原理图中的导线连接。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:960
+#: getting_started_in_kicad.adoc:1012
 #, no-wrap
 msgid "symbol drawn"
 msgstr "绘制符号"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:960
+#: getting_started_in_kicad.adoc:1012
 #, no-wrap
 msgid "images/symbol-drawn.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:970
+#: getting_started_in_kicad.adoc:1022
 msgid ""
 "Now edit the properties for the whole symbol with **File** -> **Symbol "
 "Properties**, or by double clicking on the canvas. Change the **Value** "
@@ -2685,93 +2862,117 @@ msgstr ""
 "息，所以取消勾选 **显示引脚名称**，使符号在视觉上更简单。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:973
+#: getting_started_in_kicad.adoc:1025
 msgid ""
 "After clicking **OK**, move the value field's text lower so that it does not "
 "overlap with the symbol graphics."
-msgstr "点击 **确定** 后，将值的文字移至较低位置，使其不与符号图形重叠。"
+msgstr "点击 **确定** 后，将数值字段的文本向下移动，以避免与符号图形重叠。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:974
+#: getting_started_in_kicad.adoc:1026
 #, no-wrap
 msgid "symbol properties"
 msgstr "符号属性"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:974
+#: getting_started_in_kicad.adoc:1026
 #, no-wrap
 msgid "images/symbol-properties.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:977
+#: getting_started_in_kicad.adoc:1029
 msgid ""
 "The symbol is now complete. Save it and move on to creating a footprint."
 msgstr "符号现在已经完成。保存它并继续创建一个封装。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:978
+#: getting_started_in_kicad.adoc:1030
 #, no-wrap
 msgid "Creating New Footprints"
 msgstr "新建封装"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:986
+#: getting_started_in_kicad.adoc:1039
 msgid ""
 "Open the Footprint Editor and create a new project-specific footprint "
 "library named `getting-started.pretty` (**File** -> **New Library...**). As "
 "with symbol libraries, the new footprint library is added to the project "
 "library table. With the new library selected in the Libraries pane, create a "
-"new footprint (**File** -> **New Footprint...**). Set the name to "
-"`Switch_Toggle_SPST_NKK_M2011S3A1x03` and the type to `Through hole`."
+"new footprint (**File** -> **New Footprint...**). Edit the footprint's "
+"properties (image:images/module_options_24.png[] button in the top toolbar) "
+"and set the following properties:"
 msgstr ""
-"打开封装编辑器，创建一个新的工程专用封装库，命名为 `getting-started.pretty`"
-"（**文件** -> **新建库...**）。和符号库一样，新的封装库被添加到工程库表中。在"
-"库窗格中选择新的库，创建一个新的封装（**文件** -> **新建封装...**）。设置名称"
-"为 `Switch_Toggle_SPST_NKK_M2011S3A1x03`，类型为 `通孔`。"
+"打开 **封装编辑器**，创建一个新的工程专用封装库，命名为 `getting-"
+"started.pretty`（**文件** -> **新建库...**）。与符号库类似，新的封装库会被添"
+"加到项目库表中。在 **库** 面板中选中新创建的库，然后新建一个封装（**文件** "
+"-> **新建封装...**）。编辑封装的属性（点击顶部工具栏中的 image:images/"
+"module_options_24.png[] 按钮），并设置以下属性："
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1041
+msgid "**Footprint name**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`"
+msgstr "**封装名称**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1042
+msgid "**Value**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`"
+msgstr "**值**: `Switch_Toggle_SPST_NKK_M2011S3A1x03`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1043
+msgid "**Component type**: `Through hole`"
+msgstr "**元件类型**: `通孔`"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:987
+#: getting_started_in_kicad.adoc:1044
 #, no-wrap
 msgid "Footprint Pads"
 msgstr "封装焊盘"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:998
+#: getting_started_in_kicad.adoc:1053
 msgid ""
 "The switch has two pins, numbered in the datasheet as 2 and 3, and spaced "
 "4.7 mm apart. For ease of placement, adjust the grid to match the pad "
-"spacing. Open the grid settings by clicking **Preferences** -> "
-"**Preferences...** -> **Footprint Editor** -> **Grids**, or by right-"
-"clicking the image:images/grid_24.png[] button in the left toolbar and "
-"selecting **Edit Grids...**. Add a new grid with the plus button at the "
-"bottom. Set the new grid's X size to `4.7 mm`. Accept the dialog, go back to "
-"the editing canvas, and then switch to the new grid in the grid dropdown in "
-"the top toolbar, if it is not already selected."
+"spacing. Open the grid settings by right-clicking the image:images/"
+"grid_24.png[] button in the left toolbar and selecting **Edit Grids...**. "
+"Add a new grid with the plus button at the bottom. Set the new grid's X size "
+"to `4.7 mm`. Accept the dialog, go back to the editing canvas, and then "
+"switch to the new grid in the grid dropdown in the top toolbar, if it is not "
+"already selected."
 msgstr ""
-"开关有两个引脚，在数据表中编号为 2 和 3，间距为 4.7 mm。为便于放置，请调整网"
-"格以匹配焊盘间距。点击 **偏好设置** -> **偏好设置...** -> **封装编辑器** -> "
-"**网格**，或右击左侧工具栏中的 image:images/grid_24.png[] 按钮，选择 **编辑网"
-"格...**，打开网格设置。使用底部的加号按钮添加新网格。将新网格的 X 尺寸设置为 "
-"`4.7 mm`。接受对话框，回到编辑画布，然后在顶部工具栏的网格下拉菜单中切换到新"
-"网格（如果尚未选中）。"
+"该开关有两个引脚，在数据手册中编号为 2 和 3，引脚间距为 4.7 mm。为了方便放"
+"置，请调整网格以匹配焊盘间距。通过右键单击左侧工具栏中的按钮 image:images/"
+"grid_24.png[]，选择 **编辑网格...**，打开网格设置。点击底部的加号按钮添加一个"
+"新网格，将新网格的 X 尺寸设置为 `4.7 mm`。确认对话框后，返回编辑画布，如果尚"
+"未选中，请从顶部工具栏的网格下拉菜单中选择新网格。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1004
+#: getting_started_in_kicad.adoc:1059
 msgid ""
-"By convention, through-hole footprints have pin 1 located at (0,0) and are "
+"By convention, through-hole footprints have pin 1 located at `(0,0)` and are "
 "oriented with pin 1 in the top left. The SPST version of this switch does "
-"not have pin 1, so the footprint will leave (0,0) empty and place pads 2 and "
-"3 at (0, 4.7 mm) and (0, 9.4 mm). Note that in KiCad's default coordinate "
-"system, the positive Y-axis is oriented downwards."
+"not have pin 1, so the footprint will leave `(0,0)` empty and place pads 2 "
+"and 3 at `(0, 4.7 mm)` and `(0, 9.4 mm)`. Note that in KiCad's default "
+"coordinate system, the positive Y-axis is oriented downwards."
 msgstr ""
-"按照惯例，通孔封装的引脚 1 位于(0,0)处，并以引脚 1 在左上方的方向排列。这个开"
-"关的 SPST 版本没有引脚 1，所以封装会把 (0,0) 空出来，把焊盘 2 和 3 放在 (0, "
-"4.7 mm) 和 (0, 9.4 mm) 处。请注意，在 KiCad 的默认坐标系中，正 Y 轴的方向是向"
-"下的。"
+"按照惯例，通孔封装的引脚 1 位于 `(0,0)` 处，且引脚 1 通常位于左上角。此开关的"
+"单刀单掷（SPST）版本没有引脚 1，因此封装会在 `(0,0)` 处留空，并将引脚 2 和 3 "
+"分别放置在 `(0, 4.7 mm)` 和 `(0, 9.4 mm)` 处。需要注意的是，在 KiCad 的默认坐"
+"标系中，Y 轴的正方向是向下的。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1013
+#: getting_started_in_kicad.adoc:1063
+#, no-wrap
+msgid ""
+"The X and Y coordinates of the cursor are displayed in the status bar at\n"
+"      the bottom of the window. You can use this to check the coordinates when\n"
+"      you are drawing or placing something.\n"
+msgstr "光标的 X 和 Y 坐标显示在窗口底部的状态栏中。您可以在绘图或放置对象时使用此功能来检查坐标。\n"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1072
 msgid ""
 "Use the **Add a pad** tool image:images/pad_24.png[] in the right toolbar to "
 "place a pad one grid division below the origin, which is (0, 4.7 mm). Press "
@@ -2790,29 +2991,30 @@ msgstr ""
 "的圆环形圈。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1014
+#: getting_started_in_kicad.adoc:1073
 #, no-wrap
 msgid "pad properties"
 msgstr "焊盘属性"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1014
+#: getting_started_in_kicad.adoc:1073
 #, no-wrap
 msgid "images/pad-properties.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1019
+#: getting_started_in_kicad.adoc:1078
 msgid ""
-"Now use the **Add a pad** tool again to place the other pad at (0, 9.4 mm).  "
-"Notice that the pad number is automatically incremented and the properties "
-"including pad size and hole size are copied from the previous pad."
+"Now use the **Add a pad** tool again to place the other pad at `(0, 9.4 "
+"mm)`.  Notice that the pad number is automatically incremented and the "
+"properties including pad size and hole size are copied from the previous pad."
 msgstr ""
-"现在再次使用 **添加焊盘** 工具，将另一个焊盘放在 (0, 9.4mm) 处。 注意，焊盘的"
-"编号会自动递增，包括焊盘尺寸和通孔的大小在内的属性会从前一个焊盘上复制下来。"
+"现在再次使用 **添加焊盘** 工具，将另一个焊盘放置在 `(0, 9.4 mm)` 的位置。请注"
+"意，焊盘编号会自动递增，并且包括焊盘尺寸和孔径在内的属性会从上一个焊盘复制过"
+"来。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1026
+#: getting_started_in_kicad.adoc:1085
 msgid ""
 "With both pads placed, the annular rings look slightly small. The switch "
 "will be easier to solder and mechanically more robust if the annular rings "
@@ -2829,7 +3031,7 @@ msgstr ""
 "为 2.22 mm。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1029
+#: getting_started_in_kicad.adoc:1088
 #, no-wrap
 msgid ""
 "Many text boxes in KiCad support mathematical expressions, including unit\n"
@@ -2837,173 +3039,219 @@ msgid ""
 msgstr "KiCad 中的许多文本框支持数学表达，包括单位转换。\n"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1033
+#: getting_started_in_kicad.adoc:1092
 msgid ""
 "Make the same annular ring modification to the other pad as well. As a "
-"shortcut, right click on pad 2, click **Push Pad Properties to Other Pads..."
-"**, and then click **Change Pads on Current Footprint**."
+"shortcut, right click on pad 2, click **Push Pad Properties to Other "
+"Pads...**, and then click **Change Pads on Current Footprint**."
 msgstr ""
 "对另一个焊盘也做同样的圆环形圈修改。作为一个快捷方式，在焊盘 2 上点击右键，点"
 "击 **将焊盘属性推到其它焊盘上...**，然后点击 **改变当前封装上的焊盘**。"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1034
+#: getting_started_in_kicad.adoc:1093
 #, no-wrap
 msgid "Footprint Graphics"
 msgstr "封装图形"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1039
+#: getting_started_in_kicad.adoc:1098
 msgid ""
 "A good footprint will have the exact part outline drawn on the fabrication "
-"layer (`F.Fab`), a slightly larger outline on the silkscreen layer (`F."
-"Silkscreen`), and a courtyard (`F.Courtyard`) surrounding the entire "
+"layer (`F.Fab`), a slightly larger outline on the silkscreen layer "
+"(`F.Silkscreen`), and a courtyard (`F.Courtyard`) surrounding the entire "
 "footprint to prevent overlaps with other footprints."
 msgstr ""
-"一个好的封装会在制造层（`F.Fab`）上画出准确的元件边框，在丝印层（`F."
-"Silkscreen`）上画出稍大的边框，并在整个封装周围有一个边框（`F.Courtyard`）以"
-"防止与其他封装重叠。"
+"一个良好的封装会在制造层（`F.Fab`）上绘制精确的零件轮廓，在丝印层"
+"（`F.Silkscreen`）上绘制稍大的轮廓，并在整个封装周围设置一个禁布区"
+"（`F.Courtyard`），以防止与其他封装发生重叠。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1051
+#: getting_started_in_kicad.adoc:1110
 msgid ""
 "Switch to the front fabrication layer by clicking **F.Fab** in the Layers "
 "panel at right. The fabrication outline should precisely match the physical "
 "dimensions of the part, which is 7.9 mm wide and 13 mm tall. Use the line "
-"image:images/add_line_24.png[], rectangle image:images/add_rectangle_24."
-"png[], or polygon image:images/add_graphical_polygon_24.png[] tools to draw "
-"the outline of the part as shown in the screenshot below. One way to "
-"precisely place the outline is to create a new grid with an X spacing of "
-"`7.9 mm` and a Y spacing of `13 mm`. Then adjust the grid origin by right-"
-"clicking the image:images/grid_24.png[] button and selecting **Grid Origin..."
-"**. Set the X origin is 7.9 mm / 2 = `3.95 mm` and the Y origin to 4.7 mm - "
-"(13 mm / 2) = `-1.8 mm`."
+"image:images/add_line_24.png[], rectangle image:images/"
+"add_rectangle_24.png[], or polygon image:images/"
+"add_graphical_polygon_24.png[] tools to draw the outline of the part as "
+"shown in the screenshot below. One way to precisely place the outline is to "
+"create a new grid with the correct X and Y spacing, as we did for the pads. "
+"Make sure to uncheck the **Linked** checkbox in the Grid Settings dialog to "
+"allow unequal X and Y grid spacing. You can then adjust the grid origin by "
+"right clicking the image:images/grid_24.png[] button and selecting **Grid "
+"Origin...**."
 msgstr ""
-"点击右侧层面板中的 **F.Fab**，切换到前面的制作层。制作边框应与元件的物理尺寸"
-"精确匹配，即宽 7.9 mm，高 13 mm。使用线条 image:images/add_line_24.png[]、矩"
-"形 image:images/add_rectangle_24.png[] 或多边形 image:images/"
-"add_graphical_polygon_24.png[] 工具绘制元件边框，如下图所示。精确放置边框的方"
-"法之一是创建一个新网格，X 间距为 7.9 mm，Y 间距为 13 mm。然后右键单击 image:"
-"images/grid_24.png[] 按钮并选择 **网格原点...**，调整网格原点。设置 X 原点为 "
-"7.9 mm / 2 = `3.95 mm`，Y 原点为 4.7 mm - (13 mm / 2) = `-1.8 mm`。"
+"通过点击右侧图层面板中的 **F.Fab** 切换到前层制造层。制造轮廓应精确匹配零件的"
+"物理尺寸，即宽度为 7.9mm，高度为 13mm。使用线条 image:images/"
+"add_line_24.png[]、矩形 image:images/add_rectangle_24.png[] 或多边形 "
+"image:images/add_graphical_polygon_24.png[] 工具绘制元件的轮廓，如下图所示。"
+"一种精确放置轮廓的方法是创建一个具有正确 X 和 Y 间距的新网格，就像我们为焊盘"
+"所做的那样。确保在网格设置对话框中取消勾选 **已连接** 复选框，以允许不等的 X "
+"和 Y 网格间距。然后，您可以通过右键点击 image:images/grid_24.png[] 按钮并选"
+"择 **网格原点...** 来调整网格原点。"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1112
+msgid "Configure the grid spacing and origin as follows:"
+msgstr "按以下方式配置网格间距和原点："
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1114
+msgid "X grid: `7.9 mm`"
+msgstr "X 网格： `7.9 mm`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1115
+msgid "Y grid: `13 mm`"
+msgstr "Y 网格： `13 mm`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1116
+msgid "X origin: 7.9 mm / 2 = `3.95 mm`"
+msgstr "X 原点：7.9 mm / 2 = `3.95 mm`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1117
+msgid "Y origin: 4.7 mm - (13 mm / 2) = `-1.8 mm`."
+msgstr "Y 原点：4.7 mm - (13 mm / 2) = `-1.8 mm`。"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1120
+msgid ""
+"The completed fabrication drawing is shown below, with corner coordinates "
+"annotated."
+msgstr "完成的制造图纸如下所示，并批注了角点坐标。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1052
+#: getting_started_in_kicad.adoc:1121
 #, no-wrap
 msgid "fab outline coordinates"
 msgstr "制造边框坐标"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1052
+#: getting_started_in_kicad.adoc:1121
 #, no-wrap
 msgid "images/fab-outline.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1059
+#: getting_started_in_kicad.adoc:1128
 msgid ""
-"Next, switch to the `F.Silkscreen` layer. The silkscreen outline should be "
-"just outside of the part outline, so the silkscreen lines are moved outwards "
-"from the fabrication drawing by 0.11 mm (half of 0.10 mm fab line width, "
-"plus half of the 0.12 mm silkscreen line width). The exact coordinates are "
-"shown in the screenshot below, and helpful grid settings are:"
+"Next, switch to the `F.Silkscreen` layer. We want the silkscreen outline to "
+"be just outside of the part outline, so the silkscreen lines will be drawn "
+"0.11 mm to the outside of the lines on the fabrication layer (0.11 mm is "
+"half of the 0.10 mm fab line width, plus half of the 0.12 mm silkscreen line "
+"width). The exact coordinates are shown in the screenshot below, and helpful "
+"grid settings are:"
 msgstr ""
-"接下来，切换到 `F.Silkscreen` 层。丝网的边框应该正好在元件边框之外，所以丝网"
-"线要从制造图中向外移动 0.11 mm（0.10 mm 制造线宽度的一半，加上 0.12 mm 丝网线"
-"宽度的一半）。准确的坐标显示在下面的截图中，有用的网格设置是:"
+"接下来，切换到 `F.Silkscreen` 层。我们希望丝印轮廓刚好位于元件轮廓的外侧，因"
+"此丝印线将绘制在制造层线条外侧 0.11 mm 处（0.11 mm 是 0.10 mm 制造线宽的一"
+"半，加上 0.12 mm 丝印线宽的一半）。具体坐标如下方截图所示，辅助网格设置为："
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1061
+#: getting_started_in_kicad.adoc:1130
 msgid "X grid: 7.9 mm + 2 * 0.11 mm = `8.12 mm`"
 msgstr "X 网格：7.9 mm + 2 * 0.11 mm = `8.12 mm`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1062
+#: getting_started_in_kicad.adoc:1131
 msgid "Y grid: 13 mm + 2 * 0.11 mm = `13.22 mm`"
-msgstr "Y 轴：13 mm + 2 * 0.11 mm = `13.22 mm`"
+msgstr "Y 网格：13 mm + 2 * 0.11 mm = `13.22 mm`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1063
+#: getting_started_in_kicad.adoc:1132
 msgid "X origin: 8.12 mm / 2 = `4.06 mm`"
 msgstr "X 原点：8.12 mm / 2 = `4.06 mm`"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1064
+#: getting_started_in_kicad.adoc:1133
 msgid "Y origin: -1.8 mm - 0.11 mm = `-1.91 mm`"
 msgstr "Y 原点：-1.8 mm - 0.11 mm = `-1.91 mm`"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1065
+#: getting_started_in_kicad.adoc:1134
 #, no-wrap
 msgid "silk outline coordinates"
 msgstr "丝印边框坐标"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1065
+#: getting_started_in_kicad.adoc:1134
 #, no-wrap
 msgid "images/silk-outline.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1069
+#: getting_started_in_kicad.adoc:1138
 msgid ""
-"Finally, select the `F.Courtyard` layer. The courtyard outline should "
+"Finally, select the `F.Courtyard` layer. We want the courtyard outline to "
 "surround the part with a 0.25 mm clearance."
 msgstr ""
-"最后，选择 `F.Courtyard` 层。边框的边框应该以 0.25 mm 的间隙围绕着这个元件。"
+"最后，选择 `F.Courtyard` 图层。我们希望边框的轮廓线围绕该部分，并留有 0.25 "
+"mm 的间隙。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1074
+#: getting_started_in_kicad.adoc:1144
 msgid ""
-"Use a different strategy to draw this layer. Switch to a 1mm grid instead of "
-"a custom grid, and draw a rectangle roughly surrounding the footprint. "
-"Double click on the rectangle to edit its properties, and enter the corner "
-"coordinates of the rectangle directly -- they are shown in the screenshot "
-"below."
+"For variety, we can use a different strategy to draw the shape on this "
+"layer.  Switch to a 1mm grid instead of a custom grid, and draw a rectangle "
+"roughly surrounding the footprint. Select the rectangle and press kbd:[E] to "
+"edit its properties, and enter the corner coordinates of the rectangle "
+"directly. The corner coordinates are:"
 msgstr ""
-"使用不同的策略绘制该图层。切换到 1 mm 网格而不是自定义网格，然后绘制一个大致"
-"围绕封装脚印的矩形。双击矩形编辑其属性，并直接输入矩形的角坐标--如下截图所"
-"示。"
+"为了多样化，我们可以采用不同的策略在这一层上绘制形状。将自定义网格切换为 1 "
+"mm 的网格，并大致围绕轮廓绘制一个矩形。选中矩形，按下键盘上的 kbd:[E] 键以编"
+"辑其属性，直接输入矩形的角坐标。角坐标如下："
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1146
+msgid "Top left: `(-4.2, -2.05)`"
+msgstr "左上角：`(-4.2, -2.05)`"
+
+#. type: Plain text
+#: getting_started_in_kicad.adoc:1147
+msgid "Bottom right: `(4.2, 11.45)`"
+msgstr "右下角：`(4.2, 11.45)`"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1075
+#: getting_started_in_kicad.adoc:1148
 #, no-wrap
 msgid "courtyard outline coordinates"
 msgstr "边框坐标"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1075
+#: getting_started_in_kicad.adoc:1148
 #, no-wrap
 msgid "images/courtyard-outline.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1079
+#: getting_started_in_kicad.adoc:1152
 msgid ""
 "After completing the outlines, position the text as shown below. The "
 "footprint is complete."
 msgstr "完成边框后，将文字定位如下图所示。封装就完成了。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1080
+#: getting_started_in_kicad.adoc:1153
 #, no-wrap
 msgid "completed switch footprint"
 msgstr "完成的开关封装"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1080
+#: getting_started_in_kicad.adoc:1153
 #, no-wrap
 msgid "images/switch-footprint.png"
 msgstr ""
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1082
+#: getting_started_in_kicad.adoc:1155
 #, no-wrap
 msgid "Kicad Library Conventions"
 msgstr "Kicad 库公约"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1091
+#: getting_started_in_kicad.adoc:1164
 msgid ""
 "To maintain high-quality symbol and footprint libraries, KiCad has a https://"
 "klc.kicad.org/[KiCad Library Conventions] document, which is a set of "
@@ -3019,20 +3267,20 @@ msgstr ""
 "要遵循 KLC。KLC 被用作本指南中的符号和封装的基础。"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1092
+#: getting_started_in_kicad.adoc:1165
 #, no-wrap
 msgid "Add Switch to Schematic"
 msgstr "在原理图中添加开关"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1097
+#: getting_started_in_kicad.adoc:1170
 msgid ""
 "Now that the footprint is complete, the switch symbol can be modified so "
 "that the matching footprint is used for it by default."
 msgstr "现在，封装已经完成，可以修改开关符号，以便默认为其使用匹配的封装。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1102
+#: getting_started_in_kicad.adoc:1175
 msgid ""
 "Go back to the symbol editor and open the switch symbol. Edit the Symbol "
 "Properties. Click in the `Footprint` field, then click the library book icon "
@@ -3044,7 +3292,7 @@ msgstr ""
 "装。保存该符号。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1105
+#: getting_started_in_kicad.adoc:1178
 msgid ""
 "The switch footprint is now assigned to this symbol by default; the "
 "footprint does not need to be manually selected each time the symbol is "
@@ -3054,19 +3302,19 @@ msgstr ""
 "选择封装。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1106
+#: getting_started_in_kicad.adoc:1179
 #, no-wrap
 msgid "switch footprint set as default for symbol"
 msgstr "开关封装设置为符号的默认值"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1106 getting_started_in_kicad.adoc:1152
+#: getting_started_in_kicad.adoc:1179 getting_started_in_kicad.adoc:1226
 #, no-wrap
 msgid "images/switch-symbol-footprint.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1110
+#: getting_started_in_kicad.adoc:1183
 msgid ""
 "Open the schematic, add a new symbol, and select the new switch symbol. Wire "
 "it to connect or disconnect the LED and the battery."
@@ -3075,7 +3323,7 @@ msgstr ""
 "池。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1114
+#: getting_started_in_kicad.adoc:1187
 msgid ""
 "It isn't necessary to manually choose a footprint for the switch, because "
 "the switch symbol already specifies a footprint. Run ERC to make sure that "
@@ -3085,119 +3333,123 @@ msgstr ""
 "理图不违反任何电气规则。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1115
+#: getting_started_in_kicad.adoc:1188
 #, no-wrap
 msgid "schematic edited to include switch"
 msgstr "编辑了原理图以包括开关"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1115
+#: getting_started_in_kicad.adoc:1188
 #, no-wrap
 msgid "images/schematic-with-switch.png"
 msgstr ""
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1117
+#: getting_started_in_kicad.adoc:1190
 #, no-wrap
 msgid "Add Switch to Layout"
 msgstr "在布局中添加开关"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1123
+#: getting_started_in_kicad.adoc:1197
 msgid ""
 "Make sure the schematic is saved, then open the Board Editor to add the "
 "symbol to the layout. Update the PCB with the schematic changes using "
 "**Tools** -> **Update PCB from Schematic...** and place the switch footprint "
-"onto the board as shown."
+"onto the board as shown. If needed, resize the board outline and copper zone "
+"(the copper zone will unfill if it is resized, but you can re-fill it as "
+"necessary with kbd:[B])."
 msgstr ""
-"确保原理图被保存，然后打开电路板编辑器，将符号添加到布局中。使用 **工具** -> "
-"**从原理图更新 PCB...** 更新 PCB，并将开关的封装放到电路板上，如图所示。"
+"确保原理图已保存，然后打开板编辑器，将符号添加到布局中。使用 **工具** -> **从"
+"原理图更新PCB...** 将原理图的更改更新到 PCB 上，并按照图示将开关封装放置到板"
+"上。如有需要，调整板框和铜区的大小（调整铜区大小时，铜区会取消填充，但你可以"
+"根据需要按 kbd:[B] 重新填充）。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1124 getting_started_in_kicad.adoc:1140
+#: getting_started_in_kicad.adoc:1198 getting_started_in_kicad.adoc:1214
 #, no-wrap
 msgid "board with switch added, before routing"
 msgstr "添加了开关的板子，在布线之前"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1124
+#: getting_started_in_kicad.adoc:1198
 #, no-wrap
 msgid "images/board-with-switch-unrouted.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1128
+#: getting_started_in_kicad.adoc:1202
 msgid ""
 "The ratsnest shows the new connections that need to be routed. Additionally, "
 "the connection between the battery and the resistor needs to be deleted."
 msgstr "飞线显示了需要布线的新连接。此外，电池和电阻之间的连接也需要删除。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1133
+#: getting_started_in_kicad.adoc:1207
 msgid ""
-"First, delete the unneeded traces. Select one of the traces between the "
+"First, delete the unneeded tracks. Select one of the tracks between the "
 "battery and the resistor -- it doesn't matter which. Press kbd:[U] several "
 "times to expand the selection to include all the segments between the "
 "battery and resistor. Press kbd:[Delete] to remove the connection."
 msgstr ""
-"首先，删除不需要的布线。选择电池和电阻之间的一条布线，选择哪一条并不重要。按"
-"几次 kbd:[U]，将选择范围扩大到电池和电阻器之间的所有布线。按 kbd:[Delete] 键"
-"删除连接。"
+"首先，删除不需要的导线。在电池和电阻器之间选择其中一条导线——选择哪一条都无关"
+"紧要。多次按下 `kbd:[U]` 键，以扩展选择范围，使其包含电池和电阻器之间的所有线"
+"段。按下 `kbd:[Delete]` 键，移除该连接。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1136
+#: getting_started_in_kicad.adoc:1210
 msgid ""
-"Route the new traces between the battery and the switch, and between the "
+"Route the new tracks between the battery and the switch, and between the "
 "switch and the resistor. Press kbd:[B] to refill the zones."
 msgstr ""
-"在电池和开关之间，以及开关和电阻之间布局新的导线。按 kbd:[B] 键，重新填充各敷"
-"铜。"
+"将新布线布置在电池与开关之间，以及开关与电阻器之间。按下 kbd:[B] 键以重新填充"
+"敷铜。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1139
+#: getting_started_in_kicad.adoc:1213
 msgid ""
 "Finally, re-run DRC to make sure the modified board doesn't violate any "
 "design rules."
 msgstr "最后，重新运行 DRC 以确保修改后的电路板不违反任何设计规则。"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1140
+#: getting_started_in_kicad.adoc:1214
 #, no-wrap
 msgid "images/board-with-switch-routed.png"
 msgstr ""
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:1143
+#: getting_started_in_kicad.adoc:1217
 #, no-wrap
 msgid "Linking Symbols, Footprints, and 3D Models"
 msgstr "链接符号、封装和 3D 模型"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1145
+#: getting_started_in_kicad.adoc:1219
 #, no-wrap
 msgid "Symbols and Footprints"
 msgstr "符号和封装"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1151
+#: getting_started_in_kicad.adoc:1225
 msgid ""
 "As described in <<footprint-assignment,the footprint assignment section>>, "
 "each symbol in the schematic needs to have a footprint assigned to it during "
 "the schematic entry process. The name of the footprint assigned to each "
 "symbol is stored in the `Footprint` field of the symbol's properties."
 msgstr ""
-"正如《封装分配，封装分配部分》中所述，在原理图输入过程中，原理图中的每个符号"
-"都需要为其分配一个封装。分配给每个符号的封装名称被存储在符号属性的 `封装` 字"
-"段中。"
+"正如 <<footprint-assignment,封装分配章节>> 中所述，在原理图输入过程中，原理图"
+"中的每个符号都需要为其分配一个封装。分配给每个符号的封装名称被存储在符号属性"
+"的 `封装` 字段中。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1152
+#: getting_started_in_kicad.adoc:1226
 #, no-wrap
 msgid "footprint field in symbol properties"
 msgstr "符号属性中的封装字段"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1161
+#: getting_started_in_kicad.adoc:1235
 msgid ""
 "Symbols can specify a preselected footprint. Footprints do not need to be "
 "manually assigned to such symbols, because a footprint was chosen when the "
@@ -3211,10 +3463,11 @@ msgstr ""
 "符号可以指定一个预选的封装。封装不需要手动分配给这些符号，因为在创建符号的时"
 "候就已经选择了一个封装。用户可以在封装分配过程中正常覆盖预选的封装。定义一个"
 "默认的封装对于那些通常或总是被分配相同封装的符号来说是个好主意，例如一个只在"
-"一个包中可用的元件。开关封装《默认封装，被设置为其匹配符号的默认封装》"
+"一个包中可用的元件。开关封装 <<default-footprint,被设置为其匹配符号的默认封装"
+"章节>>"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1166
+#: getting_started_in_kicad.adoc:1240
 msgid ""
 "Symbols can also specify footprint filters, which can be used to hide "
 "footprints that are incompatible with the symbol. For example, the `74HC00` "
@@ -3223,23 +3476,23 @@ msgid ""
 "tool>>."
 msgstr ""
 "符号也可以指定封装筛选器，可以用来隐藏与符号不兼容的封装。例如，`74HC00` 符号"
-"有封装过滤器，导致只有适用的 DIP 和 SO14 封装显示在《封装筛选器，分配封装工"
-"具》中。"
+"有封装过滤器，导致只有适用的 DIP 和 SO14 封装显示在 <<footprint-filters,分配"
+"封装工具章节>> 中。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1167
+#: getting_started_in_kicad.adoc:1241
 #, no-wrap
 msgid "footprint filters for 74HC00"
 msgstr "用于 74HC00 的封装筛选器"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1167
+#: getting_started_in_kicad.adoc:1241
 #, no-wrap
 msgid "images/footprint-filters.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1171
+#: getting_started_in_kicad.adoc:1245
 msgid ""
 "The https://klc.kicad.org/symbol/s5/s5.2/[KLC requirements for footprint "
 "filters] contain some useful tips for effective footprint filters."
@@ -3248,13 +3501,13 @@ msgstr ""
 "效的封装筛选器的提示。"
 
 #. type: Title ====
-#: getting_started_in_kicad.adoc:1173
+#: getting_started_in_kicad.adoc:1247
 #, no-wrap
 msgid "Footprints and 3D Models"
 msgstr "封装和 3D 模型"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1180
+#: getting_started_in_kicad.adoc:1254
 msgid ""
 "3D models for components are stored in separate files. Filenames for the "
 "component's 3D model(s) are saved in the footprint. Any number of 3D models "
@@ -3262,24 +3515,24 @@ msgid ""
 "rotation, offset, and opacity, are set in the **3D Models** tab of the "
 "Footprint Properties."
 msgstr ""
-"元件的 3D 模型被保存在单独的文件中。元件的 3D 模型的文件名被保存在封装中。每"
-"个封装可以添加任何数量的 3D 模型。3D 模型的文件名，以及模型的比例、旋转、偏移"
-"和不透明度，都在封装属性的 **3D 模型** 标签中设置。"
+"元件的 3D 模型存储在单独的文件中。元件的 3D 模型文件名保存在封装中。每个封装"
+"可以添加任意数量的 3D 模型。3D 模型文件名以及模型的缩放、旋转、偏移和透明度均"
+"在封装属性的 **3D 模型** 选项卡中设置。"
 
 #. type: Positional ($1) AttributeList argument for macro 'image'
-#: getting_started_in_kicad.adoc:1181
+#: getting_started_in_kicad.adoc:1255
 #, no-wrap
 msgid "footprint 3D model properties"
 msgstr "封装 3D 模型属性"
 
 #. type: Target for macro image
-#: getting_started_in_kicad.adoc:1181
+#: getting_started_in_kicad.adoc:1255
 #, no-wrap
 msgid "images/footprint-3d-model.png"
 msgstr ""
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1190
+#: getting_started_in_kicad.adoc:1264
 msgid ""
 "Both STEP (`.step`) and VRML (`.wrl`) 3D model formats are supported. STEP "
 "files are useful where dimensional accuracy is needed, while VRML files can "
@@ -3297,7 +3550,7 @@ msgstr ""
 "路板的 3D 模型时，KiCad 可以自动替换 STEP 版本。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1195
+#: getting_started_in_kicad.adoc:1269
 msgid ""
 "Not all footprints in KiCad's library are provided with 3D models, but all "
 "footprints list a 3D model filename even if the 3D model does not exist. "
@@ -3308,7 +3561,7 @@ msgstr ""
 "名，即使 3D 模型不存在。这样做是为了以后可以添加 3D 模型，而不需要编辑封装。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1201
+#: getting_started_in_kicad.adoc:1275
 msgid ""
 "https://www.freecadweb.org/[FreeCAD] together with the https://github.com/"
 "easyw/kicadStepUpMod/[StepUp Workbench] are useful for creating component 3D "
@@ -3322,38 +3575,38 @@ msgstr ""
 "VRML 文件。"
 
 #. type: Title ==
-#: getting_started_in_kicad.adoc:1202
+#: getting_started_in_kicad.adoc:1276
 #, no-wrap
 msgid "Where To Go From Here"
 msgstr "今后的发展方向"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:1204
+#: getting_started_in_kicad.adoc:1278
 #, no-wrap
 msgid "More Learning Resources"
 msgstr "更多学习资源"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1207
+#: getting_started_in_kicad.adoc:1281
 msgid ""
 "For more information on how to use KiCad, see the https://docs.kicad.org/"
 "[manual]."
 msgstr "关于如何使用 KiCad 的更多信息，请参阅 https://docs.kicad.org/[手册]。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1213
+#: getting_started_in_kicad.adoc:1287
 msgid ""
 "Other resources include the https://forum.kicad.info/[official KiCad user "
 "forum], https://www.kicad.org/community/chat/[Discord or IRC], and "
 "additional https://www.kicad.org/help/learning-resources/[learning "
 "resources] from the KiCad community."
 msgstr ""
-"其他资源包括 https://forum.kicad.info/[KiCad 官方用户论坛]，https://www."
-"kicad.org/community/chat/[Discord 或 IRC]，以及来自 KiCad 社区的其他 https://"
-"www.kicad.org/help/learning-resources/[学习资源]。"
+"其他资源包括 https://forum.kicad.info/[KiCad 官方用户论坛]，https://"
+"www.kicad.org/community/chat/[Discord 或 IRC]，以及来自 KiCad 社区的其他 "
+"https://www.kicad.org/help/learning-resources/[学习资源]。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1218
+#: getting_started_in_kicad.adoc:1292
 msgid ""
 "To see more of what's possible with KiCad, browse the https://www.kicad.org/"
 "made-with-kicad/[Made With KiCad] section of the website, or open the demo "
@@ -3364,13 +3617,13 @@ msgstr ""
 "示工程...**）。"
 
 #. type: Title ===
-#: getting_started_in_kicad.adoc:1219
+#: getting_started_in_kicad.adoc:1293
 #, no-wrap
 msgid "Help Improve KiCad"
 msgstr "帮助改进 KiCad"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1223
+#: getting_started_in_kicad.adoc:1297
 msgid ""
 "To report a bug or request a feature, please use **Help** -> **Report a "
 "Bug** or open an issue on https://gitlab.com/kicad/code/kicad/-/"
@@ -3380,12 +3633,12 @@ msgstr ""
 "https://gitlab.com/kicad/code/kicad/-/issues[Gitlab] 上打开一个问题。"
 
 #. type: Plain text
-#: getting_started_in_kicad.adoc:1231
+#: getting_started_in_kicad.adoc:1305
 msgid ""
-"To contribute to KiCad's development, please see the https://dev-docs.kicad."
-"org/en/contribute/[Developer Contribution page]. Users can also help by "
-"contributing to the https://www.kicad.org/libraries/contribute/[libraries] "
-"or https://www.kicad.org/contribute/docs-team/[documentation and "
+"To contribute to KiCad's development, please see the https://dev-"
+"docs.kicad.org/en/contribute/[Developer Contribution page]. Users can also "
+"help by contributing to the https://www.kicad.org/libraries/contribute/"
+"[libraries] or https://www.kicad.org/contribute/docs-team/[documentation and "
 "translation].  Finally, consider https://www.kicad.org/donate/faq/"
 "[financially supporting] continued development of KiCad."
 msgstr ""
@@ -3394,6 +3647,16 @@ msgstr ""
 "contribute/[库] 或 https://www.kicad.org/contribute/docs-team/[文档和翻译] 提"
 "供帮助。 最后，请考虑 https://www.kicad.org/donate/faq/[捐赠支持] 继续开发 "
 "KiCad。"
+
+#~ msgid ""
+#~ "We want Pin 3 to be on the right side of the switch symbol, so edit the "
+#~ "properties of pin 3 and change **X position** to `200 mils`, **Y "
+#~ "position** to `0`, and **Orientation** to `Left`. Also, change **Pin "
+#~ "name** to `B`."
+#~ msgstr ""
+#~ "我们希望引脚 3 位于开关符号的右侧，因此编辑引脚 3 的属性，将 **X 位置** 改"
+#~ "为 `200 mils`，**Y 位置** 改为 `0`，**方向** 改为 `左`。同时，将 **引脚名"
+#~ "称** 改为 `B`。"
 
 #~ msgid ""
 #~ "Using the filters, find and assign the footprints shown in the central "
@@ -3663,9 +3926,9 @@ msgstr ""
 #~ "image:images/icons/add_component.png[Add component Icon] in the right "
 #~ "toolbar. You may also press the 'Add Symbol' hotkey [a]."
 #~ msgstr ""
-#~ "我们现在将放置第一个元件。 单击右侧工具栏中的 _放置符号_ 图标 image:"
-#~ "images/icons/add_component.png[Add component Icon]。 您也可以按 _添加符号"
-#~ "_ 热键 [a]。"
+#~ "我们现在将放置第一个元件。 单击右侧工具栏中的 _放置符号_ 图标 "
+#~ "image:images/icons/add_component.png[Add component Icon]。 您也可以按 _添"
+#~ "加符号_ 热键 [a]。"
 
 #~ msgid ""
 #~ "Click on the middle of your schematic sheet. A __Choose Symbol__ window "
@@ -3931,9 +4194,9 @@ msgstr ""
 #~ "right toolbar. Alternatively, press [p]. In the component selection "
 #~ "window, scroll down and select 'VCC' from the 'power' library.  Click OK."
 #~ msgstr ""
-#~ "是时候放置电源和接地符号了。 单击右侧工具栏上的 _放置电源端口_ 按钮 image:"
-#~ "images/icons/add_power.png[add_power_png]。 或者，按[p]。 在元件选择窗口"
-#~ "中，向下滚动并从 _电源_ 库中选择 _VCC_。 单击确定。"
+#~ "是时候放置电源和接地符号了。 单击右侧工具栏上的 _放置电源端口_ 按钮 "
+#~ "image:images/icons/add_power.png[add_power_png]。 或者，按[p]。 在元件选择"
+#~ "窗口中，向下滚动并从 _电源_ 库中选择 _VCC_。 单击确定。"
 
 #~ msgid ""
 #~ "Click above the pin of the 1 k resistor to place the VCC part. Click on "
@@ -3969,8 +4232,8 @@ msgstr ""
 #~ "Next, we will wire all our components. Click on the 'Place wire' icon "
 #~ "image:images/icons/add_line.png[Place wire] on the right toolbar."
 #~ msgstr ""
-#~ "接下来，我们将连接所有元件。 单击右侧工具栏上的 _放置电线_ 图标 image:"
-#~ "images/icons/add_line.png[Place wire]。"
+#~ "接下来，我们将连接所有元件。 单击右侧工具栏上的 _放置电线_ 图标 "
+#~ "image:images/icons/add_line.png[Place wire]。"
 
 #~ msgid ""
 #~ "Be careful not to pick 'Place bus', which appears directly beneath this "
@@ -4099,12 +4362,14 @@ msgstr ""
 #~ "将每个未连接的电线或引脚标记为未连接。"
 
 #~ msgid ""
-#~ "Click on the 'Place no connection flag' icon image:images/icons/noconn."
-#~ "png[noconn_png] on the right toolbar. Click on pins 2, 3, 4 and 5. An X "
-#~ "will appear to signify that the lack of a wire connection is intentional."
+#~ "Click on the 'Place no connection flag' icon image:images/icons/"
+#~ "noconn.png[noconn_png] on the right toolbar. Click on pins 2, 3, 4 and 5. "
+#~ "An X will appear to signify that the lack of a wire connection is "
+#~ "intentional."
 #~ msgstr ""
-#~ "单击右侧工具栏上的 _放置无连接标志_ 图标 image:images/icons/noconn."
-#~ "png[noconn_png] 。 单击引脚2,3,4和5，X似乎表示缺少有线连接是故意的。"
+#~ "单击右侧工具栏上的 _放置无连接标志_ 图标 image:images/icons/"
+#~ "noconn.png[noconn_png] 。 单击引脚2,3,4和5，X似乎表示缺少有线连接是故意"
+#~ "的。"
 
 #, no-wrap
 #~ msgid "gsik_tutorial1_060_png"
@@ -4153,8 +4418,8 @@ msgstr ""
 
 #~ msgid ""
 #~ "Sometimes it is good to write comments here and there. To add comments on "
-#~ "the schematic use the 'Place text' icon image:images/icons/text."
-#~ "png[text_png] on the right toolbar."
+#~ "the schematic use the 'Place text' icon image:images/icons/"
+#~ "text.png[text_png] on the right toolbar."
 #~ msgstr ""
 #~ "有时候在这里和那里写批注是件好事。 要在原理图上添加批注，请使用右侧工具栏"
 #~ "上的 _放置文本_ 图标 image:images/icons/text.png[text_png] 。"
@@ -4211,8 +4476,8 @@ msgstr ""
 #~ "default file name."
 #~ msgstr ""
 #~ "原理图现已完成。 我们现在可以创建一个网表文件，我们将添加每个元件的封装。 "
-#~ "单击顶部工具栏上的 _生成网表_ 图标 image:images/icons/netlist."
-#~ "png[netlist_png] 。 单击 _生成网表_ 按钮并保存在默认文件名下。"
+#~ "单击顶部工具栏上的 _生成网表_ 图标 image:images/icons/"
+#~ "netlist.png[netlist_png] 。 单击 _生成网表_ 按钮并保存在默认文件名下。"
 
 #~ msgid ""
 #~ "Netlist was necessary in previous versions of KiCad.  In the recent "
@@ -4223,9 +4488,9 @@ msgstr ""
 #~ "用* 工具 * -> *从原理图* 更新PCB。 如果这样做，您必须首先为符号指定封装。"
 
 #~ msgid ""
-#~ "After generating the Netlist file, click on the 'Run Cvpcb' icon image:"
-#~ "images/icons/cvpcb.png[cvpcb_png] on the top toolbar. If a missing file "
-#~ "error window pops up, just ignore it and click OK."
+#~ "After generating the Netlist file, click on the 'Run Cvpcb' icon "
+#~ "image:images/icons/cvpcb.png[cvpcb_png] on the top toolbar. If a missing "
+#~ "file error window pops up, just ignore it and click OK."
 #~ msgstr ""
 #~ "生成网表文件后，单击顶部工具栏上的 _运行Cvpcb_ 图标 image:images/icons/"
 #~ "cvpcb.png[cvpcb_png] 。 如果弹出丢失的文件错误窗口，请忽略它并单击 _确定"
@@ -4255,8 +4520,8 @@ msgstr ""
 #~ "_Cvpcb_ allows you to link all the components in your schematic with "
 #~ "footprints in the KiCad library. The pane on the center shows all the "
 #~ "components used in your schematic. Here select 'D1'. In the pane on the "
-#~ "right you have all the available footprints, here scroll down to 'LED_THT:"
-#~ "LED-D5.0mm' and double click on it."
+#~ "right you have all the available footprints, here scroll down to "
+#~ "'LED_THT:LED-D5.0mm' and double click on it."
 #~ msgstr ""
 #~ "_Cvpcb_ 允许您将原理图中的所有元件与 KiCad 库中的封装链接起来。 中心的窗格"
 #~ "显示原理图中使用的所有元件。 在这里选择 _D1_。 在右侧窗格中，您可以看到所"
@@ -4273,9 +4538,9 @@ msgstr ""
 #~ msgstr ""
 #~ "右侧窗格可能只显示可用封装的一个子集。点击图标 image:images/icons/"
 #~ "module_filtered_list.png[module_filtered_list_png], image:images/icons/"
-#~ "module_pin_filtered_list.png[module_pin_filtered_list_png] 和 image:"
-#~ "images/icons/module_library_list.png[module_library_list_png] 以启用或禁用"
-#~ "这些筛选器。"
+#~ "module_pin_filtered_list.png[module_pin_filtered_list_png] 和 "
+#~ "image:images/icons/module_library_list.png[module_library_list_png] 以启用"
+#~ "或禁用这些筛选器。"
 
 #~ msgid ""
 #~ "For 'U1' select the 'Package_DIP:DIP-8_W7.62mm' footprint.  For 'J1' "
@@ -4289,9 +4554,9 @@ msgstr ""
 
 #~ msgid ""
 #~ "If you are interested in knowing what the footprint you are choosing "
-#~ "looks like, you can click on the 'View selected footprint' icon image:"
-#~ "images/icons/show_footprint.png[show_footprint_png] for a preview of the "
-#~ "current footprint."
+#~ "looks like, you can click on the 'View selected footprint' icon "
+#~ "image:images/icons/show_footprint.png[show_footprint_png] for a preview "
+#~ "of the current footprint."
 #~ msgstr ""
 #~ "如果您有兴趣知道您选择的封装是什么样的，您可以单击 _查看所选封装_ 图标 "
 #~ "image:images/icons/show_footprint.png[show_footprint_png] 以预览当前封装。"
@@ -4538,14 +4803,14 @@ msgstr ""
 #~ msgid ""
 #~ "Connect and label CONN_4 using the labelling method explained before. "
 #~ "Name the pins b1, b2, b3 and b4. Connect the pin to a series of 'Wire to "
-#~ "bus entry' using the icon image:images/icons/add_line2bus."
-#~ "png[add_line2bus_png] and to a bus line using the icon image:images/icons/"
-#~ "add_bus.png[add_bus_png]. See Figure 4."
+#~ "bus entry' using the icon image:images/icons/"
+#~ "add_line2bus.png[add_line2bus_png] and to a bus line using the icon "
+#~ "image:images/icons/add_bus.png[add_bus_png]. See Figure 4."
 #~ msgstr ""
 #~ "使用之前说明的标记方法连接并标记 CONN_4。 将引脚命名为b1，b2，b3和b4。 使"
 #~ "用图标 image:images/icons/add_line2bus.png[add_line2bus_png] 将引脚连接到"
-#~ "一系列 ­_电线到总线入口_，并使用图标 image:images/icons/add_bus."
-#~ "png[add_bus_png] 连接到总线。 见图4。"
+#~ "一系列 ­_电线到总线入口_，并使用图标 image:images/icons/"
+#~ "add_bus.png[add_bus_png] 连接到总线。 见图4。"
 
 #~ msgid "Put a label (press [l]) on the bus of CONN_4 and name it 'b[1..4]'."
 #~ msgstr "在 CONN_4 的总线上放一个标签（按[l]）并命名为 _b[1..4]_。"
@@ -4620,10 +4885,10 @@ msgstr ""
 #~ "open. If you get a message saying that a _*.kicad_pcb_ file does not "
 #~ "exist and asks if you want to create it, just click Yes."
 #~ msgstr ""
-#~ "从 KiCad 工程管理器，单击 _Pcb布局编辑器_ 图标 image:images/icons/pcbnew."
-#~ "png[pcbnew_png] 。 您还可以使用 _Eeschema_ 中的相应工具栏按钮。 _Pcbnew_ "
-#~ "窗口将打开。 如果您收到一条消息，指出 _ *.kicad_pcb_文件不存在并询问您是否"
-#~ "要创建它，只需单击是。"
+#~ "从 KiCad 工程管理器，单击 _Pcb布局编辑器_ 图标 image:images/icons/"
+#~ "pcbnew.png[pcbnew_png] 。 您还可以使用 _Eeschema_ 中的相应工具栏按钮。 "
+#~ "_Pcbnew_ 窗口将打开。 如果您收到一条消息，指出 _ *.kicad_pcb_文件不存在并"
+#~ "询问您是否要创建它，只需单击是。"
 
 #~ msgid ""
 #~ "Begin by entering some schematic information. Click on the 'Page "
@@ -4666,9 +4931,9 @@ msgstr ""
 #~ "Current Netlist'. Then click the 'Close' button."
 #~ msgstr ""
 #~ "现在我们将导入网表文件，如果你创建了一个。 单击顶部工具栏上的 _读取网表_ "
-#~ "图标 image:images/icons/netlist.png[netlist_png] 。 如果网表文件 _教程1."
-#~ "net_ 是从 Eeschema 创建的，则应在 _网表文件_ 字段中选择。 点击 _读取当前网"
-#~ "表_。 然后单击 _关闭_ 按钮。"
+#~ "图标 image:images/icons/netlist.png[netlist_png] 。 如果网表文件 _教程"
+#~ "1.net_ 是从 Eeschema 创建的，则应在 _网表文件_ 字段中选择。 点击 _读取当前"
+#~ "网表_。 然后单击 _关闭_ 按钮。"
 
 #~ msgid ""
 #~ "All components should now be visible. They are selected and follow the "
@@ -4684,9 +4949,9 @@ msgstr ""
 
 #~ msgid ""
 #~ "All components are connected via a thin group of wires called "
-#~ "__ratsnest__. Make sure that the 'Show/hide board ratsnest' button image:"
-#~ "images/icons/general_ratsnest.png[general_ratsnest_png] is pressed. In "
-#~ "this way you can see the ratsnest linking all components."
+#~ "__ratsnest__. Make sure that the 'Show/hide board ratsnest' button "
+#~ "image:images/icons/general_ratsnest.png[general_ratsnest_png] is pressed. "
+#~ "In this way you can see the ratsnest linking all components."
 #~ msgstr ""
 #~ "所有元件都通过称为 __飞线__ 的一组细线连接。 确保按下 _显示/隐藏板鼠标_ 按"
 #~ "钮 image:images/icons/general_ratsnest.png[general_ratsnest_png] 。 通过这"
@@ -4758,8 +5023,8 @@ msgstr ""
 #~ msgstr "选择前顶部铜层"
 
 #~ msgid ""
-#~ "If you decide, for instance, to do a 4 layer PCB instead, go to *Setup* -"
-#~ "> *Layers Setup* and change 'Copper Layers' to 4. In the 'Layers' table "
+#~ "If you decide, for instance, to do a 4 layer PCB instead, go to *Setup* "
+#~ "-> *Layers Setup* and change 'Copper Layers' to 4. In the 'Layers' table "
 #~ "you can name layers and decide what they can be used for.  Notice that "
 #~ "there are very useful presets that can be selected via the 'Preset Layer "
 #~ "Groupings' menu."
@@ -4769,17 +5034,17 @@ msgstr ""
 #~ "过 _预设图层分组_ 菜单选择非常有用的预设。"
 
 #~ msgid ""
-#~ "Click on the 'Route tracks' icon image:images/icons/add_tracks."
-#~ "png[add_tracks_png] on the right toolbar. Click on pin 1 of 'J1' and run "
-#~ "a track to pad 'R2'. Double-click to set the point where the track will "
-#~ "end. The width of this track will be the default 0.250 mm. You can change "
-#~ "the track width from the drop-down menu in the top toolbar. Mind that by "
-#~ "default you have only one track width available."
+#~ "Click on the 'Route tracks' icon image:images/icons/"
+#~ "add_tracks.png[add_tracks_png] on the right toolbar. Click on pin 1 of "
+#~ "'J1' and run a track to pad 'R2'. Double-click to set the point where the "
+#~ "track will end. The width of this track will be the default 0.250 mm. You "
+#~ "can change the track width from the drop-down menu in the top toolbar. "
+#~ "Mind that by default you have only one track width available."
 #~ msgstr ""
-#~ "单击右侧工具栏上的 _布线_ 图标 image:images/icons/add_tracks."
-#~ "png[add_tracks_png]。 单击 _J1_ 的第1针并运行轨道以填充 _R2_。 双击以设置"
-#~ "轨道结束的点。 该轨道的宽度将默认为 0.250mm。 您可以从顶部工具栏的下拉菜单"
-#~ "中更改布线宽度。 请注意，默认情况下，您只有一个可用的布线宽度。"
+#~ "单击右侧工具栏上的 _布线_ 图标 image:images/icons/"
+#~ "add_tracks.png[add_tracks_png]。 单击 _J1_ 的第1针并运行轨道以填充 _R2_。 "
+#~ "双击以设置轨道结束的点。 该轨道的宽度将默认为 0.250mm。 您可以从顶部工具栏"
+#~ "的下拉菜单中更改布线宽度。 请注意，默认情况下，您只有一个可用的布线宽度。"
 
 #, no-wrap
 #~ msgid "pcbnew_select_track_width_png"
@@ -4847,10 +5112,11 @@ msgstr ""
 #~ "we could do this with the ground plane. Notice how the colour of the "
 #~ "track has changed."
 #~ msgstr ""
-#~ "现在让我们在 PCB 的另一个侧上运行布线。 在顶部工具栏的下拉菜单中选择 _B."
-#~ "Cu_。 点击 _布线_ 图标 image:images/icons/add_tracks."
-#~ "png[add_tracks_png]。 在 J1 的引脚3和 U1 的引脚8之间画一条线。 这实际上没"
-#~ "有必要，因为我们可以用地平面做到这一点。 注意轨道的颜色是如何变化的。"
+#~ "现在让我们在 PCB 的另一个侧上运行布线。 在顶部工具栏的下拉菜单中选择 "
+#~ "_B.Cu_。 点击 _布线_ 图标 image:images/icons/"
+#~ "add_tracks.png[add_tracks_png]。 在 J1 的引脚3和 U1 的引脚8之间画一条线。 "
+#~ "这实际上没有必要，因为我们可以用地平面做到这一点。 注意轨道的颜色是如何变"
+#~ "化的。"
 
 #, no-wrap
 #~ msgid ""
@@ -4872,21 +5138,23 @@ msgstr ""
 
 #~ msgid ""
 #~ "When you want to inspect a particular connection you can click on the "
-#~ "'Highlight net' icon image:images/icons/net_highlight."
-#~ "png[net_highlight_png] on the right toolbar.  Click on pin 3 of J1. The "
-#~ "track itself and all pads connected to it should become highlighted."
+#~ "'Highlight net' icon image:images/icons/"
+#~ "net_highlight.png[net_highlight_png] on the right toolbar.  Click on pin "
+#~ "3 of J1. The track itself and all pads connected to it should become "
+#~ "highlighted."
 #~ msgstr ""
-#~ "当您想要检查特定连接时，可以单击右侧工具栏上的 _高亮网络_ 图标 image:"
-#~ "images/icons/net_highlight.png[net_highlight_png] 。 点击 J1 的引脚3。 布"
-#~ "线本身和连接到它的所有焊盘都应高亮显示。"
+#~ "当您想要检查特定连接时，可以单击右侧工具栏上的 _高亮网络_ 图标 "
+#~ "image:images/icons/net_highlight.png[net_highlight_png] 。 点击 J1 的引脚"
+#~ "3。 布线本身和连接到它的所有焊盘都应高亮显示。"
 
 #~ msgid ""
 #~ "Now we will make a ground plane that will be connected to all GND pins. "
-#~ "Click on the 'Add filled zones' icon image:images/icons/add_zone."
-#~ "png[add_zone_png] on the right toolbar. We are going to trace a rectangle "
-#~ "around the board, so click where you want one of the corners to be. In "
-#~ "the dialogue that appears, set 'Default pad connection' to 'Thermal "
-#~ "relief' and 'Outline slope' to 'H,V and 45 deg only' and click OK."
+#~ "Click on the 'Add filled zones' icon image:images/icons/"
+#~ "add_zone.png[add_zone_png] on the right toolbar. We are going to trace a "
+#~ "rectangle around the board, so click where you want one of the corners to "
+#~ "be. In the dialogue that appears, set 'Default pad connection' to "
+#~ "'Thermal relief' and 'Outline slope' to 'H,V and 45 deg only' and click "
+#~ "OK."
 #~ msgstr ""
 #~ "现在我们将制作一个连接到所有 GND 引脚的接地层。 单击右侧工具栏上的 _添加填"
 #~ "充区域_ 图标 image:images/icons/add_zone.png[add_zone_png] 。 我们将在板周"
@@ -4920,9 +5188,10 @@ msgstr ""
 #~ "Unconnected'. There should be no unconnected items. Click OK to close the "
 #~ "DRC Control dialogue."
 #~ msgstr ""
-#~ "单击顶部工具栏上的 _执行设计规则检查_ 图标 image:images/icons/drc."
-#~ "png[drc_png] 运行设计规则检查器。 点击 _开始 DRC_。 应该没有错误。 点击 _"
-#~ "列表未连接_。 应该没有未连接的项目。 单击 _确定_ 关闭 _DRC控制_ 对话框。"
+#~ "单击顶部工具栏上的 _执行设计规则检查_ 图标 image:images/icons/"
+#~ "drc.png[drc_png] 运行设计规则检查器。 点击 _开始 DRC_。 应该没有错误。 点"
+#~ "击 _列表未连接_。 应该没有未连接的项目。 单击 _确定_ 关闭 _DRC控制_ 对话"
+#~ "框。"
 
 #~ msgid ""
 #~ "Save your file by clicking on *File* -> **Save**. To admire your board in "
@@ -5171,10 +5440,10 @@ msgstr ""
 #~ msgstr "点击 _网表_ 然后点击 _保存_。 保存为默认文件名。 你必须重写旧的。"
 
 #~ msgid ""
-#~ "Now assign a footprint to CON2. Click on the 'Run Cvpcb' icon image:"
-#~ "images/icons/cvpcb.png[cvpcb] on the top toolbar. Assign the footprint to "
-#~ "the new device CON2. The rest of the components still have the previous "
-#~ "footprints assigned to them. Close __Cvpcb__."
+#~ "Now assign a footprint to CON2. Click on the 'Run Cvpcb' icon "
+#~ "image:images/icons/cvpcb.png[cvpcb] on the top toolbar. Assign the "
+#~ "footprint to the new device CON2. The rest of the components still have "
+#~ "the previous footprints assigned to them. Close __Cvpcb__."
 #~ msgstr ""
 #~ "现在为 CON2 分配封装。 单击顶部工具栏上的 _运行Cvpcb_ 图标 image:images/"
 #~ "icons/cvpcb.png[cvpcb]。 将封装分配给新设备 CON2。 其余元件仍然具有分配给"
@@ -5275,8 +5544,8 @@ msgstr ""
 #~ msgid ""
 #~ "Now we can start creating our new component. From KiCad, start "
 #~ "__Eeschema__, click on the 'Library Editor' icon image:images/icons/"
-#~ "libedit.png[libedit_png] and then click on the 'New component' icon image:"
-#~ "images/icons/new_component.png[new_component_png]. The Component "
+#~ "libedit.png[libedit_png] and then click on the 'New component' icon "
+#~ "image:images/icons/new_component.png[new_component_png]. The Component "
 #~ "Properties window will appear. Name the new component 'MYCONN3', set the "
 #~ "'Default reference designator' as 'J', and the 'Number of units per "
 #~ "package' as '1'. Click OK. If the warning appears just click yes.  At "
@@ -5372,18 +5641,18 @@ msgstr ""
 #~ "_ ，在 _元件库文件_ 中添加 _mylib.lib_。"
 
 #~ msgid ""
-#~ "Click on the 'Select working library' icon image:images/icons/library."
-#~ "png[library_png]. In the Select Library window click on _myLib_ and click "
-#~ "OK. Notice how the heading of the window indicates the library currently "
-#~ "in use, which now should be __myLib__."
+#~ "Click on the 'Select working library' icon image:images/icons/"
+#~ "library.png[library_png]. In the Select Library window click on _myLib_ "
+#~ "and click OK. Notice how the heading of the window indicates the library "
+#~ "currently in use, which now should be __myLib__."
 #~ msgstr ""
 #~ "单击 _选择工作库_ 图标 image:images/icons/library.png[library_png] 。 在 _"
 #~ "选择库_ 窗口中，单击 _myLib_，然后单击 _确定_。 注意窗口的标题如何表示当前"
 #~ "正在使用的库，现在应该是 __myLib__。"
 
 #~ msgid ""
-#~ "Click on the 'Update current component in current library' icon image:"
-#~ "images/icons/save_part_in_mem.png[save_part_in_mem_png] in the top "
+#~ "Click on the 'Update current component in current library' icon "
+#~ "image:images/icons/save_part_in_mem.png[save_part_in_mem_png] in the top "
 #~ "toolbar. Save all changes by clicking on the 'Save current loaded library "
 #~ "on disk' icon image:images/icons/save_library.png[save_library_png] in "
 #~ "the top toolbar. Click 'Yes' in any confirmation messages that appear.  "
@@ -5392,9 +5661,9 @@ msgstr ""
 #~ msgstr ""
 #~ "单击顶部工具栏中的 _更新当前库中的当前元件_ 图标 image:images/icons/"
 #~ "save_part_in_mem.png[save_part_in_mem_png] 。 单击顶部工具栏中的 _在磁盘上"
-#~ "保存当前加载的库_ 图标 image:images/icons/save_library."
-#~ "png[save_library_png] 保存所有更改。 在出现的任何确认消息中单击 _是_。 现"
-#~ "在，新的逻辑示意图元件已在窗口标题栏中指示的库中完成并可用。"
+#~ "保存当前加载的库_ 图标 image:images/icons/"
+#~ "save_library.png[save_library_png] 保存所有更改。 在出现的任何确认消息中单"
+#~ "击 _是_。 现在，新的逻辑示意图元件已在窗口标题栏中指示的库中完成并可用。"
 
 #~ msgid ""
 #~ "You can now close the Component library editor window. You will return to "
@@ -5429,8 +5698,8 @@ msgstr ""
 #~ "进行修改。"
 
 #~ msgid ""
-#~ "From KiCad, start __Eeschema__, click on the 'Library Editor' icon image:"
-#~ "images/icons/libedit.png[libedit_png], click on the 'Select working "
+#~ "From KiCad, start __Eeschema__, click on the 'Library Editor' icon "
+#~ "image:images/icons/libedit.png[libedit_png], click on the 'Select working "
 #~ "library' icon image:images/icons/library.png[library_png] and choose the "
 #~ "library 'device'. Click on 'Load component to edit from the current lib' "
 #~ "icon image:images/icons/import_cmp_from_lib.png[import_cmp_from_lib_png] "
@@ -5439,13 +5708,13 @@ msgstr ""
 #~ "从 KiCad 开始 __Eeschema__，点击 _库编辑器_ 图标 image:images/icons/"
 #~ "libedit.png[libedit_png] ，点击 _选择工作库_ 图标 image:images/icons/"
 #~ "library.png[library_png] 并选择库的 _设备_。 单击 _从当前库中加载元件进行"
-#~ "编辑_ 图标image:images/icons/import_cmp_from_lib."
-#~ "png[import_cmp_from_lib_png] 并导入 _RELAY_2RT_。"
+#~ "编辑_ 图标image:images/icons/"
+#~ "import_cmp_from_lib.png[import_cmp_from_lib_png] 并导入 _RELAY_2RT_。"
 
 #~ msgid ""
-#~ "Click on the 'Export component' icon image:images/icons/export."
-#~ "png[export_png], navigate into the _library/_ folder and save the new "
-#~ "library file with the name _myOwnLib.lib._"
+#~ "Click on the 'Export component' icon image:images/icons/"
+#~ "export.png[export_png], navigate into the _library/_ folder and save the "
+#~ "new library file with the name _myOwnLib.lib._"
 #~ msgstr ""
 #~ "单击“导出元件”图标 image:images/icons/export.png[export_png]，导航到 _库/"
 #~ "_ 文件夹并保存名为 _myOwnLib.lib_ 的新库文件"
@@ -5463,19 +5732,19 @@ msgstr ""
 #~ "口。"
 
 #~ msgid ""
-#~ "Click on the 'Select working library' icon image:images/icons/library."
-#~ "png[library_png]. In the Select Library window click on _myOwnLib_ and "
-#~ "click OK. Notice how the heading of the window indicates the library "
-#~ "currently in use, it should be __myOwnLib__."
+#~ "Click on the 'Select working library' icon image:images/icons/"
+#~ "library.png[library_png]. In the Select Library window click on "
+#~ "_myOwnLib_ and click OK. Notice how the heading of the window indicates "
+#~ "the library currently in use, it should be __myOwnLib__."
 #~ msgstr ""
 #~ "单击 _选择工作库_ 图标 image:images/icons/library.png[library_png] 。 在选"
 #~ "择库窗口中，单击 _myOwnLib_ 并单击 OK。 注意窗口的标题如何表示当前正在使用"
 #~ "的库，它应该是 __myOwnLib__。"
 
 #~ msgid ""
-#~ "Click on the 'Load component to edit from the current lib' icon image:"
-#~ "images/icons/import_cmp_from_lib.png[import_cmp_from_lib_png] and import "
-#~ "the 'RELAY_2RT'."
+#~ "Click on the 'Load component to edit from the current lib' icon "
+#~ "image:images/icons/import_cmp_from_lib.png[import_cmp_from_lib_png] and "
+#~ "import the 'RELAY_2RT'."
 #~ msgstr ""
 #~ "单击 _从当前库中加载元件进行编辑_ 图标 image:images/icons/"
 #~ "import_cmp_from_lib.png[import_cmp_from_lib_png] 并导入 _RELAY_2RT_。"
@@ -5495,8 +5764,8 @@ msgstr ""
 #~ msgstr ""
 #~ "单击顶部工具栏中的 _更新当前库中的当前元件_ 图标 image:images/icons/"
 #~ "save_part_in_mem.png[save_part_in_mem_png] 。 单击顶部工具栏中的 _在磁盘上"
-#~ "保存当前加载的库_ 图标 image:images/icons/save_library."
-#~ "png[save_library_png] 保存所有更改。"
+#~ "保存当前加载的库_ 图标 image:images/icons/"
+#~ "save_library.png[save_library_png] 保存所有更改。"
 
 #, no-wrap
 #~ msgid "Make schematic components with quicklib"
@@ -5540,9 +5809,9 @@ msgstr ""
 #~ msgid ""
 #~ "Have a look at it using KiCad. From the KiCad project manager, start "
 #~ "__Eeschema__, click on the 'Library Editor' icon image:images/icons/"
-#~ "libedit.png[libedit_png], click on the 'Import Component' icon image:"
-#~ "images/icons/import.png[import_png], navigate to _tutorial1/library/_ and "
-#~ "select _myQuickLib.lib._"
+#~ "libedit.png[libedit_png], click on the 'Import Component' icon "
+#~ "image:images/icons/import.png[import_png], navigate to _tutorial1/library/"
+#~ "_ and select _myQuickLib.lib._"
 #~ msgstr ""
 #~ "使用 KiCad 查看它。 从 KiCad 工程管理器，启动 __Eeschema__，单击 “库编辑"
 #~ "器” 图标 image:images/icons/libedit.png[libedit_png]] ，单击 “导入元件” 图"
@@ -5617,10 +5886,10 @@ msgstr ""
 #~ "the line: +X PIN1 1 -750 600 300 R 50 50 1 1 I+ into +X PIN26 26 -750 600 "
 #~ "300 R 50 50 1 1 I+ this is done for all lines in the file __in.txt__."
 #~ msgstr ""
-#~ "您将在下面找到一个简单的 Python 脚本示例，它可以与 _in.txt_ 文件和 _out."
-#~ "txt_ 文件一起使用以重新编号该行：+X PIN1 1 -750 600 300 R 50 50 1 1 I+ "
-#~ "into +X PIN26 26 -750 600 300 R 50 50 1 1 I+ 这对文件 __in.txt__ 中的所有"
-#~ "行都已完成。"
+#~ "您将在下面找到一个简单的 Python 脚本示例，它可以与 _in.txt_ 文件和 "
+#~ "_out.txt_ 文件一起使用以重新编号该行：+X PIN1 1 -750 600 300 R 50 50 1 1 "
+#~ "I+ into +X PIN26 26 -750 600 300 R 50 50 1 1 I+ 这对文件 __in.txt__ 中的所"
+#~ "有行都已完成。"
 
 #, no-wrap
 #~ msgid "Simple script"
@@ -5744,8 +6013,8 @@ msgstr ""
 
 #~ msgid ""
 #~ "Unlike other EDA software tools, which have one type of library that "
-#~ "contains both the schematic symbol and the footprint variations, KiCad _."
-#~ "lib_ files contain schematic symbols and _.kicad_mod_ files contain "
+#~ "contains both the schematic symbol and the footprint variations, KiCad "
+#~ "_.lib_ files contain schematic symbols and _.kicad_mod_ files contain "
 #~ "footprints. _Cvpcb_ is used to map footprints to symbols."
 #~ msgstr ""
 #~ "与其他 EDA 软件工具不同，其中一种类型的库包含原理图符号和封装变化，KiCad "
@@ -5769,9 +6038,9 @@ msgstr ""
 
 #~ msgid ""
 #~ "From the KiCad project manager start the _Pcbnew_ tool. Click on the "
-#~ "'Open Footprint Editor' icon image:images/icons/edit_module."
-#~ "png[edit_module_png] on the top toolbar. This will open the 'Footprint "
-#~ "Editor'."
+#~ "'Open Footprint Editor' icon image:images/icons/"
+#~ "edit_module.png[edit_module_png] on the top toolbar. This will open the "
+#~ "'Footprint Editor'."
 #~ msgstr ""
 #~ "从 KiCad 工程管理器开始 _Pcbnew_ 工具。 单击顶部工具栏上的 _打开封装编辑器"
 #~ "_ 图标 image:images/icons/edit_module.png[edit_module_png] 。 这将打开 _封"
@@ -5782,11 +6051,12 @@ msgstr ""
 #~ "library 'myfootprint'.  Create a new folder _myfootprint.pretty_ in the "
 #~ "_tutorial1/_ project folder.  Click on the *Preferences* -> **Footprint "
 #~ "Libraries Manager** and press 'Append Library' button. In the table, "
-#~ "enter \"myfootprint\" as Nickname, enter \"$\\{KIPRJMOD\\}/myfootprint."
-#~ "pretty\" as Library Path and enter \"KiCad\" as Plugin Type.  Press OK to "
-#~ "close the PCB Library Tables window.  Click on the 'Select active "
-#~ "library' icon image:images/icons/open_library.png[open_library_png] on "
-#~ "the top toolbar.  Select the 'myfootprint' library."
+#~ "enter \"myfootprint\" as Nickname, enter \"$\\{KIPRJMOD\\}/"
+#~ "myfootprint.pretty\" as Library Path and enter \"KiCad\" as Plugin Type.  "
+#~ "Press OK to close the PCB Library Tables window.  Click on the 'Select "
+#~ "active library' icon image:images/icons/"
+#~ "open_library.png[open_library_png] on the top toolbar.  Select the "
+#~ "'myfootprint' library."
 #~ msgstr ""
 #~ "我们将在新的封装库 _myfootprint_ 中保存新的封装 _MYCONN3_。 在 _教程1/_ 工"
 #~ "程文件夹中创建一个新文件夹 _myfootprint.pretty_ 。 单击 *偏好设置* -> **封"
@@ -5797,19 +6067,19 @@ msgstr ""
 #~ "_myfootprint_ 库。"
 
 #~ msgid ""
-#~ "Click on the 'New Footprint' icon image:images/icons/new_footprint."
-#~ "png[new_footprint_png] on the top toolbar.  Type 'MYCONN3' as the "
-#~ "'footprint name'. In the middle of the screen the 'MYCONN3' label will "
-#~ "appear. Under the label you can see the 'REF*__' label. Right click on "
-#~ "'MYCONN3' and move it above 'REF*__'. Right click on 'REF__*', select "
+#~ "Click on the 'New Footprint' icon image:images/icons/"
+#~ "new_footprint.png[new_footprint_png] on the top toolbar.  Type 'MYCONN3' "
+#~ "as the 'footprint name'. In the middle of the screen the 'MYCONN3' label "
+#~ "will appear. Under the label you can see the 'REF*__' label. Right click "
+#~ "on 'MYCONN3' and move it above 'REF*__'. Right click on 'REF__*', select "
 #~ "'Edit Text' and rename it to 'SMD'. Set the 'Display' value to "
 #~ "'Invisible'."
 #~ msgstr ""
-#~ "单击顶部工具栏上的 _新封装_ 图标 image:images/icons/new_footprint."
-#~ "png[new_footprint_png] 。 输入 _MYCONN3_ 作为 _封装名称_。 在屏幕中间将出"
-#~ "现 _MYCONN3_ 标签。 在标签下，您可以看到 ** REF*__ **标签。 右键单击 "
-#~ "_MYCONN3_ 并将其移到 ** REF*__ **上方。 右键单击 ** REF*__ **，选择 _编辑"
-#~ "文本_ 并将其重命名为 _SMD_。 将 _显示_ 值设置为 _不可见_。"
+#~ "单击顶部工具栏上的 _新封装_ 图标 image:images/icons/"
+#~ "new_footprint.png[new_footprint_png] 。 输入 _MYCONN3_ 作为 _封装名称_。 "
+#~ "在屏幕中间将出现 _MYCONN3_ 标签。 在标签下，您可以看到 ** REF*__ **标签。 "
+#~ "右键单击 _MYCONN3_ 并将其移到 ** REF*__ **上方。 右键单击 ** REF*__ **，选"
+#~ "择 _编辑文本_ 并将其重命名为 _SMD_。 将 _显示_ 值设置为 _不可见_。"
 
 #~ msgid ""
 #~ "Select the 'Add Pads' icon image:images/icons/pad.png[pad_png] on the "
@@ -5858,9 +6128,9 @@ msgstr ""
 #~ "button image:images/icons/add_polygon.png[add_polygon_png] in the right "
 #~ "toolbar. Draw an outline of the connector around the component."
 #~ msgstr ""
-#~ "现在添加一个封装边框。 单击右侧工具栏中的 _添加图形线或多边形_ 按钮 image:"
-#~ "images/icons/add_polygon.png[add_polygon_png] 。 绘制元件周围连接器的边"
-#~ "框。"
+#~ "现在添加一个封装边框。 单击右侧工具栏中的 _添加图形线或多边形_ 按钮 "
+#~ "image:images/icons/add_polygon.png[add_polygon_png] 。 绘制元件周围连接器"
+#~ "的边框。"
 
 #~ msgid ""
 #~ "Click on the 'Save Footprint in Active Library' icon image:images/icons/"
@@ -5883,14 +6153,14 @@ msgstr ""
 #~ "When you have a KiCad project to share with somebody, it is important "
 #~ "that the schematic file __.sch__, the board file __.kicad_pcb__, the "
 #~ "project file _.pro_ and the netlist file __.net__, are sent together with "
-#~ "both the schematic parts file _.lib_ and the footprints file __."
-#~ "kicad_mod__. Only this way will people have total freedom to modify the "
-#~ "schematic and the board."
+#~ "both the schematic parts file _.lib_ and the footprints file "
+#~ "__.kicad_mod__. Only this way will people have total freedom to modify "
+#~ "the schematic and the board."
 #~ msgstr ""
-#~ "当你有一个 KiCad 工程与某人分享时，重要的是原理图文件 __.sch__，板文件 __."
-#~ "kicad_pcb__，工程文件 _.pro_ 和网表文件 __.net__，与两个原理图一起发送库文"
-#~ "件 _.lib_ 和封装文件 __.kicad_mod__。 只有这样，人们才能完全自由地修改原理"
-#~ "图和电路板。"
+#~ "当你有一个 KiCad 工程与某人分享时，重要的是原理图文件 __.sch__，板文件 "
+#~ "__.kicad_pcb__，工程文件 _.pro_ 和网表文件 __.net__，与两个原理图一起发送"
+#~ "库文件 _.lib_ 和封装文件 __.kicad_mod__。 只有这样，人们才能完全自由地修改"
+#~ "原理图和电路板。"
 
 #~ msgid ""
 #~ "With KiCad schematics, people need the _.lib_ files that contain the "
@@ -5917,10 +6187,10 @@ msgstr ""
 #~ "If someone sends you a _.kicad_pcb_ file with footprints you would like "
 #~ "to use in another board, you can open the Footprint Editor, load a "
 #~ "footprint from the current board, and save or export it into another "
-#~ "footprint library. You can also export all the footprints from a _."
-#~ "kicad_pcb_ file at once via *Pcbnew* -> *File* -> *Archive* -> "
-#~ "*Footprints* -> **Create footprint archive**, which will create a new _."
-#~ "kicad_mod_ file with all the board's footprints."
+#~ "footprint library. You can also export all the footprints from a "
+#~ "_.kicad_pcb_ file at once via *Pcbnew* -> *File* -> *Archive* -> "
+#~ "*Footprints* -> **Create footprint archive**, which will create a new "
+#~ "_.kicad_mod_ file with all the board's footprints."
 #~ msgstr ""
 #~ "如果有人向您发送了一个带有封装的 _.kicad_pcb_ 文件，您可以在另一个板上使"
 #~ "用，您可以打开封装编辑器，从当前板上加载封装，并将其保存或导出到另一个封装"
@@ -6086,8 +6356,8 @@ msgstr ""
 #~ "|Eeschema |Schematic and component editor|+*.sch, *.lib, *.net+\n"
 #~ "|Pcbnew |Circuit board and footprint editor|+*.kicad_pcb, *.kicad_mod+\n"
 #~ "|GerbView |Gerber and drill file viewer|+\\*.g\\*, *.drl, etc.+\n"
-#~ "|Bitmap2Component |Convert bitmap images to components or footprints|+*."
-#~ "lib, *.kicad_mod, *.kicad_wks+\n"
+#~ "|Bitmap2Component |Convert bitmap images to components or footprints|"
+#~ "+*.lib, *.kicad_mod, *.kicad_wks+\n"
 #~ "|PCB Calculator |Calculator for components, track width, electrical "
 #~ "spacing, color codes, and more...|None\n"
 #~ "|Pl Editor |Page layout editor|+*.kicad_wks+\n"
@@ -6097,8 +6367,8 @@ msgstr ""
 #~ "|Eeschema |原理图和元件库编辑器|+*.sch, *.lib, *.net+\n"
 #~ "|Pcbnew |PCB 和封装编辑器|+*.kicad_pcb, *.kicad_mod+\n"
 #~ "|GerbView |光绘文件及钻孔文件查看|+\\*.g\\*, *.drl, etc.+\n"
-#~ "|Bitmap2Component |将位图转换为元件符号或封装|+*.lib, *.kicad_mod, *."
-#~ "kicad_wks+\n"
+#~ "|Bitmap2Component |将位图转换为元件符号或封装|+*.lib, *.kicad_mod, "
+#~ "*.kicad_wks+\n"
 #~ "|PCB Calculator |便携式计算器，可以用于方便的计算线宽/电气间隙/色环代码等"
 #~ "等|无\n"
 #~ "|Pl Editor |页面布局编辑器|+*.kicad_wks+\n"
@@ -6239,15 +6509,15 @@ msgstr ""
 #~ msgstr "在 Apple macOS 下"
 
 #~ msgid ""
-#~ "Stable builds of KiCad for macOS can be found at: http://downloads.kicad."
-#~ "org/osx/stable/"
+#~ "Stable builds of KiCad for macOS can be found at: http://"
+#~ "downloads.kicad.org/osx/stable/"
 #~ msgstr ""
 #~ "macOS 版 KiCad 的稳定版本可以在以下网站找到： http://downloads.kicad.org/"
 #~ "osx/stable/"
 
 #~ msgid ""
-#~ "Unstable nightly development builds can be found at: http://downloads."
-#~ "kicad.org/osx/"
+#~ "Unstable nightly development builds can be found at: http://"
+#~ "downloads.kicad.org/osx/"
 #~ msgstr ""
 #~ "不稳定的夜间开发版本可以在以下网站找到： http://downloads.kicad.org/osx/"
 
@@ -6255,18 +6525,18 @@ msgstr ""
 #~ msgstr "在 Windows 下"
 
 #~ msgid ""
-#~ "Stable builds of KiCad for Windows can be found at: http://downloads."
-#~ "kicad.org/windows/stable/"
+#~ "Stable builds of KiCad for Windows can be found at: http://"
+#~ "downloads.kicad.org/windows/stable/"
 #~ msgstr ""
-#~ "Windows 版 KiCad 的稳定版本可以在以下网站找到： http://downloads.kicad."
-#~ "org/windows/stable/"
+#~ "Windows 版 KiCad 的稳定版本可以在以下网站找到： http://"
+#~ "downloads.kicad.org/windows/stable/"
 
 #~ msgid ""
-#~ "For Windows you can find nightly development builds at: http://downloads."
-#~ "kicad.org/windows/"
+#~ "For Windows you can find nightly development builds at: http://"
+#~ "downloads.kicad.org/windows/"
 #~ msgstr ""
-#~ "对于 Windows，你可以在以下网站找到夜间开发版本：http://downloads.kicad."
-#~ "org/windows/"
+#~ "对于 Windows，你可以在以下网站找到夜间开发版本：http://"
+#~ "downloads.kicad.org/windows/"
 
 #~ msgid "https://forum.kicad.info/[Visit the forum]"
 #~ msgstr "https://forum.kicad.info/[访问论坛]"

@@ -116,7 +116,6 @@ public:
     static const std::string BackupFileSuffix;
     static const std::string LockFilePrefix;
     static const std::string LockFileExtension;
-    static const std::string AutoSaveFilePrefix;
 
     static const std::string SchematicSymbolFileExtension;
     static const std::string LegacySymbolLibFileExtension;
@@ -187,17 +186,20 @@ public:
     static const std::string TextFileExtension;
     static const std::string MarkdownFileExtension;
     static const std::string CsvFileExtension;
+    static const std::string TsvFileExtension;
     static const std::string XmlFileExtension;
     static const std::string JsonFileExtension;
     static const std::string PythonFileExtension;
 
     static const std::string StepFileExtension;
+    static const std::string StepZFileAbrvExtension;
     static const std::string StepFileAbrvExtension;
     static const std::string GltfBinaryFileExtension;
     static const std::string BrepFileExtension;
     static const std::string XaoFileExtension;
     static const std::string PlyFileExtension;
     static const std::string StlFileExtension;
+    static const std::string U3DFileExtension;
 
     static const std::string GencadFileExtension;
 
@@ -245,9 +247,13 @@ public:
     static wxString PADSNetlistFileWildcard();
     static wxString HtmlFileWildcard();
     static wxString CsvFileWildcard();
+    static wxString CsvTsvFileWildcard();
     static wxString PcbFileWildcard();
     static wxString CadstarArchiveFilesWildcard();
+    static wxString AltiumProjectFilesWildcard();
     static wxString EagleFilesWildcard();
+    static wxString PADSProjectFilesWildcard();
+    static wxString GedaProjectFilesWildcard();
     static wxString EasyEdaArchiveWildcard();
     static wxString EasyEdaProFileWildcard();
     static wxString PdfFileWildcard();
@@ -282,6 +288,7 @@ public:
     static wxString WorkbookFileWildcard();
     static wxString PngFileWildcard();
     static wxString JpegFileWildcard();
+    static wxString ImageFileWildcard();
     static wxString HotkeyFileWildcard();
     static wxString JobsetFileWildcard();
 

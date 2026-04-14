@@ -23,12 +23,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  */
 
+#include "tools/board_reannotate_tool.h"
+
+#include <wx/filedlg.h>
+
+#include <footprint.h>
 #include <pcb_group.h>
 #include <refdes_utils.h>
 #include <string_utils.h>
 #include <tool/tool_manager.h>
-#include <wx/filedlg.h>
-#include <tools/board_reannotate_tool.h>
 
 
 BOARD_REANNOTATE_TOOL::BOARD_REANNOTATE_TOOL() :
@@ -91,12 +94,13 @@ int BOARD_REANNOTATE_TOOL::ReannotateDuplicates( const PCB_SELECTION& aSelection
         {
             PCB_GROUP* group = static_cast<PCB_GROUP*>( item );
 
-            group->RunOnDescendants(
+            group->RunOnChildren(
                     [&]( BOARD_ITEM* aGroupItem )
                     {
                         if( aGroupItem->Type() == PCB_FOOTPRINT_T )
                             fpOnBoard.push_back( static_cast<FOOTPRINT*>( aGroupItem ) );
-                    } );
+                    },
+                    RECURSE_MODE::RECURSE );
         }
     }
 
@@ -115,12 +119,13 @@ int BOARD_REANNOTATE_TOOL::ReannotateDuplicates( const PCB_SELECTION& aSelection
         {
             PCB_GROUP* group = static_cast<PCB_GROUP*>( item );
 
-            group->RunOnDescendants(
+            group->RunOnChildren(
                     [&]( BOARD_ITEM* aGroupItem )
                     {
                         if( aGroupItem->Type() == PCB_FOOTPRINT_T )
                             fpInSelection.push_back( static_cast<FOOTPRINT*>( aGroupItem ) );
-                    } );
+                    },
+                    RECURSE_MODE::RECURSE );
         }
     }
 

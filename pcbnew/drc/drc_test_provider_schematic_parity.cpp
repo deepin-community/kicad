@@ -22,6 +22,7 @@
  */
 
 #include <board.h>
+#include <footprint.h>
 #include <pad.h>
 #include <drc/drc_engine.h>
 #include <drc/drc_item.h>
@@ -54,21 +55,11 @@ public:
         m_isRuleDriven = false;
     }
 
-    virtual ~DRC_TEST_PROVIDER_SCHEMATIC_PARITY()
-    {
-    }
+    virtual ~DRC_TEST_PROVIDER_SCHEMATIC_PARITY() = default;
 
     virtual bool Run() override;
 
-    virtual const wxString GetName() const override
-    {
-        return wxT( "schematic_parity" );
-    };
-
-    virtual const wxString GetDescription() const override
-    {
-        return wxT( "Performs layout-vs-schematics integity check" );
-    }
+    virtual const wxString GetName() const override { return wxT( "schematic_parity" ); };
 
 private:
     void testNetlist( NETLIST& aNetlist );
@@ -130,7 +121,7 @@ void DRC_TEST_PROVIDER_SCHEMATIC_PARITY::testNetlist( NETLIST& aNetlist )
                 && !m_drcEngine->IsErrorLimitExceeded( DRCE_SCHEMATIC_PARITY ) )
             {
                 wxString msg;
-                msg.Printf( _( "Value (%s) doesn't match symbol value (%s)." ),
+                msg.Printf( _( "Value (%s) doesn't match symbol value (%s)" ),
                             footprint->GetReference(), footprint->GetValue(),
                             component->GetValue() );
 
@@ -144,7 +135,7 @@ void DRC_TEST_PROVIDER_SCHEMATIC_PARITY::testNetlist( NETLIST& aNetlist )
                 && !m_drcEngine->IsErrorLimitExceeded( DRCE_SCHEMATIC_PARITY ) )
             {
                 wxString msg;
-                msg.Printf( _( "%s doesn't match footprint given by symbol (%s)." ),
+                msg.Printf( _( "%s doesn't match footprint given by symbol (%s)" ),
                             footprint->GetFPID().GetUniStringLibId(),
                             component->GetFPID().GetUniStringLibId() );
 
@@ -174,7 +165,7 @@ void DRC_TEST_PROVIDER_SCHEMATIC_PARITY::testNetlist( NETLIST& aNetlist )
                 if( !found )
                 {
                     wxString msg;
-                    msg.Printf( _( "%s doesn't match symbol's footprint filters (%s)." ),
+                    msg.Printf( _( "%s doesn't match symbol's footprint filters (%s)" ),
                                 footprint->GetFPID().GetUniStringLibId(),
                                 wxJoin( component->GetFootprintFilters(), ' ' ) );
 
@@ -190,10 +181,10 @@ void DRC_TEST_PROVIDER_SCHEMATIC_PARITY::testNetlist( NETLIST& aNetlist )
                 && !m_drcEngine->IsErrorLimitExceeded( DRCE_SCHEMATIC_PARITY ) )
             {
                 wxString msg;
-                msg.Printf( _( "'%s' settings differ." ), _( "Do not populate" ) );
+                msg.Printf( _( "'%s' settings differ" ), _( "Do not populate" ) );
 
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_SCHEMATIC_PARITY );
-                drcItem->SetErrorMessage( drcItem->GetErrorMessage() + wxS( ": " ) + msg );
+                drcItem->SetErrorMessage( drcItem->GetErrorMessage( true ) + wxS( ": " ) + msg );
                 drcItem->SetItems( footprint );
                 reportViolation( drcItem, footprint->GetPosition(), UNDEFINED_LAYER );
             }
@@ -203,12 +194,67 @@ void DRC_TEST_PROVIDER_SCHEMATIC_PARITY::testNetlist( NETLIST& aNetlist )
                 && !m_drcEngine->IsErrorLimitExceeded( DRCE_SCHEMATIC_PARITY ) )
             {
                 wxString msg;
-                msg.Printf( _( "'%s' settings differ." ), _( "Exclude from bill of materials" ) );
+                msg.Printf( _( "'%s' settings differ" ), _( "Exclude from bill of materials" ) );
 
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_SCHEMATIC_PARITY );
-                drcItem->SetErrorMessage( drcItem->GetErrorMessage() + wxS( ": " ) + msg );
+                drcItem->SetErrorMessage( drcItem->GetErrorMessage( true ) + wxS( ": " ) + msg );
                 drcItem->SetItems( footprint );
                 reportViolation( drcItem, footprint->GetPosition(), UNDEFINED_LAYER );
+            }
+
+            // Compare custom fields between schematic component and PCB footprint
+            if( !m_drcEngine->IsErrorLimitExceeded( DRCE_SCHEMATIC_FIELDS_PARITY ) )
+            {
+                std::unordered_map<wxString, wxString> fpFieldsAsMap;
+
+                for( PCB_FIELD* field : footprint->GetFields() )
+                {
+                    wxCHECK2( field, continue );
+
+                    if( field->IsReference() || field->IsValue() || field->IsComponentClass() )
+                        continue;
+
+                    fpFieldsAsMap[field->GetName()] = field->GetText();
+                }
+
+                // Remove the extra component fields we don't want to evaluate here
+                nlohmann::ordered_map<wxString, wxString> compFields = component->GetFields();
+                compFields.erase( GetCanonicalFieldName( FIELD_T::REFERENCE ) );
+                compFields.erase( GetCanonicalFieldName( FIELD_T::VALUE ) );
+                compFields.erase( GetCanonicalFieldName( FIELD_T::FOOTPRINT ) );
+                compFields.erase( wxT( "Component Class" ) );
+
+                bool fieldsMatch = true;
+                wxString mismatchDetail;
+
+                for( const auto& [name, value] : compFields )
+                {
+                    auto it = fpFieldsAsMap.find( name );
+
+                    if( it == fpFieldsAsMap.end() )
+                    {
+                        fieldsMatch = false;
+                        mismatchDetail = wxString::Format( _( "Missing symbol field '%s' in footprint" ), name );
+                        break;
+                    }
+
+                    if( it->second != value )
+                    {
+                        fieldsMatch = false;
+                        mismatchDetail = wxString::Format( _( "Field '%s' differs (PCB: '%s', Schematic: '%s')" ),
+                                                           name, it->second, value );
+                        break;
+                    }
+                }
+
+                if( !fieldsMatch && !mismatchDetail.IsEmpty() )
+                {
+                    std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_SCHEMATIC_FIELDS_PARITY );
+
+                    drcItem->SetErrorMessage( mismatchDetail );
+                    drcItem->SetItems( footprint );
+                    reportViolation( drcItem, footprint->GetPosition(), UNDEFINED_LAYER );
+                }
             }
 
             for( PAD* pad : footprint->Pads() )
@@ -225,7 +271,7 @@ void DRC_TEST_PROVIDER_SCHEMATIC_PARITY::testNetlist( NETLIST& aNetlist )
                 if( !pcb_netname.IsEmpty() && sch_net.GetPinName().IsEmpty() )
                 {
                     wxString msg;
-                    msg.Printf( _( "No corresponding pin found in schematic." ) );
+                    msg.Printf( _( "No corresponding pin found in schematic" ) );
 
                     std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_NET_CONFLICT );
                     drcItem->SetErrorMessage( msg );
@@ -235,7 +281,7 @@ void DRC_TEST_PROVIDER_SCHEMATIC_PARITY::testNetlist( NETLIST& aNetlist )
                 else if( pcb_netname.IsEmpty() && !sch_net.GetNetName().IsEmpty() )
                 {
                     wxString msg;
-                    msg.Printf( _( "Pad missing net given by schematic (%s)." ),
+                    msg.Printf( _( "Pad missing net given by schematic (%s)" ),
                                 sch_net.GetNetName() );
 
                     std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_NET_CONFLICT );
@@ -249,7 +295,7 @@ void DRC_TEST_PROVIDER_SCHEMATIC_PARITY::testNetlist( NETLIST& aNetlist )
                                  && pcb_netname.starts_with( sch_net.GetNetName() ) ) )
                 {
                     wxString msg;
-                    msg.Printf( _( "Pad net (%s) doesn't match net given by schematic (%s)." ),
+                    msg.Printf( _( "Pad net (%s) doesn't match net given by schematic (%s)" ),
                                 pcb_netname,
                                 sch_net.GetNetName() );
 
@@ -282,7 +328,7 @@ void DRC_TEST_PROVIDER_SCHEMATIC_PARITY::testNetlist( NETLIST& aNetlist )
                                                 sch_net.GetNetName() );
                     }
 
-                    msg.Printf( _( "No pad found for pin %s in schematic." ), msg );
+                    msg.Printf( _( "No pad found for pin %s in schematic" ), msg );
 
                     std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( DRCE_NET_CONFLICT );
                     drcItem->SetErrorMessage( msg );
@@ -324,13 +370,11 @@ bool DRC_TEST_PROVIDER_SCHEMATIC_PARITY::Run()
 
         if( !netlist )
         {
-            reportAux( wxT( "No netlist provided, skipping schematic parity tests." ) );
+            REPORT_AUX( wxT( "No netlist provided, skipping schematic parity tests." ) );
             return true;
         }
 
         testNetlist( *netlist );
-
-        reportRuleStatistics();
     }
 
     return !m_drcEngine->IsCancelled();

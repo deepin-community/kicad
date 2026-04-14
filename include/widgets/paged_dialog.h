@@ -50,6 +50,8 @@ public:
 
     void UpdateResetButton( int aPage );
 
+    WX_INFOBAR* GetInfoBar() { return m_infoBar; }
+
     static PAGED_DIALOG* GetDialog( wxWindow* aWindow );
 
 protected:
@@ -60,7 +62,7 @@ protected:
 
     virtual void onAuxiliaryAction( wxCommandEvent& aEvent ) { aEvent.Skip(); }
     virtual void onResetButton( wxCommandEvent& aEvent );
-    virtual void onOpenPreferencesButton( wxCommandEvent& aEvent );
+    virtual void onOpenPrefsDir( wxCommandEvent& aEvent );
     virtual void onPageChanged( wxBookCtrlEvent& aEvent );
     virtual void onPageChanging( wxBookCtrlEvent& aEvent );
     virtual void onCharHook( wxKeyEvent& aEvent );

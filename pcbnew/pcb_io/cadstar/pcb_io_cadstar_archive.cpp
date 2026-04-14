@@ -99,7 +99,8 @@ BOARD* PCB_IO_CADSTAR_ARCHIVE::LoadBoard( const wxString& aFileName, BOARD* aApp
     m_board = aAppendToMe ? aAppendToMe : new BOARD();
     clearLoadedFootprints();
 
-    fontconfig::FONTCONFIG::SetReporter( &WXLOG_REPORTER::GetInstance() );
+    // Collect the font substitution warnings (RAII - automatically reset on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( &LOAD_INFO_REPORTER::GetInstance() );
 
     CADSTAR_PCB_ARCHIVE_LOADER tempPCB( aFileName, m_layer_mapping_handler,
                                         m_show_layer_mapping_warnings, m_progressReporter );
@@ -221,7 +222,7 @@ FOOTPRINT* PCB_IO_CADSTAR_ARCHIVE::FootprintLoad( const wxString&        aLibrar
     if( !m_cache.at( aLibraryPath ).at( aFootprintName ) )
         return nullptr;
 
-    return static_cast<FOOTPRINT*>( m_cache.at( aLibraryPath ).at( aFootprintName )->Duplicate() );
+    return static_cast<FOOTPRINT*>( m_cache.at( aLibraryPath ).at( aFootprintName )->Duplicate( IGNORE_PARENT_GROUP ) );
 }
 
 
@@ -238,7 +239,8 @@ long long PCB_IO_CADSTAR_ARCHIVE::GetLibraryTimestamp( const wxString& aLibraryP
 
 void PCB_IO_CADSTAR_ARCHIVE::ensureLoadedLibrary( const wxString& aLibraryPath )
 {
-    fontconfig::FONTCONFIG::SetReporter( nullptr );
+    // Suppress font substitution warnings (RAII - automatically restored on scope exit)
+    FONTCONFIG_REPORTER_SCOPE fontconfigScope( nullptr );
 
     if( m_cache.count( aLibraryPath ) )
     {

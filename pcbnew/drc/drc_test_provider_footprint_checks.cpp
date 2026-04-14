@@ -47,21 +47,11 @@ public:
         m_isRuleDriven = false;
     }
 
-    virtual ~DRC_TEST_PROVIDER_FOOTPRINT_CHECKS()
-    {
-    }
+    virtual ~DRC_TEST_PROVIDER_FOOTPRINT_CHECKS() = default;
 
     virtual bool Run() override;
 
-    virtual const wxString GetName() const override
-    {
-        return wxT( "footprint checks" );
-    };
-
-    virtual const wxString GetDescription() const override
-    {
-        return wxT( "Check for common footprint pad and component type errors" );
-    }
+    virtual const wxString GetName() const override { return wxT( "footprint checks" ); };
 };
 
 
@@ -77,7 +67,7 @@ bool DRC_TEST_PROVIDER_FOOTPRINT_CHECKS::Run()
                 std::shared_ptr<DRC_ITEM> drcItem = DRC_ITEM::Create( aErrorCode );
 
                 if( !aMsg.IsEmpty() )
-                    drcItem->SetErrorMessage( drcItem->GetErrorText() + wxS( " " ) + aMsg );
+                    drcItem->SetErrorDetail( aMsg );
 
                 drcItem->SetItems( aItemA, aItemB, aItemC );
                 reportViolation( drcItem, aPt, aLayer );
